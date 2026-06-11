@@ -5,17 +5,14 @@ import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// Clean, isolated client setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const pureSupabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminDashboard() {
-  // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
 
-  // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [imageFile, setImageFile] = useState(null);
@@ -41,11 +38,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      alert('Missing environment variables. Please check your Vercel settings.');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -53,18 +45,12 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // THE COMPILER FIX: Use a FileReader promise to convert the image safely without crashing
-      const arrayBuffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsArrayBuffer(imageFile);
-      });
+      // Convert to a native clean Blob data slice to bypass all minifier/uploader quirks
+      const imageBlob = new Blob([imageFile], { type: safeContentType });
 
-      // Uploading the solid arrayBuffer payload safely
       const { error: uploadError } = await pureSupabase.storage
         .from('product-images')
-        .upload(fileName, arrayBuffer, {
+        .upload(fileName, imageBlob, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
