@@ -48,27 +48,30 @@ export default function AdminDashboard() {
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      // 2. Official SDK Upload: Sends the raw file perfectly with its natural properties
+      // 2. THE FIX: Fallback safety net so it NEVER sends a blank content-type to Supabase
+      const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
+
+      // 3. Official SDK Upload: Sends the file with the guaranteed content type
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
           cacheControl: '3600',
           upsert: false,
-          contentType: imageFile.type // Uses the file's natural content type
+          contentType: safeContentType 
         });
 
       if (uploadError) {
         throw new Error('Upload failed: ' + uploadError.message);
       }
 
-      // 3. Grab the pristine CDN URL
+      // 4. Grab the pristine CDN URL
       const { data } = supabase.storage
         .from('product-images')
         .getPublicUrl(fileName);
         
       const imageUrl = data.publicUrl;
 
-      // 4. Record the item details in your database table
+      // 5. Record the item details in your database table
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
