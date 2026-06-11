@@ -2,8 +2,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+
+// THE MASTER FIX: Initialize a pure client here to completely destroy the global header bug
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const pureSupabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminDashboard() {
   // Authentication State
@@ -16,7 +21,6 @@ export default function AdminDashboard() {
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // The secret passcode to unlock the page
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   const handleLogin = (e) => {
@@ -37,18 +41,22 @@ export default function AdminDashboard() {
       return;
     }
 
+    if (!supabaseUrl || !supabaseAnonKey) {
+      alert('Missing environment variables. Please check your Vercel settings.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // 1. Generate a unique file name
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       
-      // 2. THE FIX: Safety fallback so it NEVER sends a blank header
+      // Explicit binary upload configuration
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // 3. Upload the actual binary file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      // Uploading through the clean client instance
+      const { error: uploadError } = await pureSupabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
           cacheControl: '3600',
@@ -57,18 +65,16 @@ export default function AdminDashboard() {
         });
 
       if (uploadError) {
-        throw new Error('Failed to upload image: ' + uploadError.message);
+        throw new Error('Upload failed: ' + uploadError.message);
       }
 
-      // 4. Get the public URL for the newly uploaded image
-      const { data } = supabase.storage
+      const { data } = pureSupabase.storage
         .from('product-images')
         .getPublicUrl(fileName);
         
       const imageUrl = data.publicUrl;
 
-      // 5. Save the product details + correct image URL to the database
-      const { error: dbError } = await supabase
+      const { error: dbError } = await pureSupabase
         .from('products')
         .insert([{ 
           name: name.toUpperCase(), 
@@ -78,10 +84,9 @@ export default function AdminDashboard() {
         }]);
 
       if (dbError) {
-        throw new Error('Failed to save to database: ' + dbError.message);
+        throw new Error('Database error: ' + dbError.message);
       }
 
-      // 6. Success! Reset the form visually and in state
       alert('Item uploaded successfully! It is now live.');
       setName('');
       setPrice('');
@@ -95,7 +100,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // SHOW LOGIN SCREEN IF NOT AUTHENTICATED
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
@@ -122,7 +126,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // SHOW UPLOAD DASHBOARD IF AUTHENTICATED
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
       <Link href="/" className="text-[10px] tracking-[0.2em] uppercase text-gray-500 hover:text-black mb-8 block text-center">
