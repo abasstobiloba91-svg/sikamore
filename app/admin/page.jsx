@@ -1,7 +1,14 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+
+// Clear, official client instance
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminDashboard() {
   // Authentication State
@@ -15,10 +22,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
 
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
-
-  // Read clean network variables directly from your environment
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -38,69 +41,52 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      alert('Missing environment configuration. Please check your Vercel panel settings.');
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // 1. Generate a clean, unique filename
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // 1. PURE NATIVE STORAGE UPLOAD
-      // Streams the raw image file over standard web networks with no wrappers or SDK libraries
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/product-images/${fileName}`;
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'apikey': supabaseAnonKey,
-          'Content-Type': safeContentType
-        },
-        body: imageFile // Direct binary file stream
-      });
+      // 2. Official SDK Upload: Sends the raw file perfectly with its natural properties
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, imageFile, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: imageFile.type // Uses the file's natural content type
+        });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error('Image streaming failed: ' + errorText);
+      if (uploadError) {
+        throw new Error('Upload failed: ' + uploadError.message);
       }
 
-      // Construct the clean public CDN image URL
-      const imageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${fileName}`;
+      // 3. Grab the pristine CDN URL
+      const { data } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+        
+      const imageUrl = data.publicUrl;
 
-      // 2. PURE NATIVE DATABASE INSERT
-      const dbUrl = `${supabaseUrl}/rest/v1/products`;
-      
-      const dbResponse = await fetch(dbUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'apikey': supabaseAnonKey,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          name: name.toUpperCase(),
-          price: parseFloat(price),
-          image: imageUrl,
-          is_sold_out: false
-        })
-      });
+      // 4. Record the item details in your database table
+      const { error: dbError } = await supabase
+        .from('products')
+        .insert([{ 
+          name: name.toUpperCase(), 
+          price: parseFloat(price), 
+          image: imageUrl, 
+          is_sold_out: false 
+        }]);
 
-      if (!dbResponse.ok) {
-        const dbErrorText = await dbResponse.text();
-        throw new Error('Database registry failed: ' + dbErrorText);
+      if (dbError) {
+        throw new Error('Database registry failed: ' + dbError.message);
       }
 
-      alert('Item uploaded successfully! It is now live.');
+      alert('Item uploaded successfully! It is now permanently live.');
       setName('');
       setPrice('');
       setImageFile(null);
-      e.target.reset();
+      e.target.reset(); // Clears the file input box visually
 
     } catch (error) {
       alert(error.message);
