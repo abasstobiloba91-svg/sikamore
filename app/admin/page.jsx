@@ -6,17 +6,14 @@ import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
-  // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
 
-  // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // The secret passcode to unlock the page
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   const handleLogin = (e) => {
@@ -40,30 +37,28 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      // 1. Generate a unique, safe file name using the current timestamp
       const fileExt = imageFile.name ? imageFile.name.split('.').pop() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       
-      // 2. Upload the actual binary file to Supabase Storage
+      // THE FIX: We are explicitly passing the content type so Supabase doesn't corrupt it!
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: imageFile.type 
         });
 
       if (uploadError) {
-        throw new Error('Failed to upload image. ' + uploadError.message);
+        throw new Error('Upload failed: ' + uploadError.message);
       }
 
-      // 3. Get the public URL for the newly uploaded image
       const { data } = supabase.storage
         .from('product-images')
         .getPublicUrl(fileName);
         
       const imageUrl = data.publicUrl;
 
-      // 4. Save the product details + correct image URL to the database
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
@@ -74,15 +69,14 @@ export default function AdminDashboard() {
         }]);
 
       if (dbError) {
-        throw new Error('Failed to save to database. ' + dbError.message);
+        throw new Error('Database error: ' + dbError.message);
       }
 
-      // 5. Success! Reset the form visually and in state
       alert('Item uploaded successfully! It is now live.');
       setName('');
       setPrice('');
       setImageFile(null);
-      e.target.reset(); // Clears the file input field
+      e.target.reset();
 
     } catch (error) {
       alert(error.message);
@@ -91,7 +85,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // SHOW LOGIN SCREEN IF NOT AUTHENTICATED
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
@@ -118,7 +111,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // SHOW UPLOAD DASHBOARD IF AUTHENTICATED
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
       <Link href="/" className="text-[10px] tracking-[0.2em] uppercase text-gray-500 hover:text-black mb-8 block text-center">
