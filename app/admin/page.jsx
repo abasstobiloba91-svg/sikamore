@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
+// Using clean, isolated instance to bypass global config bugs
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const pureSupabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -38,6 +39,11 @@ export default function AdminDashboard() {
       return;
     }
 
+    if (!supabaseUrl || !supabaseAnonKey) {
+      alert('Missing configuration variables. Please check your Vercel panel settings.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -45,12 +51,10 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // Convert to a native clean Blob data slice to bypass all minifier/uploader quirks
-      const imageBlob = new Blob([imageFile], { type: safeContentType });
-
+      // THE PURE FIX: Passing the raw file object directly without wrappers now that headers are clean
       const { error: uploadError } = await pureSupabase.storage
         .from('product-images')
-        .upload(fileName, imageBlob, {
+        .upload(fileName, imageFile, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
