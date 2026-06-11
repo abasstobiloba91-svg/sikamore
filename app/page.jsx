@@ -47,12 +47,12 @@ export default function Storefront() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased text-[11px]">
       
-      {/* 1. TOP TICKER BANNER (Black Background) */}
+      {/* 1. TOP TICKER BANNER */}
       <div className="bg-black text-white py-2.5 text-center text-[9px] tracking-[0.3em] uppercase font-light border-b border-zinc-900 px-4 truncate select-none">
         WE SHIP OUR PRODUCTS WORLDWIDE • NEW IN | CORE COLLECTION
       </div>
 
-      {/* 2. THE EDITORIAL WHITE NAVIGATION HUB (Crisp High-Contrast White) */}
+      {/* 2. THE EDITORIAL NAVIGATION HUB */}
       <header className="bg-white text-black border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           
@@ -61,7 +61,7 @@ export default function Storefront() {
           </Link>
 
           {/* SIKAMORE Formal Text Logo */}
-          <Link href="/" className="text-base sm:text-xl font-normal tracking-[0.3em] sm:tracking-[0.4em] uppercase text-center block pl-[0.4em] font-serif text-black">
+          <Link href="/" className="text-base sm:text-xl font-normal tracking-[0.3em] sm:tracking-[0.4em] uppercase text-center block pl-[0.3em] font-serif text-black">
             S. SIKAMÒRE
           </Link>
 
@@ -82,44 +82,66 @@ export default function Storefront() {
         </div>
       </header>
 
-      {/* 3. DYNAMIC UTILITIES HUB (White Panel Transitioning into Black Canvas) */}
+      {/* 3. DYNAMIC UTILITIES HUB */}
       <section className="bg-white text-black border-b border-gray-200">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-5 flex items-center justify-between">
           
-          {/* THE SELECTION FIX: Replaced broken squares with high-fashion SVG layout outlines */}
-          <div className="hidden md:flex items-center gap-5 text-gray-300">
+          {/* THE SHARP FIXED GRID CONTROLLERS: Using high-contrast solid fills */}
+          <div className="hidden md:flex items-center gap-6">
+            
+            {/* 2-Column Toggle Button */}
             <button 
               onClick={() => setViewCols(2)} 
-              className={`flex gap-0.5 p-1 transition-colors ${viewCols === 2 ? 'text-black' : 'hover:text-gray-400'}`}
-              title="2 Columns Layout"
+              className={`flex gap-[3px] p-2 border transition-all duration-200 ${
+                viewCols === 2 
+                  ? 'border-black text-black bg-zinc-100' 
+                  : 'border-gray-200 text-gray-400 hover:text-black hover:border-gray-400'
+              }`}
+              title="2 Columns View"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M1 2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm7 0a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V2z"/>
+              <svg className="w-[14px] h-[14px]" fill="currentColor" viewBox="0 0 16 16">
+                <rect width="6" height="14" x="1" y="1" rx="0.5"/>
+                <rect width="6" height="14" x="9" y="1" rx="0.5"/>
               </svg>
             </button>
             
+            {/* 3-Column Toggle Button */}
             <button 
               onClick={() => setViewCols(3)} 
-              className={`flex gap-0.5 p-1 transition-colors ${viewCols === 3 ? 'text-black' : 'hover:text-gray-400'}`}
-              title="3 Columns Layout"
+              className={`flex gap-[3px] p-2 border transition-all duration-200 ${
+                viewCols === 3 
+                  ? 'border-black text-black bg-zinc-100' 
+                  : 'border-gray-200 text-gray-400 hover:text-black hover:border-gray-400'
+              }`}
+              title="3 Columns View"
             >
-              <svg className="w-5 h-4" fill="currentColor" viewBox="0 0 20 16">
-                <path d="M1 2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm6 0a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V2zm6 0a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V2z"/>
+              <svg className="w-[18px] h-[14px]" fill="currentColor" viewBox="0 0 20 16">
+                <rect width="5" height="14" x="1" y="1" rx="0.5"/>
+                <rect width="5" height="14" x="7" y="1" rx="0.5"/>
+                <rect width="5" height="14" x="13" y="1" rx="0.5"/>
               </svg>
             </button>
 
+            {/* 4-Column Toggle Button */}
             <button 
               onClick={() => setViewCols(4)} 
-              className={`flex gap-0.5 p-1 transition-colors ${viewCols === 4 ? 'text-black' : 'hover:text-gray-400'}`}
-              title="4 Columns Layout"
+              className={`flex gap-[2px] p-2 border transition-all duration-200 ${
+                viewCols === 4 
+                  ? 'border-black text-black bg-zinc-100' 
+                  : 'border-gray-200 text-gray-400 hover:text-black hover:border-gray-400'
+              }`}
+              title="4 Columns View"
             >
-              <svg className="w-6 h-4" fill="currentColor" viewBox="0 0 24 16">
-                <path d="M1 2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm5.5 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V2zm5.5 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V2zm5.5 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V2z"/>
+              <svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16">
+                <rect width="4" height="14" x="1" y="1" rx="0.5"/>
+                <rect width="4" height="14" x="6" y="1" rx="0.5"/>
+                <rect width="4" height="14" x="11" y="1" rx="0.5"/>
+                <rect width="4" height="14" x="16" y="1" rx="0.5"/>
               </svg>
             </button>
           </div>
 
-          <div className="text-[10px] tracking-widest text-gray-400 uppercase md:block hidden font-light">
+          <div className="text-[10px] tracking-with-space text-gray-400 uppercase md:block hidden font-light tracking-[0.15em]">
             Curation Archive / Total {products.length} Designs
           </div>
 
@@ -133,12 +155,11 @@ export default function Storefront() {
         </div>
       </section>
 
-      {/* 4. BLACK HIGH-FASHION GALLERY CANVAS (Alternating Dark Cards) */}
+      {/* 4. BLACK HIGH-FASHION GALLERY CANVAS */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Curation...</div>
         ) : (
-          /* Responsive Layout Grid: Handles 2 items side-by-side perfectly on mobile */
           <div className={`grid grid-cols-2 ${
             viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'
           } gap-x-4 sm:gap-x-6 gap-y-12 sm:gap-y-16 transition-all duration-500`}>
@@ -155,7 +176,7 @@ export default function Storefront() {
                     onError={(e) => { e.target.src = '/product 1.jpeg'; }}
                   />
 
-                  {/* THE ICON FIX: Elegant, high-visibility overlay utility row for all viewport states */}
+                  {/* High-visibility overlay action metrics */}
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center bg-black/95 backdrop-blur-md border border-zinc-800 divide-x divide-zinc-800 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 z-10 shadow-2xl rounded-sm">
                     <button className="p-2.5 hover:bg-white hover:text-black text-white transition-colors" title="Add to Cart">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5">
@@ -175,7 +196,7 @@ export default function Storefront() {
                     </button>
                   </div>
 
-                  {/* Elegant Circular Sold Out overlay badge */}
+                  {/* Elegant Circular Sold Out Overlay */}
                   {product.is_sold_out && (
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px] flex items-center justify-center pointer-events-none">
                       <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-black/90 border border-zinc-800 flex items-center justify-center shadow-2xl">
