@@ -1,85 +1,73 @@
 'use client';
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'; // Tells Vercel to always fetch fresh data instantly
 
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
-export default function AdminDashboard() {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function Home() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      let imageUrl = '';
-
-      // 1. Upload the image to Supabase Storage
-      if (imageFile) {
-        // SAFETY CHECK: Fallback to 'jpg' if the filename behaves weirdly
-        const fileExt = imageFile.name ? imageFile.name.split('.').pop() : 'jpg';
-        const fileName = `${Math.random()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(fileName, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        // Get the public URL to save in the database
-        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-        imageUrl = data.publicUrl;
-      }
-
-      // 2. Save the product details to the database
-      const { error: dbError } = await supabase
+  // Automatically fetch live products from your Supabase database
+  useEffect(() => {
+    async function fetchProducts() {
+      const { data, error } = await supabase
         .from('products')
-        .insert([{ name: name.toUpperCase(), price: parseFloat(price), image: imageUrl, is_sold_out: false }]);
+        .select('*')
+        .order('created_at', { ascending: false }); // Newest items first
 
-      if (dbError) throw dbError;
-
-      alert('Product successfully added to the store!');
-      setName('');
-      setPrice('');
-      setImageFile(null);
-      
-      // Resets the file input field visually
-      e.target.reset();
-    } catch (error) {
-      alert('Error: ' + error.message);
-    } finally {
+      if (!error && data) {
+        setProducts(data);
+      }
       setLoading(false);
     }
-  };
+    fetchProducts();
+  }, []);
 
   return (
-    <div className="max-w-2xl mx-auto p-8 mt-12 bg-gray-50 border border-gray-200 rounded">
-      <h1 className="text-2xl font-light tracking-widest uppercase mb-8 text-center">S. Sikamòre Admin</h1>
-      
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">PRODUCT NAME</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-3 border border-gray-300" placeholder="e.g. LUMIÈRE MAXI DRESS" />
-        </div>
+    <main className="max-w-[1600px] mx-auto px-6 py-12 bg-white min-h-screen">
+      <div className="text-center mb-16">
+        {/* Your Logo / Brand Name */}
+        <h1 className="text-4xl font-light tracking-[0.2em] uppercase mb-4 text-black">
+          S. SIKAMÒRE
+        </h1>
+        <h2 className="text-xs tracking-[0.3em] text-gray-400 uppercase">
+          Official Collection
+        </h2>
+      </div>
 
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">PRICE (₦)</label>
-          <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required className="w-full p-3 border border-gray-300" placeholder="e.g. 85000" />
+      {loading ? (
+        <div className="text-center py-24 text-xs tracking-widest text-gray-400 uppercase animate-pulse">
+          Loading Collection...
         </div>
-
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">PRODUCT IMAGE</label>
-          {/* CRITICAL FIX: Ensure files is explicitly targeted */}
-          <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files : null)} required className="w-full p-3 border border-gray-300 bg-white" />
+      ) : products.length === 0 ? (
+        <div className="text-center py-24 text-xs tracking-widest text-gray-400 uppercase">
+          Collection is empty. Upload your first piece in the Admin panel.
         </div>
-
-        <button type="submit" disabled={loading} className="w-full bg-black text-white py-4 text-xs tracking-widest uppercase font-medium mt-4 hover:bg-gray-800 transition-colors disabled:opacity-50">
-          {loading ? 'Uploading...' : 'Add Product to Store'}
-        </button>
-      </form>
-    </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
+          {products.map((product) => (
+            <div key={product.id} className="group relative cursor-pointer">
+              <div className="aspect-[3/4] w-full overflow-hidden bg-gray-50 border border-gray-100">
+                <img 
+                  src={product.image} 
+                  alt={product.name} 
+                  className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-700" 
+                />
+              </div>
+              <div className="mt-4 flex justify-between items-start">
+                <div>
+                  <h3 className="text-xs font-medium tracking-widest uppercase text-gray-900">{product.name}</h3>
+                  <p className="mt-1 text-xs tracking-widest text-gray-500">₦{product.price.toLocaleString()}</p>
+                </div>
+                <button className="bg-black text-white px-4 py-2 text-[10px] tracking-widest uppercase hover:bg-gray-800 transition-colors">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
   );
 }
