@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
   const [name, setName] = useState('');
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
       let imageUrl = '';
 
       if (imageFile) {
+        // Upload to Supabase 'product-images' bucket
         const fileExt = imageFile.name ? imageFile.name.split('.').pop() : 'jpg';
         const fileName = `${Math.random()}.${fileExt}`;
         
@@ -27,17 +29,19 @@ export default function AdminDashboard() {
 
         if (uploadError) throw uploadError;
 
+        // Get public URL
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         imageUrl = data.publicUrl;
       }
 
+      // Save to Supabase 'products' table
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ name: name.toUpperCase(), price: parseFloat(price), image: imageUrl, is_sold_out: false }]);
 
       if (dbError) throw dbError;
 
-      alert('Item uploaded successfully! Check your homepage.');
+      alert('Item uploaded successfully! It is now live.');
       setName('');
       setPrice('');
       setImageFile(null);
@@ -50,26 +54,32 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-8 mt-12 bg-gray-50 border border-gray-200 rounded">
-      <h1 className="text-2xl font-light tracking-widest uppercase mb-8 text-center">Admin Panel</h1>
+    <div className="min-h-screen bg-gray-50 py-12 px-6">
+      <Link href="/" className="text-[10px] tracking-[0.2em] uppercase text-gray-500 hover:text-black mb-8 block text-center">
+        &larr; BACK TO STOREFRONT
+      </Link>
       
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">PRODUCT NAME</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-3 border border-gray-300" />
-        </div>
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">PRICE (₦)</label>
-          <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required className="w-full p-3 border border-gray-300" />
-        </div>
-        <div>
-          <label className="block text-xs tracking-widest text-gray-500 mb-2">UPLOAD IMAGE OR LOGO</label>
-          <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files : null)} required className="w-full p-3 border border-gray-300 bg-white" />
-        </div>
-        <button type="submit" disabled={loading} className="w-full bg-black text-white py-4 text-xs tracking-widest uppercase font-medium hover:bg-gray-800 transition-colors disabled:opacity-50">
-          {loading ? 'Uploading to Database...' : 'Push to Live Storefront'}
-        </button>
-      </form>
+      <div className="max-w-xl mx-auto p-10 bg-white border border-gray-200 shadow-sm">
+        <h1 className="text-xl font-light tracking-[0.2em] uppercase mb-10 text-center">S. Sikamòre Admin</h1>
+        
+        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+          <div>
+            <label className="block text-[10px] tracking-[0.2em] text-gray-400 mb-3 uppercase">Product Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-4 border border-gray-200 focus:border-black outline-none transition-colors text-sm" placeholder="e.g. LUMIÈRE MAXI DRESS" />
+          </div>
+          <div>
+            <label className="block text-[10px] tracking-[0.2em] text-gray-400 mb-3 uppercase">Price (₦)</label>
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required className="w-full p-4 border border-gray-200 focus:border-black outline-none transition-colors text-sm" placeholder="e.g. 85000" />
+          </div>
+          <div>
+            <label className="block text-[10px] tracking-[0.2em] text-gray-400 mb-3 uppercase">Product Image</label>
+            <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files : null)} required className="w-full p-4 border border-gray-200 text-sm file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[10px] file:tracking-widest file:bg-black file:text-white cursor-pointer" />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.2em] uppercase mt-4 hover:bg-gray-800 transition-colors disabled:opacity-50">
+            {loading ? 'UPLOADING...' : 'PUSH TO LIVE STORE'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
