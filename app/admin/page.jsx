@@ -1,25 +1,24 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// Using clean, isolated instance to bypass global config bugs
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const pureSupabase = createClient(supabaseUrl, supabaseAnonKey);
-
 export default function AdminDashboard() {
+  // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
 
+  // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
+
+  // Read clean network variables directly from your environment
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -40,7 +39,7 @@ export default function AdminDashboard() {
     }
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      alert('Missing configuration variables. Please check your Vercel panel settings.');
+      alert('Missing environment configuration. Please check your Vercel panel settings.');
       return;
     }
 
@@ -51,36 +50,50 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // THE PURE FIX: Passing the raw file object directly without wrappers now that headers are clean
-      const { error: uploadError } = await pureSupabase.storage
-        .from('product-images')
-        .upload(fileName, imageFile, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: safeContentType 
-        });
+      // 1. PURE NATIVE STORAGE UPLOAD
+      // Streams the raw image file over standard web networks with no wrappers or SDK libraries
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/product-images/${fileName}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+          'Content-Type': safeContentType
+        },
+        body: imageFile // Direct binary file stream
+      });
 
-      if (uploadError) {
-        throw new Error('Upload failed: ' + uploadError.message);
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error('Image streaming failed: ' + errorText);
       }
 
-      const { data } = pureSupabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-        
-      const imageUrl = data.publicUrl;
+      // Construct the clean public CDN image URL
+      const imageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${fileName}`;
 
-      const { error: dbError } = await pureSupabase
-        .from('products')
-        .insert([{ 
-          name: name.toUpperCase(), 
-          price: parseFloat(price), 
-          image: imageUrl, 
-          is_sold_out: false 
-        }]);
+      // 2. PURE NATIVE DATABASE INSERT
+      const dbUrl = `${supabaseUrl}/rest/v1/products`;
+      
+      const dbResponse = await fetch(dbUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          name: name.toUpperCase(),
+          price: parseFloat(price),
+          image: imageUrl,
+          is_sold_out: false
+        })
+      });
 
-      if (dbError) {
-        throw new Error('Database error: ' + dbError.message);
+      if (!dbResponse.ok) {
+        const dbErrorText = await dbResponse.text();
+        throw new Error('Database registry failed: ' + dbErrorText);
       }
 
       alert('Item uploaded successfully! It is now live.');
