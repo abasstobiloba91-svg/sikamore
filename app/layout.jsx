@@ -13,7 +13,7 @@ export default function RootLayout({ children }) {
         <AppProvider>
           {children}
         </AppProvider>
-       bag</body>
+      </body>
     </html>
   );
 }
