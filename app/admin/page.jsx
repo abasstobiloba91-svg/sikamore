@@ -44,14 +44,11 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      // 1. Generate a clean, unique filename
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      // 2. THE FIX: Fallback safety net so it NEVER sends a blank content-type to Supabase
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // 3. Official SDK Upload: Sends the file with the guaranteed content type
+      // Standard upload with fixed content-type fallback protection
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
@@ -64,14 +61,12 @@ export default function AdminDashboard() {
         throw new Error('Upload failed: ' + uploadError.message);
       }
 
-      // 4. Grab the pristine CDN URL
       const { data } = supabase.storage
         .from('product-images')
         .getPublicUrl(fileName);
         
       const imageUrl = data.publicUrl;
 
-      // 5. Record the item details in your database table
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
@@ -89,7 +84,7 @@ export default function AdminDashboard() {
       setName('');
       setPrice('');
       setImageFile(null);
-      e.target.reset(); // Clears the file input box visually
+      e.target.reset();
 
     } catch (error) {
       alert(error.message);
@@ -98,12 +93,24 @@ export default function AdminDashboard() {
     }
   };
 
+  // 1. LOCKED PASSCODE SCREEN (With Logo)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
-        <div className="max-w-md w-full bg-white p-10 border border-gray-200 shadow-sm text-center">
-          <h1 className="text-xl font-light tracking-[0.2em] uppercase mb-8">Admin Access</h1>
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
+        <div className="max-w-md w-full bg-white p-10 border border-gray-200 shadow-sm text-center flex flex-col items-center">
+          
+          {/* Brand Logo Container */}
+          <div className="mb-8 mt-2">
+            <img 
+              src="/logo.png" 
+              alt="S. Sikamòre Logo" 
+              className="h-16 w-auto object-contain mx-auto"
+              onError={(e) => { e.target.style.display = 'none'; }} 
+            />
+            <p className="text-[9px] tracking-[0.3em] uppercase text-gray-400 mt-3">Admin Access</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="w-full flex flex-col gap-6">
             <input 
               type="password" 
               value={passcode} 
@@ -124,16 +131,27 @@ export default function AdminDashboard() {
     );
   }
 
+  // 2. UNLOCKED ADMIN DASHBOARD (With Logo)
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
       <Link href="/" className="text-[10px] tracking-[0.2em] uppercase text-gray-500 hover:text-black mb-8 block text-center">
         &larr; BACK TO STOREFRONT
       </Link>
       
-      <div className="max-w-xl mx-auto p-10 bg-white border border-gray-200 shadow-sm">
-        <h1 className="text-xl font-light tracking-[0.2em] uppercase mb-10 text-center">S. Sikamòre Admin</h1>
+      <div className="max-w-xl mx-auto p-10 bg-white border border-gray-200 shadow-sm flex flex-col items-center">
         
-        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+        {/* Brand Logo Container */}
+        <div className="mb-10 mt-2 text-center">
+          <img 
+            src="/logo.png" 
+            alt="S. Sikamòre Logo" 
+            className="h-16 w-auto object-contain mx-auto"
+            onError={(e) => { e.target.style.display = 'none'; }} 
+          />
+          <p className="text-[9px] tracking-[0.3em] uppercase text-gray-400 mt-3">Management Dashboard</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-8">
           <div>
             <label className="block text-[10px] tracking-[0.2em] text-gray-400 mb-3 uppercase">Product Name</label>
             <input 
