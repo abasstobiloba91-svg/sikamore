@@ -53,10 +53,15 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // THE FINISHING FIX: Convert the raw file to an immutable ArrayBuffer stream
-      const arrayBuffer = await imageFile.arrayBuffer();
+      // THE COMPILER FIX: Use a FileReader promise to convert the image safely without crashing
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(imageFile);
+      });
 
-      // Uploading the arrayBuffer data payload safely
+      // Uploading the solid arrayBuffer payload safely
       const { error: uploadError } = await pureSupabase.storage
         .from('product-images')
         .upload(fileName, arrayBuffer, {
