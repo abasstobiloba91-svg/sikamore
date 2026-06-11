@@ -1,16 +1,19 @@
 import './globals.css';
+import { AppProvider } from './providers';
 
 export const metadata = {
   title: 'S. SIKAMÒRE | Official Store',
-  description: 'Official Collection',
+  description: 'High-Fashion Textiles and Ready-To-Wear Luxury Archive',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="antialiased bg-white text-black">
-        {children}
-      </body>
+      <body>
+        <AppProvider>
+          {children}
+        </AppProvider>
+       bag</body>
     </html>
   );
 }
