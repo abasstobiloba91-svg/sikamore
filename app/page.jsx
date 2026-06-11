@@ -1,73 +1,107 @@
 'use client';
-export const dynamic = 'force-dynamic'; // Tells Vercel to always fetch fresh data instantly
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Automatically fetch live products from your Supabase database
   useEffect(() => {
     async function fetchProducts() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: false }); // Newest items first
+        .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setProducts(data);
-      }
+      if (data) setProducts(data);
       setLoading(false);
     }
     fetchProducts();
   }, []);
 
   return (
-    <main className="max-w-[1600px] mx-auto px-6 py-12 bg-white min-h-screen">
-      <div className="text-center mb-16">
-        {/* Your Logo / Brand Name */}
-        <h1 className="text-4xl font-light tracking-[0.2em] uppercase mb-4 text-black">
+    <div className="min-h-screen bg-white text-black font-sans">
+      
+      {/* NAVBAR */}
+      <nav className="bg-black text-white px-8 py-5 flex items-center justify-between text-[10px] tracking-[0.2em] uppercase w-full">
+        <div className="flex gap-8">
+          <Link href="#" className="hover:text-gray-400 transition-colors duration-300">SHOP ALL</Link>
+          <Link href="#" className="hover:text-gray-400 transition-colors duration-300">COLLECTIONS</Link>
+        </div>
+        
+        {/* LOGO AREA */}
+        <div className="text-sm tracking-[0.3em] font-light">
           S. SIKAMÒRE
-        </h1>
-        <h2 className="text-xs tracking-[0.3em] text-gray-400 uppercase">
-          Official Collection
-        </h2>
-      </div>
+        </div>
+        
+        <div className="flex gap-8 items-center">
+          <Link href="/admin" className="border border-gray-700 px-6 py-2 hover:bg-white hover:text-black transition-all duration-300">
+            DASHBOARD
+          </Link>
+          <Link href="#" className="hover:text-gray-400 transition-colors duration-300">
+            CART ({products.length})
+          </Link>
+        </div>
+      </nav>
 
-      {loading ? (
-        <div className="text-center py-24 text-xs tracking-widest text-gray-400 uppercase animate-pulse">
-          Loading Collection...
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-24 text-xs tracking-widest text-gray-400 uppercase">
-          Collection is empty. Upload your first piece in the Admin panel.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
-          {products.map((product) => (
-            <div key={product.id} className="group relative cursor-pointer">
-              <div className="aspect-[3/4] w-full overflow-hidden bg-gray-50 border border-gray-100">
-                <img 
-                  src={product.image} 
-                  alt={product.name} 
-                  className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-700" 
-                />
+      {/* MAIN CONTENT */}
+      <main className="max-w-[1400px] mx-auto px-8 py-16">
+        <h1 className="text-center text-3xl font-light tracking-[0.25em] mb-16 uppercase">
+          THE S. SIKAMÒRE COLLECTION
+        </h1>
+
+        {/* TOOLBAR */}
+        <div className="flex justify-between items-center text-[10px] tracking-[0.2em] text-gray-500 border-b border-gray-100 pb-4 mb-16 uppercase">
+          <span>SHOWING {products.length} ITEMS</span>
+          <div className="flex items-center gap-4">
+            <span>GRID:</span>
+            <div className="flex gap-2">
+              {/* List Icon Mockup */}
+              <div className="flex gap-[2px] cursor-pointer hover:opacity-60 transition-opacity">
+                <div className="w-[6px] h-[14px] bg-gray-300"></div>
+                <div className="w-[6px] h-[14px] bg-gray-300"></div>
               </div>
-              <div className="mt-4 flex justify-between items-start">
-                <div>
-                  <h3 className="text-xs font-medium tracking-widest uppercase text-gray-900">{product.name}</h3>
-                  <p className="mt-1 text-xs tracking-widest text-gray-500">₦{product.price.toLocaleString()}</p>
-                </div>
-                <button className="bg-black text-white px-4 py-2 text-[10px] tracking-widest uppercase hover:bg-gray-800 transition-colors">
-                  Add to Cart
-                </button>
+              {/* Grid Icon Mockup */}
+              <div className="grid grid-cols-2 gap-[2px] cursor-pointer hover:opacity-60 transition-opacity">
+                <div className="w-[6px] h-[6px] bg-black"></div><div className="w-[6px] h-[6px] bg-black"></div>
+                <div className="w-[6px] h-[6px] bg-black"></div><div className="w-[6px] h-[6px] bg-black"></div>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      )}
-    </main>
+
+        {/* PRODUCTS GRID / EMPTY STATE */}
+        {loading ? (
+          <div className="text-center text-[10px] tracking-[0.2em] text-gray-400 uppercase animate-pulse mt-32">
+            Loading Collection...
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center text-[10px] tracking-[0.2em] text-gray-400 uppercase mt-32">
+            NO PRODUCTS FOUND. USE THE /ADMIN PANEL TO ADD YOUR FIRST ITEM!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+            {products.map((product) => (
+              <div key={product.id} className="group cursor-pointer">
+                <div className="aspect-[3/4] w-full overflow-hidden bg-gray-50">
+                  <img 
+                    src={product.image} 
+                    alt={product.name} 
+                    className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-in-out" 
+                  />
+                </div>
+                <div className="mt-4 text-center">
+                  <h3 className="text-[11px] font-medium tracking-[0.2em] uppercase text-black">{product.name}</h3>
+                  <p className="mt-2 text-[10px] tracking-[0.15em] text-gray-500">₦ {product.price.toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
