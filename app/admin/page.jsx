@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// THE MASTER FIX: Initialize a pure client here to completely destroy the global header bug
+// Clean, isolated client setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const pureSupabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -51,14 +51,15 @@ export default function AdminDashboard() {
     try {
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      
-      // Explicit binary upload configuration
       const safeContentType = imageFile.type || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
 
-      // Uploading through the clean client instance
+      // THE FINISHING FIX: Convert the raw file to an immutable ArrayBuffer stream
+      const arrayBuffer = await imageFile.arrayBuffer();
+
+      // Uploading the arrayBuffer data payload safely
       const { error: uploadError } = await pureSupabase.storage
         .from('product-images')
-        .upload(fileName, imageFile, {
+        .upload(fileName, arrayBuffer, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
