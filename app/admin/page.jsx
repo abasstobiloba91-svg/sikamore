@@ -17,6 +17,7 @@ export default function AdminDashboard() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,36 +34,40 @@ export default function AdminDashboard() {
     }
   };
 
-  // Only used to show the preview on the screen
   const handleImageChange = (e) => {
     const file = e.target.files;
     if (file) {
+      setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     } else {
+      setImageFile(null);
       setImagePreview(null);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // THE ULTIMATE FIX: We bypass React and grab the raw image file directly from the browser window.
-    // This makes it physically impossible to upload a 17-byte text string.
-    const fileInput = document.getElementById('product-image-upload');
-    const actualFile = fileInput?.files;
-
-    if (!actualFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
+    if (!imageFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
-      const fileExt = actualFile.name ? actualFile.name.split('.').pop().toLowerCase() : 'jpg';
+      const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const safeContentType = actualFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+      const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // Uploading the raw extracted HTML file object directly to Supabase
+      // THE ULTIMATE FIX: Using the vintage FileReader API. 
+      // This works on every browser ever made and guarantees raw binary pixels.
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(imageFile);
+      });
+
+      // Uploading the raw binary data directly
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, actualFile, {
+        .upload(fileName, arrayBuffer, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
@@ -86,10 +91,10 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
-      // Clear the form
+      // Clear the form completely
       setName('');
       setPrice('');
-      fileInput.value = ''; // Reset the HTML input
+      setImageFile(null);
       setImagePreview(null);
       e.target.reset();
       
@@ -163,8 +168,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                {/* ID added here so JavaScript can grab it directly without React interfering */}
-                <input id="product-image-upload" type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
+                <input type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
             </div>
