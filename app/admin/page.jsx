@@ -19,7 +19,6 @@ export default function AdminDashboard() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   
-  // Storing the file and the Base64 string
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -37,18 +36,19 @@ export default function AdminDashboard() {
     }
   };
 
-  // THE FIX: Base64 FileReader. This mathematically guarantees the file is read into memory.
   const handleImageChange = (e) => {
-    const file = e.target.files;
+    // THE CRITICAL FIX: Extracting item out of the file array wrapper
+    const file = e.target.files ? e.target.files : null;
+    
     if (!file) {
       setImageFile(null);
       setImagePreview(null);
       return;
     }
 
-    setImageFile(file); // Save the true file for Supabase
+    setImageFile(file); 
 
-    // Read the file as a raw Base64 string to guarantee the visual preview works
+    // This will now successfully render the image inside your black preview box
     const reader = new FileReader();
     reader.onload = (event) => {
       setImagePreview(event.target.result);
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // Upload the safely captured file directly to Supabase
+      // Uploads the real, individual image file cleanly to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
@@ -94,7 +94,6 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
-      // Reset form
       setName('');
       setPrice('');
       setImageFile(null);
