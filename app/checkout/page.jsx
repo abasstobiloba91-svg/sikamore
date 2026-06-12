@@ -6,21 +6,17 @@ import Link from 'next/link';
 import { useApp } from '../providers';
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useApp();
+  const { cart, clearCart, showToast } = useApp(); // Connect custom popup
   const [processing, setProcessing] = useState(false);
 
-  // Form Fields
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [address, setAddress] = useState('');
-  
-  // Shipping Zone Selection
   const [shippingZone, setShippingZone] = useState('lagos_standard');
 
   const itemTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
-  // Dynamic Shipping Dictionary based on video layout
   const shippingRates = {
     'lagos_standard': 9000,
     'lagos_outskirts': 12000,
@@ -32,11 +28,11 @@ export default function CheckoutPage() {
 
   const handleCheckoutSubmit = (e) => {
     e.preventDefault();
-    if (cart.length === 0) return alert('Your shopping bag is empty.');
+    if (cart.length === 0) return showToast('ERROR: YOUR SHOPPING BAG IS EMPTY.');
     setProcessing(true);
     setTimeout(() => {
       setProcessing(false);
-      alert(`Order securely placed! A confirmation receipt has been dispatched to ${email}.`);
+      showToast('ORDER SECURELY PLACED. RECEIPT DISPATCHED.');
       clearCart();
     }, 2500);
   };
@@ -44,7 +40,6 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px]">
       
-      {/* Checkout Minimal Header */}
       <header className="border-b border-gray-100 h-20 flex items-center justify-between px-4 sm:px-8 bg-white sticky top-0 z-10">
         <Link href="/" className="tracking-[0.2em] text-gray-500 hover:text-black uppercase text-[9px] sm:text-[10px]">
           &larr; Return to Store
@@ -57,7 +52,6 @@ export default function CheckoutPage() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-16">
         
-        {/* Left Side: Forms & Shipping Selection */}
         <div className="lg:col-span-7 space-y-10">
           <h2 className="text-2xl font-light tracking-wide">Checkout</h2>
           
@@ -90,7 +84,6 @@ export default function CheckoutPage() {
           </form>
         </div>
 
-        {/* Right Side: Order Summary & Dynamic Shipping Map */}
         <div className="lg:col-span-5 bg-gray-50 border border-gray-200 p-8 h-fit space-y-8">
           <h3 className="text-sm tracking-wide font-medium">Your order</h3>
           
