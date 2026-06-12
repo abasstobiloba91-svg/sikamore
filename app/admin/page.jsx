@@ -4,12 +4,14 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useApp } from '../providers'; // Import global toast system
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminDashboard() {
+  const { showToast } = useApp(); // Connect custom popup
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
 
@@ -25,8 +27,9 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (passcode === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
+      showToast('ACCESS GRANTED. WELCOME BACK.');
     } else {
-      alert('Access Denied: Incorrect Passcode.');
+      showToast('ACCESS DENIED: INCORRECT PASSCODE.');
       setPasscode('');
     }
   };
@@ -34,7 +37,7 @@ export default function AdminDashboard() {
   const handleImageChange = (e) => {
     const file = e.target.files;
     if (file) {
-      setImageFile(file);
+      setImageFile(file); // Strictly binds the raw File object
       setImagePreview(URL.createObjectURL(file));
     } else {
       setImageFile(null);
@@ -44,7 +47,7 @@ export default function AdminDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!imageFile) return alert('Please select an image first.');
+    if (!imageFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
@@ -52,18 +55,16 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // THE FIX: Convert the image to raw binary pixels before uploading
-      const arrayBuffer = await imageFile.arrayBuffer();
-
+      // Uploads the standard File object natively (No ArrayBuffer needed)
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, arrayBuffer, {
+        .upload(fileName, imageFile, {
           cacheControl: '3600',
           upsert: false,
-          contentType: safeContentType 
+          contentType: safeContentType
         });
 
-      if (uploadError) throw new Error('Upload Failed: ' + uploadError.message);
+      if (uploadError) throw new Error(uploadError.message);
 
       const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
       const imageUrl = data.publicUrl;
@@ -77,9 +78,9 @@ export default function AdminDashboard() {
           is_sold_out: false 
         }]);
 
-      if (dbError) throw new Error('Database Sync Failed: ' + dbError.message);
+      if (dbError) throw new Error(dbError.message);
 
-      alert('Success! The product is now live on the storefront.');
+      showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
       setName('');
       setPrice('');
@@ -88,7 +89,7 @@ export default function AdminDashboard() {
       e.target.reset();
       
     } catch (error) {
-      alert(error.message);
+      showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
     } finally {
       setLoading(false);
     }
