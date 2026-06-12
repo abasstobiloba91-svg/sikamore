@@ -71,7 +71,7 @@ export default function Storefront() {
             S. SIKAMÒRE
           </Link>
           
-          {/* Header Action Icons (Like the Video) */}
+          {/* Header Action Icons */}
           <div className="flex items-center gap-4 sm:gap-6 text-black">
             <button className="hover:text-gray-500 transition-colors hidden sm:block">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
@@ -86,17 +86,18 @@ export default function Storefront() {
           </div>
         </div>
         
+        {/* WORKING NAVIGATION BAR LINKED TO NEW PAGES */}
         <div className="border-t border-gray-100 bg-white">
           <div className="max-w-xl mx-auto h-11 flex items-center justify-center gap-8 sm:gap-10 tracking-[0.25em] text-[9px] sm:text-[10px] uppercase font-light text-gray-500 overflow-x-auto whitespace-nowrap px-6 scrollbar-none">
-            <span className="text-black font-normal border-b border-black pb-1 cursor-pointer">Home</span>
-            <span className="hover:text-black cursor-pointer">New In</span>
-            <span className="hover:text-black cursor-pointer">About Us</span>
-            <span className="hover:text-black cursor-pointer">Contact Us</span>
+            <Link href="/" className="text-black font-normal border-b border-black pb-1 shrink-0">Home</Link>
+            <Link href="/" className="hover:text-black transition-colors shrink-0">New In</Link>
+            <Link href="/about" className="hover:text-black transition-colors shrink-0">About Us</Link>
+            <Link href="/contact" className="hover:text-black transition-colors shrink-0">Contact Us</Link>
           </div>
         </div>
       </header>
 
-      {/* GRID CONTROLS */}
+      {/* 3. GRID CONTROLS */}
       <section className="bg-white text-black border-b border-gray-200">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-5 flex items-center justify-between">
           <div className="hidden md:flex items-center gap-6">
@@ -117,7 +118,7 @@ export default function Storefront() {
         </div>
       </section>
 
-      {/* MAIN GALLERY */}
+      {/* 4. MAIN GALLERY */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Curation...</div>
@@ -156,7 +157,7 @@ export default function Storefront() {
         )}
       </main>
 
-      {/* QUICK VIEW MODAL (Matches Video) */}
+      {/* QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-white text-black w-full max-w-3xl flex flex-col md:flex-row relative shadow-2xl">
@@ -195,7 +196,7 @@ export default function Storefront() {
         </div>
       )}
 
-      {/* SLIDING CART DRAWER (With Sticky Bottom Buttons like the video) */}
+      {/* SLIDING CART DRAWER */}
       <div className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
         
         {/* Drawer Header */}
@@ -242,7 +243,6 @@ export default function Storefront() {
               <span className="text-gray-500">Subtotal:</span>
               <span className="font-medium text-black">₦{cartSubtotal.toLocaleString()}</span>
             </div>
-            {/* Side-by-side buttons mimicking the video */}
             <div className="flex gap-3">
               <Link href="/checkout" onClick={() => setIsCartOpen(false)} className="flex-1 border border-black text-black text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-black hover:text-white transition-colors">
                 View Cart
@@ -258,7 +258,7 @@ export default function Storefront() {
       {/* Dark Overlay when Drawer is open */}
       {isCartOpen && <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
-      {/* 5. THE FULL EMAIL FOOTER IS BACK */}
+      {/* 5. THE FULL EMAIL FOOTER */}
       <footer className="border-t border-zinc-900 bg-[#020202] pt-16 pb-12 mt-16 sm:mt-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-400 font-light tracking-widest">
           
@@ -270,8 +270,8 @@ export default function Storefront() {
 
           <div className="flex flex-col gap-2.5 text-[10px]">
             <h4 className="text-white text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Help</h4>
-            <span className="hover:text-white cursor-pointer transition-colors">Contact Us</span>
-            <span className="hover:text-white cursor-pointer transition-colors">About Us</span>
+            <Link href="/contact" className="hover:text-white cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-white cursor-pointer transition-colors">About Us</Link>
             <span className="hover:text-white cursor-pointer transition-colors">Privacy Policy</span>
             <span className="hover:text-white cursor-pointer transition-colors">Terms & Conditions</span>
           </div>
