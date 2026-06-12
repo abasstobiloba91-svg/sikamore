@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 export const dynamic = 'force-dynamic';
 
@@ -20,9 +21,7 @@ export default function AdminDashboard() {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // THE FIX: A physical tracker attached directly to the input box.
   const fileInputRef = useRef(null);
-
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   const handleLogin = (e) => {
@@ -36,9 +35,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Only responsible for updating the visual black box on the screen
   const handleImageChange = () => {
-    // Yanking the file directly from the HTML element, bypassing React state
     const file = fileInputRef.current?.files?.;
     if (file) {
       setImagePreview(URL.createObjectURL(file));
@@ -50,7 +47,6 @@ export default function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // YANKING THE FILE directly from the DOM at the exact moment of upload
     const actualFile = fileInputRef.current?.files?.;
 
     if (!actualFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
@@ -60,7 +56,6 @@ export default function AdminDashboard() {
       const fileExt = actualFile.name ? actualFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      // Uploading the guaranteed physical file object
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, actualFile, {
@@ -86,7 +81,6 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
-      // Clear the form and reset the tracking beacon
       setName('');
       setPrice('');
       setImagePreview(null);
@@ -162,7 +156,6 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                {/* TRACKING BEACON (ref) ATTACHED HERE */}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
