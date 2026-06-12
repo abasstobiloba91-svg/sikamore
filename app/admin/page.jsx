@@ -16,6 +16,8 @@ export default function AdminDashboard() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [imageFile, setImageFile] = useState(null);
+  
+  // New State to handle the live image preview
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -31,11 +33,11 @@ export default function AdminDashboard() {
     }
   };
 
+  // Function to capture the file and instantly generate a preview URL
   const handleImageChange = (e) => {
     const file = e.target.files;
     if (file) {
       setImageFile(file);
-      // Create a local preview URL so the client can see what they selected
       setImagePreview(URL.createObjectURL(file));
     } else {
       setImageFile(null);
@@ -46,17 +48,13 @@ export default function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!imageFile) return alert('Please select an image first.');
-    if (!supabaseUrl) return alert('System Error: Missing Supabase URL in Vercel.');
-
     setLoading(true);
 
     try {
-      // 1. Clean File Naming
       const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // 2. Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(fileName, imageFile, {
@@ -65,13 +63,11 @@ export default function AdminDashboard() {
           contentType: safeContentType 
         });
 
-      if (uploadError) throw new Error('Storage Upload Failed: ' + uploadError.message);
+      if (uploadError) throw new Error('Upload Failed: ' + uploadError.message);
 
-      // 3. Get the guaranteed Public URL
       const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
       const imageUrl = data.publicUrl;
 
-      // 4. Save to Database
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
@@ -85,7 +81,7 @@ export default function AdminDashboard() {
 
       alert('Success! The product is now live on the storefront.');
       
-      // Reset the form for the next upload
+      // Clear the form and the preview box after a successful upload
       setName('');
       setPrice('');
       setImageFile(null);
@@ -93,7 +89,6 @@ export default function AdminDashboard() {
       e.target.reset();
       
     } catch (error) {
-      console.error(error);
       alert(error.message);
     } finally {
       setLoading(false);
@@ -139,7 +134,6 @@ export default function AdminDashboard() {
         
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
           
-          {/* Row: Name and Price */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label className="block text-[10px] tracking-[0.2em] text-zinc-400 mb-3 uppercase">Product Name</label>
@@ -151,17 +145,18 @@ export default function AdminDashboard() {
             </div>
           </div>
           
-          {/* Row: Image Upload & Preview */}
+          {/* THE NEW LIVE PREVIEW UPLOAD BOX */}
           <div className="flex flex-col gap-4 border border-zinc-800 p-6 bg-[#161616]">
             <label className="block text-[10px] tracking-[0.2em] text-zinc-400 uppercase">Product Image</label>
             
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              {/* Image Preview Box */}
-              <div className="w-24 h-32 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden">
+              
+              {/* Dark Black Image Preview Canvas */}
+              <div className="w-24 h-32 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden shadow-inner">
                 {imagePreview ? (
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[8px] text-zinc-600 uppercase tracking-widest text-center px-2">No Image</span>
+                  <span className="text-[8px] text-zinc-600 uppercase tracking-widest text-center px-2">Image Preview</span>
                 )}
               </div>
               
