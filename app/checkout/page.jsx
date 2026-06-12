@@ -40,14 +40,34 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px]">
       
-      <header className="border-b border-gray-100 h-20 flex items-center justify-between px-4 sm:px-8 bg-white sticky top-0 z-10">
-        <Link href="/shop" className="tracking-[0.2em] text-gray-500 hover:text-black uppercase text-[9px] sm:text-[10px] z-10">
-          &larr; Return to Store
-        </Link>
-        <h1 className="text-lg sm:text-xl font-normal tracking-[0.4em] uppercase font-serif text-center w-full absolute left-0 pointer-events-none">
-          S. SIKAMÒRE
-        </h1>
-        <div className="hidden sm:block text-[9px] text-gray-400 uppercase tracking-widest z-10">Secure Checkout</div>
+      {/* FIXED NAVIGATION HEADER CONTEXT (RESOLVES IMAGE_4 OVERLAP) */}
+      <header className="border-b border-gray-100 h-20 bg-white sticky top-0 z-40 flex items-center">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-8 flex items-center justify-between relative">
+          
+          {/* Left Side Dynamic Link Anchor */}
+          <div className="z-10 flex items-center">
+            <Link href="/shop" className="tracking-[0.2em] text-gray-500 hover:text-black uppercase text-[10px] flex items-center gap-1.5 py-2">
+              <span className="text-xs font-light">&larr;</span>
+              {/* On mobile devices, text drops out to leave a clean arrow space, avoiding logo collision entirely */}
+              <span className="hidden sm:inline pt-0.5">Return to Store</span>
+            </Link>
+          </div>
+
+          {/* Absolute Center Boundary Brand Identity Panel */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+            <h1 className="text-xs sm:text-base font-normal tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.4em]">
+              S. SIKAMÒRE
+            </h1>
+          </div>
+
+          {/* Right Side Security Metadata Label */}
+          <div className="z-10 text-right">
+            <div className="hidden sm:block text-[9px] text-gray-400 uppercase tracking-widest pt-0.5">
+              Secure Checkout
+            </div>
+          </div>
+
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-16">
@@ -62,7 +82,6 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider">First name *</label>
-                  {/* ZOOM FIX APPLIED HERE: text-base for mobile, scales cleanly to md:text-xs on desktop */}
                   <input 
                     type="text" 
                     value={firstName} 
@@ -86,7 +105,7 @@ export default function CheckoutPage() {
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] text-gray-500 uppercase tracking-wider">Email address *</label>
                 <input 
-                  type="type" 
+                  type="email" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   required 
