@@ -16,8 +16,6 @@ export default function AdminDashboard() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [imageFile, setImageFile] = useState(null);
-  
-  // New State to handle the live image preview
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +31,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Function to capture the file and instantly generate a preview URL
   const handleImageChange = (e) => {
     const file = e.target.files;
     if (file) {
@@ -55,9 +52,12 @@ export default function AdminDashboard() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
+      // THE FIX: Convert the image to raw binary pixels before uploading
+      const arrayBuffer = await imageFile.arrayBuffer();
+
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, imageFile, {
+        .upload(fileName, arrayBuffer, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
@@ -81,7 +81,6 @@ export default function AdminDashboard() {
 
       alert('Success! The product is now live on the storefront.');
       
-      // Clear the form and the preview box after a successful upload
       setName('');
       setPrice('');
       setImageFile(null);
@@ -145,13 +144,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           
-          {/* THE NEW LIVE PREVIEW UPLOAD BOX */}
           <div className="flex flex-col gap-4 border border-zinc-800 p-6 bg-[#161616]">
             <label className="block text-[10px] tracking-[0.2em] text-zinc-400 uppercase">Product Image</label>
             
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              
-              {/* Dark Black Image Preview Canvas */}
               <div className="w-24 h-32 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden shadow-inner">
                 {imagePreview ? (
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
