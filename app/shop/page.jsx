@@ -14,10 +14,17 @@ export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Desktop columns tracker
   const [viewCols, setViewCols] = useState(4); 
-  // Mobile design state switcher: false = 2-Column Grid (image_2.png), true = List View (image_3.png)
   const [isListView, setIsListView] = useState(false);
+
+  // THE ROLLING TICKER STATE
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const announcements = [
+    "COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
+    "DISCOVER THE ARCHIVE: NEW READY-TO-WEAR & ACCESSORIES NOW LIVE",
+    "CRAFTED SILHOUETTES • A STUDY IN TEXTURE AND MINIMALIST FORM",
+    "JOIN THE S. SIKAMÒRE CLUB FOR EXCLUSIVE CAPSULE PREVIEWS"
+  ];
 
   const { 
     cart, wishlist, toggleWishlist, 
@@ -45,6 +52,14 @@ export default function ShopCatalog() {
     fetchProducts();
   }, []);
 
+  // 5-Second Ticker Interval Loop
+  useEffect(() => {
+    const tickerTimer = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % announcements.length);
+    }, 5000);
+    return () => clearInterval(tickerTimer);
+  }, [announcements.length]);
+
   const openQuickView = (product) => {
     setQty(1);
     setSelectedSize('M');
@@ -57,9 +72,9 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased text-[11px] relative overflow-x-hidden">
       
-      {/* 1. TOP TICKER */}
-      <div className="bg-black text-white py-2.5 text-center text-[9px] tracking-[0.3em] uppercase font-light border-b border-zinc-900 select-none">
-        WE SHIP OUR PRODUCTS WORLDWIDE • NEW IN | CORE COLLECTION
+      {/* 1. DYNAMIC ROLLING TOP TICKER */}
+      <div className="bg-black text-white py-2.5 text-center text-[9px] tracking-[0.3em] uppercase font-light border-b border-zinc-900 select-none transition-all duration-500">
+        {announcements[tickerIndex]}
       </div>
 
       {/* 2. NAVIGATION HEADER */}
@@ -95,44 +110,25 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      {/* 3. GRID & LIST CONTROLS SYSTEM (REPLICATES IMAGE_2 AND IMAGE_3) */}
+      {/* 3. GRID & LIST CONTROLS SYSTEM */}
       <section className="bg-white text-black border-b border-gray-200 sticky top-[121px] sm:top-[137px] z-30 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
           
-          {/* Native Filter Layout Element */}
           <button className="flex items-center gap-2 border border-gray-200 px-4 py-2 text-[10px] uppercase font-medium tracking-wider hover:border-black transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
             Filter
           </button>
 
-          {/* DYNAMIC LAYOUT CONTROL SWITCH PANEL */}
           <div className="flex items-center gap-4">
-            
-            {/* Mobile-Only View Switchers (Visible only on mobile devices) */}
             <div className="flex items-center gap-2 md:hidden">
-              {/* List View Option Trigger (Image_3.png) */}
-              <button 
-                onClick={() => setIsListView(true)} 
-                className={`p-2 border transition-all ${isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+              <button onClick={() => setIsListView(true)} className={`p-2 border transition-all ${isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
               </button>
-              
-              {/* Grid View Option Trigger (Image_2.png) */}
-              <button 
-                onClick={() => setIsListView(false)} 
-                className={`p-2 border transition-all ${!isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <rect width="9" height="9" x="2" y="2" rx="1"/><rect width="9" height="9" x="13" y="2" rx="1"/>
-                  <rect width="9" height="9" x="2" y="13" rx="1"/><rect width="9" height="9" x="13" y="13" rx="1"/>
-                </svg>
+              <button onClick={() => setIsListView(false)} className={`p-2 border transition-all ${!isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect width="9" height="9" x="2" y="2" rx="1"/><rect width="9" height="9" x="13" y="2" rx="1"/><rect width="9" height="9" x="2" y="13" rx="1"/><rect width="9" height="9" x="13" y="13" rx="1"/></svg>
               </button>
             </div>
 
-            {/* Desktop-Only View Switchers */}
             <div className="hidden md:flex items-center gap-3">
               <button onClick={() => { setViewCols(2); setIsListView(false); }} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 2 && !isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
                 <svg className="w-[14px] h-[14px]" fill="currentColor" viewBox="0 0 16 16"><rect width="6" height="14" x="1" y="1"/><rect width="6" height="14" x="9" y="1"/></svg>
@@ -161,13 +157,11 @@ export default function ShopCatalog() {
             Inventory processing. No items listed yet.
           </div>
         ) : (
-          /* Dynamic layout mapping based on selected view mode state */
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-16`}`}>
             
             {products.map((product) => {
               const isLiked = wishlist.some(item => item.id === product.id);
               
-              {/* HOVER/VIEW OPTION A: EXCLUSIVE DYNAMIC ROW LIST LAYOUT (Image_3.png) */}
               if (isListView) {
                 return (
                   <div key={product.id} className="flex gap-4 sm:gap-6 bg-[#111111] p-3 border border-zinc-900 rounded-sm items-center relative group">
@@ -184,7 +178,6 @@ export default function ShopCatalog() {
                       <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase font-medium text-zinc-200">{product.name}</h3>
                       <p className="text-[11px] sm:text-[12px] font-normal tracking-wider text-zinc-400">₦{Number(product.price).toLocaleString()}</p>
                       
-                      {/* Responsive Action Buttons Container */}
                       <div className="flex items-center gap-2 pt-1">
                         <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-2.5 border border-zinc-800 bg-[#161616] hover:bg-white hover:text-black text-white transition-colors duration-300 rounded-sm disabled:opacity-30">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
@@ -198,14 +191,12 @@ export default function ShopCatalog() {
                 );
               }
 
-              {/* HOVER/VIEW OPTION B: PREMIUM 2-COLUMN GRID GALLERY LAYOUT (Image_2.png) */}
               return (
                 <div key={product.id} className="group flex flex-col relative bg-[#111111] p-2 border border-zinc-900 shadow-xl rounded-sm transition-all duration-500 hover:border-zinc-700">
                   <div className="bg-[#161616] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
                     <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] cubic-bezier(0.25, 1, 0.5, 1) group-hover:scale-105" />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     
-                    {/* Action Controller Overlay Slider (Matches the look of image_2.png on desktop & mobile) */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-black/95 backdrop-blur-md border border-zinc-800 divide-x divide-zinc-800 opacity-0 sm:group-hover:opacity-100 translate-y-2 sm:group-hover:translate-y-0 max-sm:opacity-100 max-sm:translate-y-0 transition-all duration-[400ms] z-10 shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-3 hover:bg-white hover:text-black text-white transition-colors duration-300 disabled:opacity-30">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
@@ -257,7 +248,7 @@ export default function ShopCatalog() {
 
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex items-center border border-gray-200">
-                  <button onClick={() => setResultQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">-</button>
+                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">-</button>
                   <span className="w-10 text-center text-xs">{qty}</span>
                   <button onClick={() => setQty(qty + 1)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">+</button>
                 </div>
