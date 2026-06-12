@@ -10,13 +10,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const HARDCODED_COLLECTION = [
-  { id: 'p1', name: 'LUMIÈRE MAXI DRESS', price: 85000, image: '/product 1.jpeg', is_sold_out: false },
-  { id: 'p2', name: 'ESPRIT SILK BLOUSE', price: 45000, image: '/Product 2.jpeg', is_sold_out: false },
-  { id: 'p3', name: 'MONARCH TAILORED TROUSER', price: 60000, image: '/Product 3.jpeg', is_sold_out: true },
-  { id: 'p4', name: 'NOIR COUTURE BLAZER', price: 125000, image: '/Product 4.jpeg', is_sold_out: false }
-];
-
 export default function Storefront() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,14 +23,17 @@ export default function Storefront() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
+  // FETCH REAL INVENTORY ONLY
   useEffect(() => {
     async function fetchProducts() {
       try {
         const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
         if (error) throw error;
-        setProducts(data && data.length > 0 ? data : HARDCODED_COLLECTION);
+        // Now it ONLY uses real database items. No more fake backups.
+        setProducts(data || []);
       } catch (err) {
-        setProducts(HARDCODED_COLLECTION);
+        console.error("Fetch error:", err);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -62,7 +58,7 @@ export default function Storefront() {
         WE SHIP OUR PRODUCTS WORLDWIDE • NEW IN | CORE COLLECTION
       </div>
 
-      {/* 2. HEADER WITH PROPER ICONS */}
+      {/* 2. HEADER */}
       <header className="bg-white text-black border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           <Link href="/admin" className="tracking-[0.2em] text-gray-400 hover:text-black uppercase text-[10px]">Portal</Link>
@@ -71,7 +67,6 @@ export default function Storefront() {
             S. SIKAMÒRE
           </Link>
           
-          {/* Header Action Icons */}
           <div className="flex items-center gap-4 sm:gap-6 text-black">
             <button className="hover:text-gray-500 transition-colors hidden sm:block">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
@@ -86,7 +81,6 @@ export default function Storefront() {
           </div>
         </div>
         
-        {/* WORKING NAVIGATION BAR LINKED TO NEW PAGES */}
         <div className="border-t border-gray-100 bg-white">
           <div className="max-w-xl mx-auto h-11 flex items-center justify-center gap-8 sm:gap-10 tracking-[0.25em] text-[9px] sm:text-[10px] uppercase font-light text-gray-500 overflow-x-auto whitespace-nowrap px-6 scrollbar-none">
             <Link href="/" className="text-black font-normal border-b border-black pb-1 shrink-0">Home</Link>
@@ -122,6 +116,10 @@ export default function Storefront() {
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Curation...</div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[10px]">
+            Your inventory is empty. Head to the Portal to upload products.
+          </div>
         ) : (
           <div className={`grid grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-12 sm:gap-y-16`}>
             {products.map((product) => {
@@ -129,7 +127,8 @@ export default function Storefront() {
               return (
                 <div key={product.id} className="group flex flex-col relative bg-[#111111] p-2 border border-zinc-900 shadow-xl rounded-sm">
                   <div className="bg-[#161616] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-[800ms]" onError={(e) => { e.target.src = '/product 1.jpeg'; }} />
+                    {/* Image Fallback Removed - Will now show true broken links if Supabase errors out */}
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-[800ms]" />
                     
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center bg-black/95 border border-zinc-800 divide-x divide-zinc-800 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 z-10 shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-2.5 hover:bg-white hover:text-black text-white transition-colors disabled:opacity-30" title="Quick View">
@@ -198,8 +197,6 @@ export default function Storefront() {
 
       {/* SLIDING CART DRAWER */}
       <div className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-        
-        {/* Drawer Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-black">
@@ -207,7 +204,6 @@ export default function Storefront() {
           </button>
         </div>
         
-        {/* Drawer Scrollable Item List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {cart.length === 0 ? (
             <div className="text-center text-gray-400 text-[10px] tracking-widest uppercase mt-10">Your bag is empty.</div>
@@ -236,7 +232,6 @@ export default function Storefront() {
           )}
         </div>
 
-        {/* Sticky Drawer Footer Actions */}
         {cart.length > 0 && (
           <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0">
             <div className="flex justify-between mb-6 text-xs uppercase tracking-widest">
@@ -255,10 +250,9 @@ export default function Storefront() {
         )}
       </div>
       
-      {/* Dark Overlay when Drawer is open */}
       {isCartOpen && <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
-      {/* 5. THE FULL EMAIL FOOTER */}
+      {/* 5. FOOTER */}
       <footer className="border-t border-zinc-900 bg-[#020202] pt-16 pb-12 mt-16 sm:mt-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-400 font-light tracking-widest">
           
@@ -284,17 +278,11 @@ export default function Storefront() {
             <span className="hover:text-white cursor-pointer transition-colors">Blazers</span>
           </div>
 
-          {/* Email Subscription Form */}
           <div className="flex flex-col gap-3">
             <h4 className="text-white text-[10px] tracking-[0.2em] font-medium uppercase">Sign up for email</h4>
             <p className="text-[10px] text-zinc-500 leading-relaxed">Stay informed about the latest releases and luxury lookbooks.</p>
             <form onSubmit={(e) => { e.preventDefault(); alert('Subscribed to SIKAMÒRE newsletter.'); }} className="flex border-b border-zinc-800 py-1.5 mt-1">
-              <input 
-                type="email" 
-                placeholder="Your email address" 
-                required
-                className="w-full bg-transparent border-0 outline-none placeholder-zinc-700 text-[10px] text-white tracking-widest uppercase font-light"
-              />
+              <input type="email" placeholder="Your email address" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-700 text-[10px] text-white tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-white uppercase hover:text-zinc-400 transition-colors">Subscribe</button>
             </form>
           </div>
