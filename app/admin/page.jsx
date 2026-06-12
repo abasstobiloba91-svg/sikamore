@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -20,6 +20,9 @@ export default function AdminDashboard() {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // THE FIX: A physical tracker attached directly to the input box.
+  const fileInputRef = useRef(null);
+
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   const handleLogin = (e) => {
@@ -33,9 +36,10 @@ export default function AdminDashboard() {
     }
   };
 
-  // Only used to generate the temporary visual preview URL
-  const handleImageChange = (e) => {
-    const file = e.target.files;
+  // Only responsible for updating the visual black box on the screen
+  const handleImageChange = () => {
+    // Yanking the file directly from the HTML element, bypassing React state
+    const file = fileInputRef.current?.files?.;
     if (file) {
       setImagePreview(URL.createObjectURL(file));
     } else {
@@ -45,29 +49,23 @@ export default function AdminDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!imagePreview) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
+    
+    // YANKING THE FILE directly from the DOM at the exact moment of upload
+    const actualFile = fileInputRef.current?.files?.;
+
+    if (!actualFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
-      // 1. Grab file metadata straight from the HTML element
-      const fileInput = document.getElementById('product-image-upload');
-      const metaFile = fileInput?.files;
-      
-      const fileExt = metaFile?.name ? metaFile.name.split('.').pop().toLowerCase() : 'jpg';
+      const fileExt = actualFile.name ? actualFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const safeContentType = metaFile?.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // 2. THE GENIUS FIX: Fetch the pure, uncorrupted binary Blob straight from the browser's preview memory!
-      const response = await fetch(imagePreview);
-      const pureBlob = await response.blob();
-
-      // 3. Upload the pure Blob to Supabase
+      // Uploading the guaranteed physical file object
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, pureBlob, {
+        .upload(fileName, actualFile, {
           cacheControl: '3600',
-          upsert: false,
-          contentType: safeContentType 
+          upsert: false
         });
 
       if (uploadError) throw new Error(uploadError.message);
@@ -75,7 +73,6 @@ export default function AdminDashboard() {
       const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
       const imageUrl = data.publicUrl;
 
-      // 4. Save to Database
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
@@ -89,12 +86,11 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
-      // Clear the form completely
+      // Clear the form and reset the tracking beacon
       setName('');
       setPrice('');
-      fileInput.value = ''; 
       setImagePreview(null);
-      e.target.reset();
+      if (fileInputRef.current) fileInputRef.current.value = '';
       
     } catch (error) {
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
@@ -166,7 +162,8 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                <input id="product-image-upload" type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
+                {/* TRACKING BEACON (ref) ATTACHED HERE */}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
             </div>
