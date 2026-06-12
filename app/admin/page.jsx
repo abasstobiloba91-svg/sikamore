@@ -2,7 +2,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -18,10 +18,12 @@ export default function AdminDashboard() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  
+  // Storing the file and the Base64 string
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const fileInputRef = useRef(null);
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   const handleLogin = (e) => {
@@ -35,40 +37,43 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleImageChange = () => {
-    // FIX: Using rock-solid boolean checks instead of modern optional chaining 
-    // to prevent Vercel's Turbopack from crashing.
-    const actualFile = (fileInputRef.current && fileInputRef.current.files) 
-      ? fileInputRef.current.files 
-      : null;
-      
-    if (actualFile) {
-      setImagePreview(URL.createObjectURL(actualFile));
-    } else {
+  // THE FIX: Base64 FileReader. This mathematically guarantees the file is read into memory.
+  const handleImageChange = (e) => {
+    const file = e.target.files;
+    if (!file) {
+      setImageFile(null);
       setImagePreview(null);
+      return;
     }
+
+    setImageFile(file); // Save the true file for Supabase
+
+    // Read the file as a raw Base64 string to guarantee the visual preview works
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImagePreview(event.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // FIX: Safe extraction of the file from the DOM
-    const actualFile = (fileInputRef.current && fileInputRef.current.files) 
-      ? fileInputRef.current.files 
-      : null;
-
-    if (!actualFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
+    if (!imageFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
-      const fileExt = actualFile.name ? actualFile.name.split('.').pop().toLowerCase() : 'jpg';
+      const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
+      // Upload the safely captured file directly to Supabase
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, actualFile, {
+        .upload(fileName, imageFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: safeContentType
         });
 
       if (uploadError) throw new Error(uploadError.message);
@@ -89,10 +94,12 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
+      // Reset form
       setName('');
       setPrice('');
+      setImageFile(null);
       setImagePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      e.target.reset();
       
     } catch (error) {
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
@@ -164,7 +171,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
+                <input type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
             </div>
