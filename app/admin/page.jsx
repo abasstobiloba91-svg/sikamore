@@ -15,11 +15,6 @@ export default function AdminDashboard() {
   const { showToast } = useApp();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
-
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  
-  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,41 +31,39 @@ export default function AdminDashboard() {
     }
   };
 
+  // Safe preview generator
   const handleImageChange = (e) => {
-    // THE CRITICAL FIX: Extracting item out of the file array wrapper
-    const file = e.target.files ? e.target.files : null;
-    
-    if (!file) {
-      setImageFile(null);
+    const file = e.target.files && e.target.files ? e.target.files : null;
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
       setImagePreview(null);
-      return;
     }
-
-    setImageFile(file); 
-
-    // This will now successfully render the image inside your black preview box
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setImagePreview(event.target.result);
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!imageFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
-      const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+      // THE ULTIMATE NATIVE FIX: We read the form directly. 
+      // This bypasses React completely and extracts the true, raw file object.
+      const dataForm = new FormData(e.currentTarget);
+      const actualFile = dataForm.get('product-image-file');
 
-      // Uploads the real, individual image file cleanly to Supabase storage
+      if (!actualFile || actualFile.size === 0) {
+        setLoading(false);
+        return showToast('ERROR: PLEASE SELECT A VALID IMAGE.');
+      }
+
+      const fileExt = actualFile.name ? actualFile.name.split('.').pop().toLowerCase() : 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const safeContentType = actualFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+
+      // Upload the raw native file block directly to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, imageFile, {
+        .upload(fileName, actualFile, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType
@@ -81,11 +74,12 @@ export default function AdminDashboard() {
       const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
       const imageUrl = data.publicUrl;
 
+      // Sync data to table
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
-          name: name.toUpperCase(), 
-          price: parseFloat(price), 
+          name: dataForm.get('product-name').toUpperCase(), 
+          price: parseFloat(dataForm.get('product-price')), 
           image: imageUrl, 
           is_sold_out: false 
         }]);
@@ -94,9 +88,6 @@ export default function AdminDashboard() {
 
       showToast('SUCCESS! PRODUCT PUSHED TO LIVE STOREFRONT.');
       
-      setName('');
-      setPrice('');
-      setImageFile(null);
       setImagePreview(null);
       e.target.reset();
       
@@ -149,11 +140,11 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label className="block text-[10px] tracking-[0.2em] text-zinc-400 mb-3 uppercase">Product Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none transition-colors text-xs text-white uppercase tracking-wider" placeholder="E.G. LUMIÈRE DRESS" />
+              <input type="text" name="product-name" required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none transition-colors text-xs text-white uppercase tracking-wider" placeholder="E.G. LUMIÈRE DRESS" />
             </div>
             <div>
               <label className="block text-[10px] tracking-[0.2em] text-zinc-400 mb-3 uppercase">Price (₦)</label>
-              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none transition-colors text-xs text-white tracking-wider" placeholder="E.G. 85000" />
+              <input type="number" name="product-price" required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none transition-colors text-xs text-white tracking-wider" placeholder="E.G. 85000" />
             </div>
           </div>
           
@@ -170,7 +161,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                <input type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
+                <input type="file" name="product-image-file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
             </div>
