@@ -12,6 +12,15 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default function EditorialLanding() {
   const [products, setProducts] = useState([]);
   const [heroIndex, setHeroIndex] = useState(0);
+  
+  // THE ROLLING TICKER STATE
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const announcements = [
+    "COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
+    "DISCOVER THE ARCHIVE: NEW READY-TO-WEAR & ACCESSORIES NOW LIVE",
+    "CRAFTED SILHOUETTES • A STUDY IN TEXTURE AND MINIMALIST FORM",
+    "JOIN THE S. SIKAMÒRE CLUB FOR EXCLUSIVE CAPSULE PREVIEWS"
+  ];
 
   useEffect(() => {
     async function fetchHeroImages() {
@@ -28,6 +37,14 @@ export default function EditorialLanding() {
     fetchHeroImages();
   }, []);
 
+  // 5-Second Ticker Interval Loop
+  useEffect(() => {
+    const tickerTimer = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % announcements.length);
+    }, 5000);
+    return () => clearInterval(tickerTimer);
+  }, [announcements.length]);
+
   useEffect(() => {
     if (products.length === 0) return;
     const interval = setInterval(() => {
@@ -43,8 +60,13 @@ export default function EditorialLanding() {
     <div className="w-full h-screen relative md:grid md:grid-cols-2 bg-[#0a0a0a] text-white font-sans antialiased overflow-hidden select-none">
       
       {/* COLUMN 1: THE BRAND STATEMENT & CTA OVERLAY */}
-      {/* On mobile, this overlays on top of the image using absolute sizing and a soft shadow wash for premium readability */}
       <div className="absolute inset-0 md:relative md:inset-auto z-20 flex flex-col justify-between p-8 sm:p-16 lg:p-24 bg-gradient-to-r from-black/60 via-black/20 to-transparent md:from-transparent md:bg-transparent h-full">
+        
+        {/* DYNAMIC TOP TICKER (Mobile View Overlay Position) */}
+        <div className="w-full md:hidden text-center text-[8px] tracking-[0.25em] uppercase text-zinc-300 font-light pt-2 transition-all duration-500 animate-fade">
+          {announcements[tickerIndex]}
+        </div>
+
         <div>
           <h1 className="text-xs font-normal tracking-[0.5em] uppercase font-serif text-white pt-2 md:pt-0">
             S. SIKAMÒRE
@@ -53,13 +75,13 @@ export default function EditorialLanding() {
 
         <div className="space-y-4 md:space-y-8 my-auto max-w-sm">
           <span className="text-zinc-300 md:text-zinc-500 text-[9px] tracking-[0.4em] uppercase font-medium block">
-            NEW IN
+            NEW ARRIVALS
           </span>
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-light font-serif tracking-[0.2em] leading-tight uppercase text-white">
             SUMMER IN AFRICA
           </h2>
           <p className="text-zinc-400 md:text-zinc-500 tracking-widest leading-relaxed font-light text-[10px] uppercase hidden sm:block">
-            A premium exploration of raw structural textiles, calculated tailoring weight, and architecture.
+            A study in raw textures, effortless silhouettes, and structural elegance. Designed for the modern vanguard.
           </p>
           
           <div className="pt-2">
@@ -67,7 +89,7 @@ export default function EditorialLanding() {
               href="/shop" 
               className="inline-block bg-white text-black px-8 py-3.5 text-[10px] font-medium tracking-[0.2em] uppercase hover:bg-zinc-200 transition-all duration-300 rounded-sm shadow-xl text-center min-w-[140px]"
             >
-              SHOP NOW
+              DISCOVER THE CURATION
             </Link>
           </div>
         </div>
@@ -78,15 +100,19 @@ export default function EditorialLanding() {
       </div>
 
       {/* COLUMN 2: THE FULL-SCREEN EDITORIAL CANVAS */}
-      {/* On mobile, this expands to absolute inset-0 to fill 100% of the viewport background behind the text */}
-      <div className="absolute inset-0 md:relative md:inset-auto w-full h-full z-10 md:z-auto border-l border-zinc-950">
+      <div className="absolute inset-0 md:relative md:inset-auto w-full h-full z-10 md:z-auto border-l border-zinc-950 flex flex-col">
+        
+        {/* DYNAMIC TOP TICKER (Desktop Layout Position) */}
+        <div className="hidden md:block w-full bg-black text-white py-3.5 text-center text-[9px] tracking-[0.3em] uppercase font-light border-b border-zinc-900 select-none absolute top-0 left-0 z-30 transition-all duration-500">
+          {announcements[tickerIndex]}
+        </div>
+
         <img 
           src={displayedImage} 
           alt="Campaign Visual" 
           className="w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
           key={heroIndex}
         />
-        {/* Editorial side ambient dark lighting mask */}
         <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/40 via-transparent to-transparent pointer-events-none" />
         
         {/* Minimalist Slide Progress Dots */}
