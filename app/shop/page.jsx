@@ -17,7 +17,7 @@ export default function ShopCatalog() {
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
 
-  // ROLLING WHEEL ENGINE CONFIGURATION
+  // THE FIXED ROLLING TICKER CONFIGURATION
   const [tickerIndex, setTickerIndex] = useState(0);
   const announcements = [
     "COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -52,7 +52,7 @@ export default function ShopCatalog() {
     fetchProducts();
   }, []);
 
-  // 5-Second Wheel Roll Trigger
+  // Strict 5-Second Rotator Clock
   useEffect(() => {
     const tickerTimer = setInterval(() => {
       setTickerIndex((prev) => (prev + 1) % announcements.length);
@@ -72,16 +72,17 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased text-[11px] relative overflow-x-hidden">
       
-      {/* PERFECTLY ALIGNED ROLLING GLOBAL TICKER */}
-      <div className="w-full bg-black text-white h-9 overflow-hidden border-b border-zinc-900 relative flex items-center justify-center z-50">
+      {/* PERFECTLY CENTERED, NON-SQUISHABLE GLOBAL TICKER */}
+      {/* h-9 locks the height, overflow-hidden masks out the other 3 items cleanly */}
+      <div className="w-full bg-black text-white h-9 overflow-hidden border-b border-zinc-900 relative z-50">
         <div 
-          className="flex flex-col text-center transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) w-full"
+          className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full"
           style={{ transform: `translateY(-${tickerIndex * 100}%)` }}
         >
           {announcements.map((text, idx) => (
             <div 
               key={idx} 
-              className="h-9 flex items-center justify-center text-[8px] sm:text-[9px] tracking-[0.25em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 whitespace-nowrap truncate w-full"
+              className="h-full w-full flex items-center justify-center text-[8px] sm:text-[9px] tracking-[0.25em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 whitespace-nowrap truncate text-center select-none"
             >
               {text}
             </div>
@@ -160,7 +161,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* ARCHIVE MAP LAYOUT */}
+      {/* MAIN GALLERY CATALOG */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Archive...</div>
@@ -240,7 +241,7 @@ export default function ShopCatalog() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-white text-black w-full max-w-3xl flex flex-col md:flex-row relative shadow-2xl">
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-gray-500 hover:text-black">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 bg-gray-50 aspect-square md:aspect-auto">
               <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" />
