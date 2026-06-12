@@ -17,7 +17,6 @@ export default function AdminDashboard() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,40 +33,38 @@ export default function AdminDashboard() {
     }
   };
 
+  // Only used to generate the temporary visual preview URL
   const handleImageChange = (e) => {
     const file = e.target.files;
     if (file) {
-      setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     } else {
-      setImageFile(null);
       setImagePreview(null);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!imageFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
+    if (!imagePreview) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
 
     try {
-      const fileExt = imageFile.name ? imageFile.name.split('.').pop().toLowerCase() : 'jpg';
+      // 1. Grab file metadata straight from the HTML element
+      const fileInput = document.getElementById('product-image-upload');
+      const metaFile = fileInput?.files;
+      
+      const fileExt = metaFile?.name ? metaFile.name.split('.').pop().toLowerCase() : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const safeContentType = imageFile.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+      const safeContentType = metaFile?.type || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // THE ULTIMATE FIX: Using the vintage FileReader API. 
-      // This works on every browser ever made and guarantees raw binary pixels.
-      const arrayBuffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-        reader.readAsArrayBuffer(imageFile);
-      });
+      // 2. THE GENIUS FIX: Fetch the pure, uncorrupted binary Blob straight from the browser's preview memory!
+      const response = await fetch(imagePreview);
+      const pureBlob = await response.blob();
 
-      // Uploading the raw binary data directly
+      // 3. Upload the pure Blob to Supabase
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, arrayBuffer, {
+        .upload(fileName, pureBlob, {
           cacheControl: '3600',
           upsert: false,
           contentType: safeContentType 
@@ -78,6 +75,7 @@ export default function AdminDashboard() {
       const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
       const imageUrl = data.publicUrl;
 
+      // 4. Save to Database
       const { error: dbError } = await supabase
         .from('products')
         .insert([{ 
@@ -94,7 +92,7 @@ export default function AdminDashboard() {
       // Clear the form completely
       setName('');
       setPrice('');
-      setImageFile(null);
+      fileInput.value = ''; 
       setImagePreview(null);
       e.target.reset();
       
@@ -168,7 +166,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex-1 w-full">
-                <input type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
+                <input id="product-image-upload" type="file" accept="image/*" onChange={handleImageChange} required className="w-full text-xs file:mr-4 file:py-3 file:px-6 file:border-0 file:text-[9px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer file:hover:bg-zinc-200 file:transition-colors text-zinc-400 cursor-pointer" />
                 <p className="text-[9px] text-zinc-500 tracking-wider mt-3 uppercase">Recommended: High-res portrait (3:4 ratio). Jpg or Png.</p>
               </div>
             </div>
