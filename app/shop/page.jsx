@@ -13,8 +13,12 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewCols, setViewCols] = useState(4); 
   
+  // Desktop columns tracker
+  const [viewCols, setViewCols] = useState(4); 
+  // Mobile design state switcher: false = 2-Column Grid (image_2.png), true = List View (image_3.png)
+  const [isListView, setIsListView] = useState(false);
+
   const { 
     cart, wishlist, toggleWishlist, 
     isCartOpen, setIsCartOpen, quickViewProduct, setQuickViewProduct, addToCart, removeFromCart 
@@ -91,29 +95,65 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      {/* 3. GRID SYSTEM CONTROLS */}
-      <section className="bg-white text-black border-b border-gray-200">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-5 flex items-center justify-between">
-          <div className="hidden md:flex items-center gap-6">
-            <button onClick={() => setViewCols(2)} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 2 ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
-              <svg className="w-[14px] h-[14px]" fill="currentColor" viewBox="0 0 16 16"><rect width="6" height="14" x="1" y="1"/><rect width="6" height="14" x="9" y="1"/></svg>
-            </button>
-            <button onClick={() => setViewCols(3)} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 3 ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
-              <svg className="w-[18px] h-[14px]" fill="currentColor" viewBox="0 0 20 16"><rect width="5" height="14" x="1" y="1"/><rect width="5" height="14" x="7" y="1"/><rect width="5" height="14" x="13" y="1"/></svg>
-            </button>
-            <button onClick={() => setViewCols(4)} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
-              <svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg>
-            </button>
+      {/* 3. GRID & LIST CONTROLS SYSTEM (REPLICATES IMAGE_2 AND IMAGE_3) */}
+      <section className="bg-white text-black border-b border-gray-200 sticky top-[121px] sm:top-[137px] z-30 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
+          
+          {/* Native Filter Layout Element */}
+          <button className="flex items-center gap-2 border border-gray-200 px-4 py-2 text-[10px] uppercase font-medium tracking-wider hover:border-black transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+            Filter
+          </button>
+
+          {/* DYNAMIC LAYOUT CONTROL SWITCH PANEL */}
+          <div className="flex items-center gap-4">
+            
+            {/* Mobile-Only View Switchers (Visible only on mobile devices) */}
+            <div className="flex items-center gap-2 md:hidden">
+              {/* List View Option Trigger (Image_3.png) */}
+              <button 
+                onClick={() => setIsListView(true)} 
+                className={`p-2 border transition-all ${isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              
+              {/* Grid View Option Trigger (Image_2.png) */}
+              <button 
+                onClick={() => setIsListView(false)} 
+                className={`p-2 border transition-all ${!isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-300'}`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect width="9" height="9" x="2" y="2" rx="1"/><rect width="9" height="9" x="13" y="2" rx="1"/>
+                  <rect width="9" height="9" x="2" y="13" rx="1"/><rect width="9" height="9" x="13" y="13" rx="1"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Desktop-Only View Switchers */}
+            <div className="hidden md:flex items-center gap-3">
+              <button onClick={() => { setViewCols(2); setIsListView(false); }} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 2 && !isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
+                <svg className="w-[14px] h-[14px]" fill="currentColor" viewBox="0 0 16 16"><rect width="6" height="14" x="1" y="1"/><rect width="6" height="14" x="9" y="1"/></svg>
+              </button>
+              <button onClick={() => { setViewCols(3); setIsListView(false); }} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 3 && !isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
+                <svg className="w-[18px] h-[14px]" fill="currentColor" viewBox="0 0 20 16"><rect width="5" height="14" x="1" y="1"/><rect width="5" height="14" x="7" y="1"/><rect width="5" height="14" x="13" y="1"/></svg>
+              </button>
+              <button onClick={() => { setViewCols(4); setIsListView(false); }} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 && !isListView ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
+                <svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg>
+              </button>
+            </div>
           </div>
-          <div className="text-[10px] uppercase font-light tracking-[0.15em] text-gray-400 md:block hidden">Archive / {products.length} Designs</div>
+
           <select className="bg-transparent border-0 outline-none text-[10px] uppercase cursor-pointer text-gray-500 hover:text-black font-light">
             <option>Sort by latest</option>
           </select>
         </div>
       </section>
 
-      {/* 4. DESIGN PORTFOLIO ARCHIVE MAP */}
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-16">
+      {/* 4. MAIN GALLERY CONTENT COMPONENT */}
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Archive...</div>
         ) : products.length === 0 ? (
@@ -121,17 +161,52 @@ export default function ShopCatalog() {
             Inventory processing. No items listed yet.
           </div>
         ) : (
-          <div className={`grid grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-12 sm:gap-y-16`}>
+          /* Dynamic layout mapping based on selected view mode state */
+          <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-16`}`}>
+            
             {products.map((product) => {
               const isLiked = wishlist.some(item => item.id === product.id);
+              
+              {/* HOVER/VIEW OPTION A: EXCLUSIVE DYNAMIC ROW LIST LAYOUT (Image_3.png) */}
+              if (isListView) {
+                return (
+                  <div key={product.id} className="flex gap-4 sm:gap-6 bg-[#111111] p-3 border border-zinc-900 rounded-sm items-center relative group">
+                    <div className="w-28 sm:w-36 aspect-[3/4] shrink-0 overflow-hidden relative bg-[#161616] rounded-sm">
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                      {product.is_sold_out && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="text-[7px] tracking-widest text-zinc-300 uppercase bg-black/80 px-2 py-1 rounded-sm">Sold Out</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center text-left space-y-1 sm:space-y-2">
+                      <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase font-medium text-zinc-200">{product.name}</h3>
+                      <p className="text-[11px] sm:text-[12px] font-normal tracking-wider text-zinc-400">₦{Number(product.price).toLocaleString()}</p>
+                      
+                      {/* Responsive Action Buttons Container */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-2.5 border border-zinc-800 bg-[#161616] hover:bg-white hover:text-black text-white transition-colors duration-300 rounded-sm disabled:opacity-30">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
+                        </button>
+                        <button onClick={() => toggleWishlist(product)} className="p-2.5 border border-zinc-800 bg-[#161616] hover:bg-white hover:text-black transition-colors duration-300 rounded-sm">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill={isLiked ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-3.5 h-3.5 ${isLiked ? 'text-red-500' : 'text-white'}`}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              {/* HOVER/VIEW OPTION B: PREMIUM 2-COLUMN GRID GALLERY LAYOUT (Image_2.png) */}
               return (
                 <div key={product.id} className="group flex flex-col relative bg-[#111111] p-2 border border-zinc-900 shadow-xl rounded-sm transition-all duration-500 hover:border-zinc-700">
                   <div className="bg-[#161616] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
                     <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] cubic-bezier(0.25, 1, 0.5, 1) group-hover:scale-105" />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     
-                    {/* Floating Luxury Action Controller Slider Bar */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-black/90 backdrop-blur-md border border-zinc-800 divide-x divide-zinc-800 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-[400ms] cubic-bezier(0.25, 1, 0.5, 1) z-10 shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()}>
+                    {/* Action Controller Overlay Slider (Matches the look of image_2.png on desktop & mobile) */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-black/95 backdrop-blur-md border border-zinc-800 divide-x divide-zinc-800 opacity-0 sm:group-hover:opacity-100 translate-y-2 sm:group-hover:translate-y-0 max-sm:opacity-100 max-sm:translate-y-0 transition-all duration-[400ms] z-10 shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-3 hover:bg-white hover:text-black text-white transition-colors duration-300 disabled:opacity-30">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
                       </button>
@@ -162,7 +237,7 @@ export default function ShopCatalog() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-white text-black w-full max-w-3xl flex flex-col md:flex-row relative shadow-2xl">
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-gray-500 hover:text-black">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 bg-gray-50 aspect-square md:aspect-auto">
               <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" />
@@ -182,7 +257,7 @@ export default function ShopCatalog() {
 
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex items-center border border-gray-200">
-                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">-</button>
+                  <button onClick={() => setResultQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">-</button>
                   <span className="w-10 text-center text-xs">{qty}</span>
                   <button onClick={() => setQty(qty + 1)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50">+</button>
                 </div>
@@ -201,7 +276,7 @@ export default function ShopCatalog() {
         <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-black">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         
