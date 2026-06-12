@@ -36,9 +36,14 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = () => {
-    const file = fileInputRef.current?.files?.;
-    if (file) {
-      setImagePreview(URL.createObjectURL(file));
+    // FIX: Using rock-solid boolean checks instead of modern optional chaining 
+    // to prevent Vercel's Turbopack from crashing.
+    const actualFile = (fileInputRef.current && fileInputRef.current.files) 
+      ? fileInputRef.current.files 
+      : null;
+      
+    if (actualFile) {
+      setImagePreview(URL.createObjectURL(actualFile));
     } else {
       setImagePreview(null);
     }
@@ -47,7 +52,10 @@ export default function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const actualFile = fileInputRef.current?.files?.;
+    // FIX: Safe extraction of the file from the DOM
+    const actualFile = (fileInputRef.current && fileInputRef.current.files) 
+      ? fileInputRef.current.files 
+      : null;
 
     if (!actualFile) return showToast('ERROR: PLEASE SELECT AN IMAGE.');
     setLoading(true);
