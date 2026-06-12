@@ -17,7 +17,7 @@ export default function ShopCatalog() {
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
 
-  // THE ROLLING TICKER STATE
+  // ROLLING WHEEL ENGINE CONFIGURATION
   const [tickerIndex, setTickerIndex] = useState(0);
   const announcements = [
     "COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -52,7 +52,7 @@ export default function ShopCatalog() {
     fetchProducts();
   }, []);
 
-  // 5-Second Ticker Interval Loop
+  // 5-Second Wheel Roll Trigger
   useEffect(() => {
     const tickerTimer = setInterval(() => {
       setTickerIndex((prev) => (prev + 1) % announcements.length);
@@ -72,12 +72,24 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased text-[11px] relative overflow-x-hidden">
       
-      {/* 1. DYNAMIC ROLLING TOP TICKER */}
-      <div className="bg-black text-white py-2.5 text-center text-[9px] tracking-[0.3em] uppercase font-light border-b border-zinc-900 select-none transition-all duration-500">
-        {announcements[tickerIndex]}
+      {/* PERFECTLY ALIGNED ROLLING GLOBAL TICKER */}
+      <div className="w-full bg-black text-white h-9 overflow-hidden border-b border-zinc-900 relative flex items-center justify-center z-50">
+        <div 
+          className="flex flex-col text-center transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) w-full"
+          style={{ transform: `translateY(-${tickerIndex * 100}%)` }}
+        >
+          {announcements.map((text, idx) => (
+            <div 
+              key={idx} 
+              className="h-9 flex items-center justify-center text-[8px] sm:text-[9px] tracking-[0.25em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 whitespace-nowrap truncate w-full"
+            >
+              {text}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* 2. NAVIGATION HEADER */}
+      {/* NAVIGATION HEADER */}
       <header className="bg-white text-black border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           <Link href="/admin" className="tracking-[0.2em] text-gray-400 hover:text-black uppercase text-[10px]">Portal</Link>
@@ -110,7 +122,7 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      {/* 3. GRID & LIST CONTROLS SYSTEM */}
+      {/* FILTER BAR CONTROLS */}
       <section className="bg-white text-black border-b border-gray-200 sticky top-[121px] sm:top-[137px] z-30 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
           
@@ -148,7 +160,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* 4. MAIN GALLERY CONTENT COMPONENT */}
+      {/* ARCHIVE MAP LAYOUT */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Archive...</div>
@@ -228,7 +240,7 @@ export default function ShopCatalog() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-white text-black w-full max-w-3xl flex flex-col md:flex-row relative shadow-2xl">
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-gray-500 hover:text-black">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 bg-gray-50 aspect-square md:aspect-auto">
               <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" />
@@ -319,7 +331,7 @@ export default function ShopCatalog() {
       
       {isCartOpen && <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
-      {/* 5. BRAND SYSTEM FOOTER PANEL */}
+      {/* BRAND SYSTEM FOOTER PANEL */}
       <footer className="border-t border-zinc-900 bg-[#020202] pt-16 pb-12 mt-16 sm:mt-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-400 font-light tracking-widest">
           
