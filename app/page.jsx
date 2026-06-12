@@ -15,6 +15,9 @@ export default function Storefront() {
   const [loading, setLoading] = useState(true);
   const [viewCols, setViewCols] = useState(4); 
   
+  // Carousel State for the Editorial Split Banner
+  const [heroIndex, setHeroIndex] = useState(0);
+
   const { 
     cart, wishlist, toggleWishlist, 
     isCartOpen, setIsCartOpen, quickViewProduct, setQuickViewProduct, addToCart, removeFromCart 
@@ -23,13 +26,15 @@ export default function Storefront() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // FETCH REAL INVENTORY ONLY
+  // Fetch Inventory from Supabase
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
         if (error) throw error;
-        // Now it ONLY uses real database items. No more fake backups.
         setProducts(data || []);
       } catch (err) {
         console.error("Fetch error:", err);
@@ -41,6 +46,15 @@ export default function Storefront() {
     fetchProducts();
   }, []);
 
+  // Autoplay loop for the Split-Screen Editorial Banner
+  useEffect(() => {
+    if (products.length === 0) return;
+    const interval = setInterval(() => {
+      setHeroIndex((prevIndex) => (prevIndex + 1) % products.length);
+    }, 4000); // Changes image every 4 seconds smoothly
+    return () => clearInterval(interval);
+  }, [products]);
+
   const openQuickView = (product) => {
     setQty(1);
     setSelectedSize('M');
@@ -49,6 +63,16 @@ export default function Storefront() {
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
+
+  // Fallback banner images if inventory is completely empty
+  const defaultHeroImages = [
+    "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200",
+    "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=1200"
+  ];
+
+  const currentHeroImage = products.length > 0 
+    ? products[heroIndex]?.image 
+    : defaultHeroImages;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased text-[11px] relative overflow-x-hidden">
@@ -91,8 +115,51 @@ export default function Storefront() {
         </div>
       </header>
 
-      {/* 3. GRID CONTROLS */}
-      <section className="bg-white text-black border-b border-gray-200">
+      {/* 3. PREMIUM EDITORIAL SPLIT HERO BANNER */}
+      <section className="w-full min-h-[70vh] sm:h-[80vh] grid grid-cols-1 md:grid-cols-2 bg-black border-b border-zinc-900 overflow-hidden">
+        {/* Left Side text layout */}
+        <div className="flex flex-col justify-center px-8 sm:px-16 lg:px-24 py-16 space-y-6 md:space-y-8 bg-[#0a0a0a]">
+          <span className="text-zinc-500 text-[10px] tracking-[0.4em] uppercase font-medium">New In</span>
+          <h2 className="text-2xl sm:text-4xl font-light font-serif tracking-[0.2em] leading-snug uppercase text-zinc-100 max-w-md">
+            Summer in Africa
+          </h2>
+          <p className="text-zinc-500 tracking-widest leading-relaxed max-w-sm font-light text-[10px] uppercase">
+            A premium visual exploration of architecture, landscape textile weight, and minimalist luxury silhouettes.
+          </p>
+          <button 
+            onClick={() => document.getElementById('collection-anchor')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-fit bg-white text-black px-8 py-4 text-[9px] font-medium tracking-[0.3em] uppercase hover:bg-zinc-200 transition-colors duration-300 rounded-sm"
+          >
+            Shop Now
+          </button>
+        </div>
+        
+        {/* Right Side dynamic carousel image */}
+        <div className="relative w-full h-[50vh] md:h-full overflow-hidden bg-[#111]">
+          <img 
+            src={currentHeroImage} 
+            alt="Editorial Campaign" 
+            className="w-full h-full object-cover transition-all duration-[1500ms] cubic-bezier(0.25, 1, 0.5, 1) scale-100"
+            key={heroIndex} // Forces recalculation for crossfade feel
+          />
+          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black via-transparent to-transparent opacity-60 pointer-events-none" />
+          
+          {/* Progress Indicators */}
+          {products.length > 1 && (
+            <div className="absolute bottom-6 right-8 flex gap-2 z-10">
+              {products.map((_, idx) => (
+                <div 
+                  key={idx} 
+                  className={`h-[2px] transition-all duration-700 ${idx === heroIndex ? 'w-6 bg-white' : 'w-2 bg-zinc-700'}`} 
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 4. GRID CONTROLS */}
+      <section id="collection-anchor" className="bg-white text-black border-b border-gray-200 scroll-mt-24">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-5 flex items-center justify-between">
           <div className="hidden md:flex items-center gap-6">
             <button onClick={() => setViewCols(2)} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 2 ? 'border-black text-black bg-zinc-100' : 'border-gray-200 text-gray-400'}`}>
@@ -112,7 +179,7 @@ export default function Storefront() {
         </div>
       </section>
 
-      {/* 4. MAIN GALLERY */}
+      {/* 5. MAIN GALLERY WITH HIGH-END HOVER ACTIONS */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-16">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Curation...</div>
@@ -125,17 +192,46 @@ export default function Storefront() {
             {products.map((product) => {
               const isLiked = wishlist.some(item => item.id === product.id);
               return (
-                <div key={product.id} className="group flex flex-col relative bg-[#111111] p-2 border border-zinc-900 shadow-xl rounded-sm">
-                  <div className="bg-[#161616] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
-                    {/* Image Fallback Removed - Will now show true broken links if Supabase errors out */}
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-[800ms]" />
+                <div key={product.id} className="group flex flex-col relative bg-[#111111] p-2 border border-zinc-900 shadow-xl rounded-sm transition-all duration-500 hover:border-zinc-700">
+                  
+                  {/* Image Framework Panel */}
+                  <div 
+                    className="bg-[#161616] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" 
+                    onClick={() => !product.is_sold_out && openQuickView(product)}
+                  >
+                    {/* Image Hover Transition: Smooth layout scale */}
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover transition-transform duration-[1000ms] cubic-bezier(0.25, 1, 0.5, 1) group-hover:scale-105" 
+                    />
                     
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center bg-black/95 border border-zinc-800 divide-x divide-zinc-800 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 z-10 shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => !product.is_sold_out && openQuickView(product)} disabled={product.is_sold_out} className="p-2.5 hover:bg-white hover:text-black text-white transition-colors disabled:opacity-30" title="Quick View">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
+                    {/* Subtle Overlay Shadow Shade on hover */}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    
+                    {/* DYNAMIC HOVER CONTROL UTILITY SLIDER (Mirrors Video Interface) */}
+                    <div 
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-black/90 backdrop-blur-md border border-zinc-800 divide-x divide-zinc-800 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-[400ms] cubic-bezier(0.25, 1, 0.5, 1) z-10 shadow-2xl rounded-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button 
+                        onClick={() => !product.is_sold_out && openQuickView(product)} 
+                        disabled={product.is_sold_out} 
+                        className="p-3 hover:bg-white hover:text-black text-white transition-colors duration-300 disabled:opacity-30" 
+                        title="Quick View"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
+                        </svg>
                       </button>
-                      <button onClick={() => toggleWishlist(product)} className={`p-2.5 hover:bg-white hover:text-black transition-colors ${isLiked ? 'text-red-500' : 'text-white'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill={isLiked ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                      <button 
+                        onClick={() => toggleWishlist(product)} 
+                        className={`p-3 hover:bg-white hover:text-black transition-colors duration-300 ${isLiked ? 'text-red-500' : 'text-white'}`}
+                        title="Add to Wishlist"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill={isLiked ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                        </svg>
                       </button>
                     </div>
 
@@ -145,9 +241,15 @@ export default function Storefront() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Text Details Panel with smooth title highlights */}
                   <div className="flex flex-col gap-1 mt-3.5 text-center pb-1">
-                    <h3 className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase text-zinc-400 group-hover:text-white truncate">{product.name}</h3>
-                    <p className="text-[10px] sm:text-[11px] font-normal tracking-widest text-zinc-200">₦{Number(product.price).toLocaleString()}</p>
+                    <h3 className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase text-zinc-400 group-hover:text-white transition-colors duration-300 truncate">
+                      {product.name}
+                    </h3>
+                    <p className="text-[10px] sm:text-[11px] font-normal tracking-widest text-zinc-200">
+                      ₦{Number(product.price).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               );
@@ -252,7 +354,7 @@ export default function Storefront() {
       
       {isCartOpen && <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
-      {/* 5. FOOTER */}
+      {/* 6. FOOTER */}
       <footer className="border-t border-zinc-900 bg-[#020202] pt-16 pb-12 mt-16 sm:mt-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-400 font-light tracking-widest">
           
@@ -281,7 +383,7 @@ export default function Storefront() {
           <div className="flex flex-col gap-3">
             <h4 className="text-white text-[10px] tracking-[0.2em] font-medium uppercase">Sign up for email</h4>
             <p className="text-[10px] text-zinc-500 leading-relaxed">Stay informed about the latest releases and luxury lookbooks.</p>
-            <form onSubmit={(e) => { e.preventDefault(); alert('Subscribed to SIKAMÒRE newsletter.'); }} className="flex border-b border-zinc-800 py-1.5 mt-1">
+            <form onSubmit={(e) => { e.preventDefault(); showToast('SUBSCRIBED TO NEWSLETTER.'); }} className="flex border-b border-zinc-800 py-1.5 mt-1">
               <input type="email" placeholder="Your email address" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-700 text-[10px] text-white tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-white uppercase hover:text-zinc-400 transition-colors">Subscribe</button>
             </form>
