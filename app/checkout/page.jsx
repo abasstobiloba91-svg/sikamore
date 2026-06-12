@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useApp } from '../providers';
 
 export default function CheckoutPage() {
-  const { cart, clearCart, showToast } = useApp(); // Connect custom popup
+  const { cart, clearCart, showToast } = useApp(); 
   const [processing, setProcessing] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -41,7 +41,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px]">
       
       <header className="border-b border-gray-100 h-20 flex items-center justify-between px-4 sm:px-8 bg-white sticky top-0 z-10">
-        <Link href="/" className="tracking-[0.2em] text-gray-500 hover:text-black uppercase text-[9px] sm:text-[10px]">
+        <Link href="/shop" className="tracking-[0.2em] text-gray-500 hover:text-black uppercase text-[9px] sm:text-[10px] z-10">
           &larr; Return to Store
         </Link>
         <h1 className="text-lg sm:text-xl font-normal tracking-[0.4em] uppercase font-serif text-center w-full absolute left-0 pointer-events-none">
@@ -58,23 +58,52 @@ export default function CheckoutPage() {
           <form onSubmit={handleCheckoutSubmit} className="space-y-8">
             <div className="space-y-6">
               <h3 className="text-xs uppercase tracking-widest font-medium border-b border-gray-200 pb-2">Billing details</h3>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider">First name *</label>
-                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="border border-gray-300 p-3 outline-none focus:border-black transition-colors" />
+                  {/* ZOOM FIX APPLIED HERE: text-base for mobile, scales cleanly to md:text-xs on desktop */}
+                  <input 
+                    type="text" 
+                    value={firstName} 
+                    onChange={(e) => setFirstName(e.target.value)} 
+                    required 
+                    className="border border-gray-300 p-3 outline-none focus:border-black transition-colors text-base md:text-xs uppercase tracking-wider rounded-none" 
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider">Last name *</label>
-                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required className="border border-gray-300 p-3 outline-none focus:border-black transition-colors" />
+                  <input 
+                    type="text" 
+                    value={lastName} 
+                    onChange={(e) => setLastName(e.target.value)} 
+                    required 
+                    className="border border-gray-300 p-3 outline-none focus:border-black transition-colors text-base md:text-xs uppercase tracking-wider rounded-none" 
+                  />
                 </div>
               </div>
+
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] text-gray-500 uppercase tracking-wider">Email address *</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="border border-gray-300 p-3 outline-none focus:border-black transition-colors" />
+                <input 
+                  type="type" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  className="border border-gray-300 p-3 outline-none focus:border-black transition-colors text-base md:text-xs tracking-wider rounded-none" 
+                />
               </div>
+
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] text-gray-500 uppercase tracking-wider">Street address *</label>
-                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required placeholder="House number and street name" className="border border-gray-300 p-3 outline-none focus:border-black transition-colors" />
+                <input 
+                  type="text" 
+                  value={address} 
+                  onChange={(e) => setAddress(e.target.value)} 
+                  required 
+                  placeholder="House number and street name" 
+                  className="border border-gray-300 p-3 outline-none focus:border-black transition-colors text-base md:text-xs uppercase tracking-wider rounded-none placeholder-gray-300" 
+                />
               </div>
             </div>
             
@@ -96,7 +125,7 @@ export default function CheckoutPage() {
             {cart.map((item, idx) => (
               <div key={idx} className="flex gap-4 py-2 border-b border-gray-100">
                 <div className="w-16 h-20 bg-white shrink-0 border border-gray-200">
-                  <img src={item.image} className="w-full h-full object-cover" onError={(e) => { e.target.src = '/product 1.jpeg'; }} />
+                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = '/product 1.jpeg'; }} />
                 </div>
                 <div className="flex-1 flex flex-col justify-center">
                   <h4 className="text-[10px] uppercase tracking-widest font-medium text-black">{item.name} × {item.quantity}</h4>
