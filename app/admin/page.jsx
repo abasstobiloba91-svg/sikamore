@@ -100,12 +100,30 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      const invalid = productsList.find(p => !p.name || !p.price || !p.stock || !p.file);
-      if (invalid) {
+      // PINPOINT VALIDATION ENGINE DETECTS EXACTLY WHAT IS EMPTY
+      let detailedError = '';
+      
+      productsList.forEach((product, index) => {
+        if (detailedError) return; // Stop checking if an error is already found
+        
+        const itemNum = index + 1;
+        if (!product.name || String(product.name).trim() === '') {
+          detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
+        } else if (!product.price || String(product.price).trim() === '') {
+          detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
+        } else if (!product.stock || String(product.stock).trim() === '') {
+          detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
+        } else if (!product.file) {
+          detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING AN ATTACHED IMAGE.`;
+        }
+      });
+
+      if (detailedError) {
         setLoading(false);
-        return showToast('ERROR: PLEASE FILL ALL FIELDS AND ADD IMAGES FOR EVERY PRODUCT.');
+        return showToast(`ERROR: ${detailedError}`);
       }
 
+      // If all elements clear validation perfectly, proceed with secure upload sequence
       for (const product of productsList) {
         const fileExt = product.file.name.split('.').pop().toLowerCase();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -152,7 +170,6 @@ export default function AdminDashboard() {
         timestamp: new Date().toISOString()
       };
 
-      // Ensure formatting fallback handles older string entries cleanly
       const currentHistory = activeChat.chat_history && Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0
         ? activeChat.chat_history
         : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
@@ -164,7 +181,7 @@ export default function AdminDashboard() {
         .update({
           chat_history: updatedHistory,
           status: 'replied',
-          has_unread_user: true // Pushes a notification trigger to user dashboard
+          has_unread_user: true
         })
         .eq('id', activeChat.id);
 
