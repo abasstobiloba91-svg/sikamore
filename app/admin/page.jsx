@@ -2,7 +2,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -15,21 +15,20 @@ export default function AdminDashboard() {
   const { showToast } = useApp();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
-  const [activeTab, setActiveTab] = useState('inventory'); // Tabs: inventory, tracker, newsletter, support
+  const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support
   
-  // --- BULK/VISUAL UPLOAD STATE ---
+  // --- BULK UPLOADER STATE ---
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', file: null, preview: null }
   ]);
   const [loading, setLoading] = useState(false);
 
-  // --- SUPPORT INBOX STATE ---
+  // --- LIVE CUSTOMER SUPPORT INBOX STATE ---
+  const [tickets, setTickets] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
-  const mockTickets = [
-    { id: 1, name: 'Tobiloba', email: 'tobi@example.com', subject: 'Order #4092 Delay', message: 'Hello, I wanted to know when my dress will be shipped.', status: 'unread' },
-    { id: 2, name: 'Aisha', email: 'aisha@example.com', subject: 'Sizing Question', message: 'Does the Lumière dress stretch?', status: 'read' }
-  ];
+  const [sendingReply, setSendingSupport] = useState(false);
+  const chatEndRef = useRef(null);
 
   // Tracker & Newsletter State
   const [liveOrders, setLiveOrders] = useState([]);
@@ -37,6 +36,30 @@ export default function AdminDashboard() {
   const [newsletterSubj, setNewsletterSubj] = useState('');
 
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
+
+  // Fetch Live Tickets when the support tab opens
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'support') return;
+
+    async function fetchLiveTickets() {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setTickets(data);
+      }
+    }
+    fetchLiveTickets();
+  }, [isAuthenticated, activeTab]);
+
+  // Auto-scroll inside chat box
+  useEffect(() => {
+    if (activeChat && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeChat]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -65,7 +88,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files[0];
+    const file = e.target.files;
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(productsList.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -77,7 +100,6 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      // Basic validation
       const invalid = productsList.find(p => !p.name || !p.price || !p.stock || !p.file);
       if (invalid) {
         setLoading(false);
@@ -114,6 +136,50 @@ export default function AdminDashboard() {
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- TWO-WAY ADMIN LIVE CONCIERGE RESPONSE LOGIC ---
+  const handleAdminReply = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setSendingSupport(true);
+
+    try {
+      const adminMessage = {
+        sender: 'admin',
+        text: replyText,
+        timestamp: new Date().toISOString()
+      };
+
+      // Ensure formatting fallback handles older string entries cleanly
+      const currentHistory = activeChat.chat_history && Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0
+        ? activeChat.chat_history
+        : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
+
+      const updatedHistory = [...currentHistory, adminMessage];
+
+      const { error } = await supabase
+        .from('support_tickets')
+        .update({
+          chat_history: updatedHistory,
+          status: 'replied',
+          has_unread_user: true // Pushes a notification trigger to user dashboard
+        })
+        .eq('id', activeChat.id);
+
+      if (error) throw error;
+
+      showToast('DISPATCH TRANSKICKED TO CLIENT PORTAL.');
+      
+      const refreshedChat = { ...activeChat, chat_history: updatedHistory, status: 'replied' };
+      setActiveChat(refreshedChat);
+      setTickets(prev => prev.map(t => t.id === activeChat.id ? refreshedChat : t));
+      setReplyText('');
+    } catch (err) {
+      showToast(`ERROR: ${err.message.toUpperCase()}`);
+    } finally {
+      setSendingSupport(false);
     }
   };
 
@@ -199,9 +265,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 4: CUSTOMER SUPPORT INBOX */}
+        {/* TAB 4: LIVE CUSTOMER SUPPORT INBOX */}
         {activeTab === 'support' && (
-          <div className="bg-[#0A0A0A] text-white flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl">
+          <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl">
             
             {/* Left Panel: Ticket List */}
             <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
@@ -209,54 +275,67 @@ export default function AdminDashboard() {
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
               </div>
               <div className="flex flex-col">
-                {mockTickets.map((ticket) => (
-                  <button 
-                    key={ticket.id} 
-                    onClick={() => setActiveChat(ticket)}
-                    className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors ${activeChat?.id === ticket.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium uppercase tracking-wider">{ticket.name}</span>
-                      {ticket.status === 'unread' && <span className="w-2 h-2 bg-white rounded-full"></span>}
-                    </div>
-                    <p className="text-[10px] text-zinc-500 truncate">{ticket.subject}</p>
-                  </button>
-                ))}
+                {tickets.length === 0 ? (
+                  <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center py-10">No messages found.</p>
+                ) : (
+                  tickets.map((ticket) => (
+                    <button 
+                      key={ticket.id} 
+                      onClick={() => setActiveChat(ticket)}
+                      className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeChat?.id === ticket.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium uppercase tracking-wider">{ticket.name}</span>
+                        {ticket.status === 'unread' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 truncate tracking-wide">{ticket.subject}</p>
+                      <p className="text-[8px] text-zinc-600 mt-1 uppercase tracking-widest">{ticket.status}</p>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Right Panel: Chat Interface */}
+            {/* Right Panel: Active Chat UI Interface */}
             <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A]">
               {activeChat ? (
                 <>
                   {/* Chat Header */}
-                  <div className="p-6 border-b border-zinc-800">
-                    <h3 className="text-xs uppercase tracking-widest">{activeChat.name}</h3>
-                    <p className="text-[9px] text-zinc-500 tracking-[0.1em]">{activeChat.email} | {activeChat.subject}</p>
+                  <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A]">
+                    <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
+                    <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
                   </div>
-                  {/* Chat Body */}
-                  <div className="flex-1 p-6 overflow-y-auto">
-                    <div className="bg-[#161616] p-4 inline-block max-w-[80%] border border-zinc-800 mb-4">
-                      <p className="text-xs leading-relaxed text-zinc-300">{activeChat.message}</p>
-                    </div>
+                  
+                  {/* Chat Message Thread Body */}
+                  <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
+                    {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
+                      <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
+                        <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase mb-1">{msg.sender === 'admin' ? 'You' : activeChat.name}</span>
+                        <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'admin' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
                   </div>
-                  {/* Reply Input */}
-                  <div className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4">
+                  
+                  {/* Reply Input Form Controls */}
+                  <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4">
                     <input 
                       type="text" 
                       value={replyText} 
                       onChange={(e) => setReplyText(e.target.value)} 
-                      placeholder="Type your reply..." 
-                      className="flex-1 bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white"
+                      placeholder="Type a response to dispatch..." 
+                      className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide"
                     />
-                    <button className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200">
-                      Send
+                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">
+                      {sendingReply ? 'SENDING...' : 'DISPATCH'}
                     </button>
-                  </div>
+                  </form>
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select a ticket to respond</p>
+                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select an active ticket from the archive log</p>
                 </div>
               )}
             </div>
