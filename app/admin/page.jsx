@@ -259,7 +259,7 @@ export default function AdminDashboard() {
       setNewsletterMsg('');
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } finaly {
+    } finally {
       setSendingNewsletter(false);
     }
   };
