@@ -53,13 +53,25 @@ export default function ShopCatalog() {
   const [inlineSize, setInlineSize] = useState('M');
   const [inlineQty, setInlineQty] = useState(1);
 
+  // --- BACKGROUND SCROLL LOCKER (PREVENTS PAGE SCROLLING WHEN MODALS OPEN) ---
+  useEffect(() => {
+    if (isMenuOpen || isCartOpen || showNewsletter || quickViewProduct) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMenuOpen, isCartOpen, showNewsletter, quickViewProduct]);
+
   // --- ANALYTICS TRANSMITTER: PAGE VISIT LOG ---
   useEffect(() => {
     async function transmitTrafficLog() {
       try {
         await supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]);
       } catch (err) {
-        // Silently fail if analytics blocked by ad-blockers to keep UX intact
+        // Silently fail if analytics blocked
       }
     }
     transmitTrafficLog();
@@ -96,7 +108,6 @@ export default function ShopCatalog() {
     setOpenAccordion('description');
     setQuickViewProduct(product);
     
-    // Log the click event to your live analytics dashboard
     try {
       await supabase.from('page_analytics').insert([{ 
         event_type: 'click', 
@@ -146,7 +157,7 @@ export default function ShopCatalog() {
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] relative overflow-x-hidden pb-24">
       
       {/* GLOBAL ANNOUNCEMENT TICKER */}
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-[60]">
         <div 
           className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" 
           style={{ transform: `translateY(-${tickerIndex * 100}%)` }}
@@ -163,7 +174,7 @@ export default function ShopCatalog() {
       </div>
 
       {/* PURE PLAIN NAVIGATION HEADER SYSTEM */}
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-[50]">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 grid grid-cols-3 items-center">
           
           {/* Left Element: Mobile Burger Menu Toggle Link */}
@@ -215,7 +226,7 @@ export default function ShopCatalog() {
       </header>
 
       {/* PLAIN SIDE NAVIGATION DRAWER INDEX */}
-      <div className={`fixed inset-y-0 left-0 z- w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z-[140] w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1">
@@ -232,7 +243,8 @@ export default function ShopCatalog() {
           S. SIKAMÒRE COLLECTIVES © 2026
         </div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/40 z- backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
+      {/* BLUR REMOVED FROM BACKDROP TO PREVENT GLITCHES */}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z-[135]" onClick={() => setIsMenuOpen(false)}></div>}
 
       {/* SORT AND FILTER ACTION MATRIX CONTROLLERS */}
       <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
@@ -380,11 +392,11 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* DETAILED PRODUCT OVERLAY MODAL (NOW WITH DYNAMIC ACCORDION DATABASE MAPPING) */}
+      {/* DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z- flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
           <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 my-8 rounded-sm">
-            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100">
+            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-500 hover:text-black transition-colors bg-white/90 p-1.5 rounded-full border border-zinc-200 shadow-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             
@@ -491,7 +503,7 @@ export default function ShopCatalog() {
       )}
 
       {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 z- w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 right-0 z-[110] w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -544,10 +556,10 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 z- backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/60 z-[100]" onClick={() => setIsCartOpen(false)}></div>}
 
       {/* STICKY BOTTOM QUICK CHECKOUT BAR */}
-      <div className={`fixed bottom-0 left-0 w-full z- transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="bg-[#0A0A0A] text-white h-[72px] sm:h-[80px] w-full border-t border-zinc-800 flex items-center justify-center shadow-lg">
           <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-12 flex items-center justify-between">
             <div className="flex items-center gap-4 sm:gap-8">
@@ -567,78 +579,105 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
-      <div className={`fixed inset-0 z- flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        <div className="bg-[#0A0A0A] text-white w-full max-w-md border border-zinc-900 relative flex flex-col max-h-[90vh] overflow-hidden rounded-sm shadow-2xl">
-          <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 text-zinc-500 hover:text-white z-50 bg-[#111] p-1.5 rounded-full border border-zinc-800">
-            ✕
+      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL (REBUILT WITH OVERFLOW PROTECTION & IMAGE) */}
+      <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        
+        {/* Maximum height constraints on modal to prevent slashing, relative positioning for close button */}
+        <div className="w-full max-w-md bg-white relative flex flex-col max-h-[90vh] overflow-hidden rounded-sm shadow-2xl">
+          
+          {/* Absolute Close Button inside relative wrapper */}
+          <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-3 right-3 text-white hover:text-zinc-300 z-50 bg-black/40 p-1.5 rounded-full backdrop-blur-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
-          <div className="overflow-y-auto flex-1 p-6 sm:p-8 space-y-6">
-            {!grabDiscountClicked ? (
-              <div className="text-center space-y-4 pt-4">
-                <h3 className="text-base font-normal tracking-[0.15em] uppercase font-serif">Wait! before you leave...</h3>
-                <p className="text-[10px] tracking-widest text-zinc-400 uppercase">Get 10% off for your first order</p>
-                <div className="bg-[#111] border border-zinc-800 p-4 flex items-center justify-between rounded-sm mt-2">
-                  <span className="font-mono text-xs tracking-widest text-white font-semibold">CODE20OFF</span>
-                  <button type="button" onClick={copyCouponCode} className="text-zinc-400 hover:text-white p-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                  </button>
-                </div>
-                <p className="text-[8.5px] leading-relaxed text-zinc-500 uppercase tracking-wide">
-                  Use above code to get 10% OFF for your first order when checkout
-                </p>
-                <button 
-                  type="button" 
-                  onClick={() => setGrabDiscountClicked(true)}
-                  className="w-full bg-[#D31313] hover:bg-red-700 text-white py-3.5 text-[10px] tracking-[0.25em] font-medium uppercase transition-colors mt-2 rounded-sm"
-                >
-                  Grab the discount
-                </button>
+
+          {/* Dedicated internal scrollable wrapper */}
+          <div className="overflow-y-auto flex-1 overscroll-contain">
+            
+            {/* STAGE 1 / 2 LOGIC CARD - NOW FEATURING PRODUCT IMAGE BACKGROUND */}
+            <div className="relative w-full shrink-0 border-b border-zinc-200">
+              <div className="absolute inset-0 bg-black">
+                {products.length > 0 && (
+                  <img src={products[0]?.image} className="w-full h-full object-cover opacity-60" alt="Background" />
+                )}
               </div>
-            ) : (
-              <div className="text-center space-y-4 pt-4 animate-fade-in">
-                <h3 className="text-sm font-normal tracking-[0.15em] uppercase font-serif">Secure Your Discount Outline</h3>
-                <p className="text-[9px] tracking-widest text-zinc-400 uppercase">Enter email below to join the archive registry</p>
-                <form onSubmit={handlePopupSubscription} className="space-y-3 pt-2">
-                  <input 
-                    type="email" 
-                    value={subscriberEmail}
-                    onChange={(e) => setSubscriberEmail(e.target.value)}
-                    placeholder="YOUR EMAIL ADDRESS" 
-                    required 
-                    className="w-full bg-[#111] p-4 border border-zinc-800 text-white outline-none text-xs text-center tracking-widest uppercase focus:border-zinc-500 rounded-sm"
-                  />
-                  <button 
-                    type="submit" 
-                    disabled={submittingEmail}
-                    className="w-full bg-white text-black py-3.5 text-[9px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-200 disabled:opacity-40 rounded-sm"
-                  >
-                    {submittingEmail ? 'REGISTRATING...' : 'SUBMIT REGISTRY'}
-                  </button>
-                </form>
+              
+              <div className="relative z-10 p-8 pt-12 text-center space-y-4 text-white">
+                {!grabDiscountClicked ? (
+                  <div className="animate-fade-in">
+                    <h3 className="text-lg font-normal tracking-wide font-serif mb-1">Wait! before you leave...</h3>
+                    <p className="text-[10px] tracking-widest text-zinc-300 uppercase mb-4">Get 10% off for your first order</p>
+                    
+                    <div className="bg-white text-black p-3 flex items-center justify-between rounded-sm mt-4 w-3/4 mx-auto shadow-md">
+                      <span className="font-mono text-[11px] tracking-widest font-bold">CODE20OFF</span>
+                      <button type="button" onClick={copyCouponCode} className="text-black hover:text-zinc-600 p-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      </button>
+                    </div>
+
+                    <p className="text-[9px] leading-relaxed text-zinc-300 mt-4 mb-4">
+                      Use above code to get 10% OFF for your first order when checkout
+                    </p>
+
+                    <button 
+                      type="button" 
+                      onClick={() => setGrabDiscountClicked(true)}
+                      className="w-full bg-[#D31313] hover:bg-red-700 text-white py-3.5 text-[10px] tracking-[0.1em] font-medium transition-colors rounded-sm shadow-md"
+                    >
+                      Grab the discount
+                    </button>
+                  </div>
+                ) : (
+                  <div className="animate-fade-in">
+                    <h3 className="text-lg font-normal tracking-wide font-serif mb-1">Secure Your Discount</h3>
+                    <p className="text-[10px] tracking-widest text-zinc-300 uppercase mb-4">Enter email to join the registry</p>
+                    
+                    <form onSubmit={handlePopupSubscription} className="space-y-3 pt-2">
+                      <input 
+                        type="email" 
+                        value={subscriberEmail}
+                        onChange={(e) => setSubscriberEmail(e.target.value)}
+                        placeholder="YOUR EMAIL ADDRESS" 
+                        required 
+                        className="w-full bg-white/10 p-3.5 border border-white/30 text-white placeholder-zinc-300 outline-none text-[10px] text-center tracking-widest uppercase focus:border-white rounded-sm backdrop-blur-sm"
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={submittingEmail}
+                        className="w-full bg-[#D31313] text-white py-3.5 text-[10px] tracking-[0.1em] font-medium hover:bg-red-700 disabled:opacity-40 rounded-sm transition-colors shadow-md"
+                      >
+                        {submittingEmail ? 'REGISTERING...' : 'SUBMIT REGISTRY'}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="border-t border-zinc-900 pt-6 mt-6">
-              <h4 className="text-[10px] uppercase tracking-widest font-medium text-zinc-400 mb-4 pl-1">Recommended Products</h4>
+            </div>
+
+            {/* LOWER PORTION MATRIX: LIVE RECOMMENDED PRODUCTS */}
+            <div className="bg-white p-6 sm:p-8">
+              <h4 className="text-[12px] font-medium text-black mb-5">Recommended Products</h4>
               <div className="space-y-4">
                 {products.slice(0, 3).map((recProd) => (
                   <div 
                     key={recProd.id} 
                     onClick={() => { setShowNewsletter(false); openQuickView(recProd); }}
-                    className="flex gap-4 items-center bg-[#111] border border-zinc-900 p-2 rounded-sm cursor-pointer hover:border-zinc-700 transition-colors"
+                    className="flex gap-4 items-center bg-white p-0 cursor-pointer group"
                   >
-                    <div className="w-12 h-16 bg-black shrink-0 overflow-hidden">
-                      <img src={recProd.image} alt={recProd.name} className="w-full h-full object-cover" />
+                    <div className="w-16 h-20 bg-zinc-100 shrink-0 overflow-hidden rounded-sm border border-zinc-100">
+                      <img src={recProd.image} alt={recProd.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <h5 className="text-[9px] font-medium uppercase tracking-wider text-zinc-200 truncate">{recProd.name}</h5>
-                      <p className="text-[10px] text-zinc-400 tracking-wide mt-0.5">₦{Number(recProd.price).toLocaleString()}</p>
+                      <div className="flex text-yellow-400 text-[9px] mb-1">
+                        ★ ★ ★ ★ ★ <span className="text-zinc-400 ml-1 font-mono">(0)</span>
+                      </div>
+                      <h5 className="text-[10px] font-medium uppercase tracking-wider text-black truncate">{recProd.name}</h5>
+                      <p className="text-[11px] text-black font-semibold tracking-wide mt-1">₦{Number(recProd.price).toLocaleString()}</p>
                     </div>
-                    <span className="text-zinc-600 text-xs pr-2">&rarr;</span>
                   </div>
                 ))}
               </div>
             </div>
+
           </div>
         </div>
       </div>
