@@ -17,6 +17,9 @@ export default function ShopCatalog() {
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
 
+  // NEWSLETTER POP-UP STATE
+  const [showNewsletter, setShowNewsletter] = useState(false);
+
   // THE FIXED ROLLING TICKER CONFIGURATION
   const [tickerIndex, setTickerIndex] = useState(0);
   const announcements = [
@@ -34,6 +37,7 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
+  // Fetch Products
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -59,6 +63,22 @@ export default function ShopCatalog() {
     }, 5000);
     return () => clearInterval(tickerTimer);
   }, [announcements.length]);
+
+  // Newsletter Pop-up Logic
+  useEffect(() => {
+    const hasSeen = sessionStorage.getItem('sikamore_newsletter');
+    if (!hasSeen) {
+      const timer = setTimeout(() => {
+        setShowNewsletter(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const closeNewsletter = () => {
+    setShowNewsletter(false);
+    sessionStorage.setItem('sikamore_newsletter', 'true');
+  };
 
   const openQuickView = (product) => {
     setQty(1);
@@ -154,7 +174,6 @@ export default function ShopCatalog() {
             </div>
           </div>
 
-          {/* MOBILE ZOOM FIX APPLIED HERE */}
           <select className="bg-transparent border-0 outline-none text-base md:text-[10px] uppercase cursor-pointer text-zinc-500 hover:text-black font-light">
             <option>Sort by latest</option>
           </select>
@@ -362,7 +381,6 @@ export default function ShopCatalog() {
             <h4 className="text-white text-[10px] tracking-[0.2em] font-medium uppercase">Sign up for email</h4>
             <p className="text-[10px] text-zinc-500 leading-relaxed">Stay informed about the latest releases and luxury lookbooks.</p>
             <form onSubmit={(e) => { e.preventDefault(); alert('Subscribed.'); }} className="flex border-b border-zinc-800 py-1.5 mt-1">
-              {/* MOBILE ZOOM FIX APPLIED HERE */}
               <input type="email" placeholder="Your email address" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-700 text-base md:text-[10px] text-white tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-white uppercase hover:text-zinc-400 transition-colors">Subscribe</button>
             </form>
@@ -379,6 +397,43 @@ export default function ShopCatalog() {
           </div>
         </div>
       </footer>
+
+      {/* PREMIUM NEWSLETTER POP-UP */}
+      {showNewsletter && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-opacity duration-500">
+          <div className="bg-[#0A0A0A] text-white w-full max-w-md p-10 sm:p-14 relative shadow-2xl border border-zinc-800 text-center animate-fade-in-up">
+            
+            <button onClick={closeNewsletter} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            
+            <h2 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h2>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8 block">The Vanguard Archive</p>
+            
+            <h3 className="text-sm tracking-widest uppercase mb-4">Unlock Exclusive Access</h3>
+            <p className="text-[10px] text-zinc-400 leading-relaxed mb-8 uppercase tracking-wider">
+              Join the club to receive early access to new capsules, unreleased editorial pieces, and private sales.
+            </p>
+            
+            <form onSubmit={(e) => { e.preventDefault(); closeNewsletter(); alert('Welcome to the Archive.'); }} className="flex flex-col gap-4">
+              <input 
+                type="email" 
+                placeholder="ENTER EMAIL ADDRESS" 
+                required 
+                className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-center tracking-widest text-white uppercase"
+              />
+              <button type="submit" className="w-full bg-white text-black py-4 text-[10px] tracking-[0.3em] uppercase hover:bg-zinc-200 transition-colors font-medium">
+                Subscribe
+              </button>
+            </form>
+            
+            <button onClick={closeNewsletter} className="mt-6 text-[8px] tracking-[0.2em] text-zinc-600 hover:text-zinc-400 uppercase transition-colors">
+              Continue to site
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
