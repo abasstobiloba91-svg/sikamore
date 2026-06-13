@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { showToast } = useApp();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
-  const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support, vendors, analytics
+  const [activeTab, setActiveTab] = useState('inventory');
   
   // --- STATE LEDGERS ---
   const [productsList, setProductsList] = useState([
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
           <h1 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h1>
           <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-400 mb-8">Admin Portal Access</p>
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
-            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-center tracking-widest text-white uppercase" />
+            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-center tracking-widest text-white uppercase" />
             <button type="submit" className="w-full bg-white text-black py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-200 font-medium">Unlock Dashboard</button>
           </form>
         </div>
@@ -412,15 +412,15 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                       <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Product Name</label>
-                      <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase" placeholder="E.G. LUMIÈRE DRESS" />
+                      <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase" placeholder="E.G. LUMIÈRE DRESS" />
                     </div>
                     <div>
                       <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Price (₦)</label>
-                      <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white" placeholder="E.G. 85000" />
+                      <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white" placeholder="E.G. 85000" />
                     </div>
                     <div>
                       <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Stock Qty</label>
-                      <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white" placeholder="E.G. 15" />
+                      <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white" placeholder="E.G. 15" />
                     </div>
                   </div>
 
@@ -428,19 +428,19 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-800">
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
-                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. EMBROIDERED MESH FULLER SILHOUETTE PIECE..." />
+                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. EMBROIDERED MESH FULLER SILHOUETTE PIECE..." />
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Information (Optional)</label>
-                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. COMPOSITION: 100% VAN-GUARD TEXTILE LINING..." />
+                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. COMPOSITION: 100% VAN-GUARD TEXTILE LINING..." />
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
-                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DAYS..." />
+                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DAYS..." />
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
-                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK..." />
+                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK..." />
                     </div>
                   </div>
 
@@ -450,7 +450,7 @@ export default function AdminDashboard() {
                       {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-600 uppercase tracking-widest text-center">Img</span>}
                     </div>
                     <div className="flex-1">
-                      <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-xs file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[8px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer text-zinc-500" />
+                      <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[8px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer text-zinc-500" />
                     </div>
                   </div>
                 </div>
@@ -477,7 +477,7 @@ export default function AdminDashboard() {
                       <h3 className="text-xs font-normal text-white uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-400 normal-case">{order.customer_email}</span></h3>
                     </div>
                     <div>
-                      <select value={order.status} onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)} className="bg-[#111] text-white border border-zinc-800 text-[9px] tracking-widest uppercase p-2.5 outline-none focus:border-white">
+                      <select value={order.status} onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)} className="bg-[#111] text-white border border-zinc-800 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none focus:border-white">
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
@@ -522,11 +522,11 @@ export default function AdminDashboard() {
                 <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
-                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE EDITIONS DROP: AUTUMN SILHOUETTES" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase tracking-wider transition-colors"/>
+                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE EDITIONS DROP: AUTUMN SILHOUETTES" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors"/>
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wider resize-none transition-colors" />
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors" />
                   </div>
                   <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium disabled:opacity-40 transition-colors">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
@@ -563,7 +563,6 @@ export default function AdminDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in relative overflow-hidden">
             
-            {/* Left Panel: Ticket List (Hidden on mobile when chat is active) */}
             <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
@@ -586,7 +585,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Right Panel: Active Chat (Hidden on mobile when no chat is active) */}
             <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
@@ -595,12 +593,11 @@ export default function AdminDashboard() {
                       <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
                       <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
                     </div>
-                    {/* Mobile Back Button */}
                     <button onClick={() => setActiveChat(null)} className="md:hidden text-[9px] tracking-widest uppercase border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800 text-zinc-300 transition-colors">
                       &larr; Back
                     </button>
                   </div>
-
+                  
                   <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
                     {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
@@ -609,7 +606,6 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                     
-                    {/* Real-time Typing Indicator */}
                     {isUserTyping && (
                       <div className="flex flex-col items-start animate-fade-in">
                         <span className="text-[8px] tracking-[0.2em] text-zinc-500 uppercase mb-1">{activeChat.name} IS TYPING...</span>
@@ -619,12 +615,12 @@ export default function AdminDashboard() {
                   </div>
                   
                   <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4 shrink-0">
-                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide" />
+                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide" />
                     <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex-1 flex items-center justify-center p-6 text-center">
                   <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select an active ticket from the archive log</p>
                 </div>
               )}
@@ -695,7 +691,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center">
+                <div className="h-full flex items-center justify-center text-center">
                   <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select a vendor to audit profile analytics and order logs</p>
                 </div>
               )}
