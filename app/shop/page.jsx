@@ -243,8 +243,7 @@ export default function ShopCatalog() {
           S. SIKAMÒRE COLLECTIVES © 2026
         </div>
       </div>
-      {/* BLUR REMOVED FROM BACKDROP TO PREVENT GLITCHES */}
-      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z-[135]" onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z-[135] backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
 
       {/* SORT AND FILTER ACTION MATRIX CONTROLLERS */}
       <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
@@ -392,112 +391,114 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* DETAILED PRODUCT OVERLAY MODAL */}
+      {/* DETAILED PRODUCT OVERLAY MODAL - REBUILT TO FIX MOBILE CUT-OFF */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
-          <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 my-8 rounded-sm">
-            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-500 hover:text-black transition-colors bg-white/90 p-1.5 rounded-full border border-zinc-200 shadow-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            
-            <div className="flex flex-col md:flex-row">
-              <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
-                <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" />
-              </div>
-              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center">
-                <h2 className="text-base font-normal tracking-[0.2em] uppercase mb-1 font-serif">{quickViewProduct.name}</h2>
-                <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">₦{quickViewProduct.price.toLocaleString()}</p>
-                
-                <div className="mb-5">
-                  <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Size selection</span>
-                  <div className="flex gap-2">
-                    {['S', 'M', 'L'].map(s => (
-                      <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
-                    ))}
-                  </div>
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/60 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
+            <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
+              <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+              
+              <div className="flex flex-col md:flex-row">
+                <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
+                  <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" />
                 </div>
-
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex items-center border border-zinc-200 bg-white">
-                    <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">-</button>
-                    <span className="w-8 text-center text-xs font-mono">{qty}</span>
-                    <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
-                  </div>
-                </div>
-
-                <button onClick={() => { addToCart(quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
-                  Add to Cart • ₦{(quickViewProduct.price * qty).toLocaleString()}
-                </button>
-              </div>
-            </div>
-
-            {/* EXPANDABLE ACCORDION DYNAMIC DATABASE BINDING */}
-            <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
-              <div className="border border-zinc-200 rounded-sm overflow-hidden">
-                <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
-                  <span>Description</span>
-                  <span>{openAccordion === 'description' ? '—' : '+'}</span>
-                </button>
-                {openAccordion === 'description' && (
-                  <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
-                    {quickViewProduct.description || "Embroidered mesh fuller silhouette piece with a micro structural alignment framing rule. Premium texture studies realized within the operational residency index."}
-                  </div>
-                )}
-              </div>
-
-              <div className="border border-zinc-200 rounded-sm overflow-hidden">
-                <button onClick={() => setOpenAccordion(openAccordion === 'additional' ? '' : 'additional')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
-                  <span>Additional information</span>
-                  <span>{openAccordion === 'additional' ? '—' : '+'}</span>
-                </button>
-                {openAccordion === 'additional' && (
-                  <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
-                    {quickViewProduct.additional_information || "COMPOSITION: 100% VAN-GUARD TEXTILE LINING\nCARE MANUAL: ECO DRY CLEAN PROCESS ONLY\nMADE IN NIGERIA RESIDENCY"}
-                  </div>
-                )}
-              </div>
-
-              <div className="border border-zinc-200 rounded-sm overflow-hidden">
-                <button onClick={() => setOpenAccordion(openAccordion === 'policies' ? '' : 'policies')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
-                  <span>Store Policies</span>
-                  <span>{openAccordion === 'policies' ? '—' : '+'}</span>
-                </button>
-                {openAccordion === 'policies' && (
-                  <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
-                    {quickViewProduct.store_policies || "COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DISPATCH DAYS FOR ORDER PROCESSING. EXCHANGE GRANTED WITHIN 7 RETRIEVAL LOG DAYS IF PRODUCT ATTRIBUTES MATRICULATE COMPLETE SECURE TAGS."}
-                  </div>
-                )}
-              </div>
-
-              <div className="border border-zinc-200 rounded-sm overflow-hidden">
-                <button onClick={() => setOpenAccordion(openAccordion === 'inquiries' ? '' : 'inquiries')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
-                  <span>Inquiries</span>
-                  <span>{openAccordion === 'inquiries' ? '—' : '+'}</span>
-                </button>
-                {openAccordion === 'inquiries' && (
-                  <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
-                    {quickViewProduct.inquiries || "CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK THROUGH THE PORTAL DISPATCH BOARD OR REACH ADVISORS DIRECTLY VIA EMAIL AT CONTACT@SIKAMOREOFFICIAL.COM."}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* RELATED PRODUCTS FEED */}
-            <div className="bg-white border-t border-zinc-100 p-6 sm:p-10">
-              <h4 className="text-[11px] uppercase tracking-[0.25em] font-medium text-black mb-6 text-center font-serif">Related products</h4>
-              <div className="grid grid-cols-2 gap-4">
-                {products.filter(p => p.id !== quickViewProduct.id).slice(0, 2).map(relProd => (
-                  <div key={relProd.id} onClick={() => { setQuickViewProduct(relProd); setQty(1); }} className="bg-white p-2 border border-zinc-100 rounded-sm cursor-pointer hover:border-zinc-400 transition-colors">
-                    <div className="aspect-[3/4] w-full overflow-hidden bg-zinc-50 mb-2">
-                      <img src={relProd.image} alt={relProd.name} className="w-full h-full object-cover" />
+                <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center">
+                  <h2 className="text-base font-normal tracking-[0.2em] uppercase mb-1 font-serif">{quickViewProduct.name}</h2>
+                  <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">₦{quickViewProduct.price.toLocaleString()}</p>
+                  
+                  <div className="mb-5">
+                    <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Size selection</span>
+                    <div className="flex gap-2">
+                      {['S', 'M', 'L'].map(s => (
+                        <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
+                      ))}
                     </div>
-                    <p className="text-[8px] uppercase tracking-wider text-zinc-500 truncate text-center">{relProd.name}</p>
-                    <p className="text-[9px] tracking-widest text-black font-medium text-center mt-0.5">₦{relProd.price.toLocaleString()}</p>
                   </div>
-                ))}
-              </div>
-            </div>
 
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="flex items-center border border-zinc-200 bg-white">
+                      <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">-</button>
+                      <span className="w-8 text-center text-xs font-mono">{qty}</span>
+                      <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
+                    </div>
+                  </div>
+
+                  <button onClick={() => { addToCart(quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
+                    Add to Cart • ₦{(quickViewProduct.price * qty).toLocaleString()}
+                  </button>
+                </div>
+              </div>
+
+              {/* EXPANDABLE ACCORDION DYNAMIC DATABASE BINDING */}
+              <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
+                    <span>Description</span>
+                    <span>{openAccordion === 'description' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'description' && (
+                    <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
+                      {quickViewProduct.description || "Embroidered mesh fuller silhouette piece with a micro structural alignment framing rule. Premium texture studies realized within the operational residency index."}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'additional' ? '' : 'additional')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
+                    <span>Additional information</span>
+                    <span>{openAccordion === 'additional' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'additional' && (
+                    <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
+                      {quickViewProduct.additional_information || "COMPOSITION: 100% VAN-GUARD TEXTILE LINING\nCARE MANUAL: ECO DRY CLEAN PROCESS ONLY\nMADE IN NIGERIA RESIDENCY"}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'policies' ? '' : 'policies')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
+                    <span>Store Policies</span>
+                    <span>{openAccordion === 'policies' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'policies' && (
+                    <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
+                      {quickViewProduct.store_policies || "COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DISPATCH DAYS FOR ORDER PROCESSING. EXCHANGE GRANTED WITHIN 7 RETRIEVAL LOG DAYS IF PRODUCT ATTRIBUTES MATRICULATE COMPLETE SECURE TAGS."}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'inquiries' ? '' : 'inquiries')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
+                    <span>Inquiries</span>
+                    <span>{openAccordion === 'inquiries' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'inquiries' && (
+                    <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
+                      {quickViewProduct.inquiries || "CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK THROUGH THE PORTAL DISPATCH BOARD OR REACH ADVISORS DIRECTLY VIA EMAIL AT CONTACT@SIKAMOREOFFICIAL.COM."}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RELATED PRODUCTS FEED */}
+              <div className="bg-white border-t border-zinc-100 p-6 sm:p-10">
+                <h4 className="text-[11px] uppercase tracking-[0.25em] font-medium text-black mb-6 text-center font-serif">Related products</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {products.filter(p => p.id !== quickViewProduct.id).slice(0, 2).map(relProd => (
+                    <div key={relProd.id} onClick={() => { setQuickViewProduct(relProd); setQty(1); }} className="bg-white p-2 border border-zinc-100 rounded-sm cursor-pointer hover:border-zinc-400 transition-colors">
+                      <div className="aspect-[3/4] w-full overflow-hidden bg-zinc-50 mb-2">
+                        <img src={relProd.image} alt={relProd.name} className="w-full h-full object-cover" />
+                      </div>
+                      <p className="text-[8px] uppercase tracking-wider text-zinc-500 truncate text-center">{relProd.name}</p>
+                      <p className="text-[9px] tracking-widest text-black font-medium text-center mt-0.5">₦{relProd.price.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
@@ -556,7 +557,7 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/60 z-[100]" onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
       {/* STICKY BOTTOM QUICK CHECKOUT BAR */}
       <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
@@ -579,21 +580,16 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL (REBUILT WITH OVERFLOW PROTECTION & IMAGE) */}
-      <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        
-        {/* Maximum height constraints on modal to prevent slashing, relative positioning for close button */}
-        <div className="w-full max-w-md bg-white relative flex flex-col max-h-[90vh] overflow-hidden rounded-sm shadow-2xl">
-          
-          {/* Absolute Close Button inside relative wrapper */}
-          <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-3 right-3 text-white hover:text-zinc-300 z-50 bg-black/40 p-1.5 rounded-full backdrop-blur-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-
-          {/* Dedicated internal scrollable wrapper */}
-          <div className="overflow-y-auto flex-1 overscroll-contain">
+      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL - REBUILT TO FIX MOBILE CUT-OFF */}
+      <div className={`fixed inset-0 z-[150] overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className="flex min-h-full items-start justify-center p-4">
+          <div className="w-full max-w-md bg-white relative flex flex-col rounded-sm shadow-2xl mt-8 mb-12 overflow-hidden">
             
-            {/* STAGE 1 / 2 LOGIC CARD - NOW FEATURING PRODUCT IMAGE BACKGROUND */}
+            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-3 right-3 text-white hover:text-zinc-300 z-50 bg-black/40 p-1.5 rounded-full backdrop-blur-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            {/* STAGE 1 / 2 LOGIC CARD - WITH PRODUCT IMAGE BACKGROUND */}
             <div className="relative w-full shrink-0 border-b border-zinc-200">
               <div className="absolute inset-0 bg-black">
                 {products.length > 0 && (
