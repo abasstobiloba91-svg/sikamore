@@ -40,6 +40,14 @@ export default function AdminDashboard() {
   const chatEndRef = useRef(null);
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
+  // --- PERSIST AUTH ON REFRESH ---
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('sikamore_admin_authenticated');
+    if (savedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
   // --- COMPREHENSIVE RE-FETCH MONITOR ---
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -79,11 +87,18 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (passcode === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
+      localStorage.setItem('sikamore_admin_authenticated', 'true'); // Lock session to local storage
       showToast('ACCESS GRANTED. WELCOME BACK.');
     } else {
       showToast('ACCESS DENIED: INCORRECT PASSCODE.');
       setPasscode('');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('sikamore_admin_authenticated'); // Clear secure session
+    showToast('PORTAL SESSION TERMINATED.');
   };
 
   // --- INVENTORY MANAGER CONTROLS ---
@@ -100,7 +115,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files[0];
+    const file = e.target.files;
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -182,7 +197,6 @@ export default function AdminDashboard() {
     setSendingNewsletter(true);
 
     try {
-      // 1. Build the luxury HTML layout template
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
       const customHTMLTemplate = `
         <!DOCTYPE html>
@@ -195,7 +209,7 @@ export default function AdminDashboard() {
             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F5F5F4; padding:60px 20px;">
               <tr>
                 <td align="center">
-                  <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px sm:padding:60px; border:1px solid #1c1c1a; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+                  <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
                     <tr>
                       <td align="center" style="padding-bottom:40px; border-bottom:1px solid #1A1A1A;">
                         <h1 style="font-family:'Times New Roman', Times, Baskerville, Georgia, serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase; text-align:center;">S. SIKAMÒRE</h1>
@@ -227,7 +241,6 @@ export default function AdminDashboard() {
         </html>
       `;
 
-      // 2. Log campaign context directly into the database
       const { data, error } = await supabase
         .from('campaigns')
         .insert([{
@@ -239,18 +252,14 @@ export default function AdminDashboard() {
         .select();
 
       if (error) throw error;
-
-      // --- DISPATCH INTEGRATION BRIDGE ---
-      // This is where your code pipes the payload directly to a delivery service
-      // e.g., fetch('https://api.resend.com/emails', { method: 'POST', body: JSON.stringify({ to: subscribers.map(s => s.email), html: customHTMLTemplate }) })
       
       showToast(`DISPATCH SUCCESS! PRIVATE EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setCampaigns(prev => [data[0], ...prev]);
+      setCampaigns(prev => [data, ...prev]);
       setNewsletterSubj('');
       setNewsletterMsg('');
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } finally {
+    } finaly {
       setSendingNewsletter(false);
     }
   };
@@ -304,11 +313,16 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] text-black py-12 px-4 sm:px-6 font-sans antialiased">
+    <div className="min-h-screen bg-[#F5F5F4] text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
         
         {/* TOP COMMAND NAVIGATION */}
-        <div className="mb-10 text-center">
+        <div className="mb-10 text-center relative">
+          <div className="absolute right-0 top-0">
+            <button onClick={handleLogout} className="text-[8px] sm:text-[9px] tracking-widest text-zinc-400 hover:text-black uppercase transition-colors border border-zinc-300 hover:border-black px-3 py-1.5 font-medium">
+              Sign Out
+            </button>
+          </div>
           <h1 className="text-2xl font-normal tracking-[0.4em] uppercase mb-2 font-serif text-black">S. SIKAMÒRE</h1>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-8">
             {['inventory', 'tracker', 'newsletter', 'support'].map((tab) => (
@@ -425,8 +439,6 @@ export default function AdminDashboard() {
         {/* --- TAB 3: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER --- */}
         {activeTab === 'newsletter' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            
-            {/* Composing Panel Form */}
             <div className="lg:col-span-2 bg-[#0A0A0A] text-white p-6 sm:p-8 border border-zinc-900 shadow-2xl flex flex-col justify-between">
               <div>
                 <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-900 pb-3 mb-6">Create Registry Broadcast</h3>
@@ -437,7 +449,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here. It will automatically sit cleanly inside the S. SIKAMÒRE signature logo framing template..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wider resize-none transition-colors" />
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wider resize-none transition-colors" />
                   </div>
                   <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium disabled:opacity-40 transition-colors">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
@@ -446,7 +458,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Profiles & History Ledger Sidebar */}
             <div className="flex flex-col gap-6">
               <div className="bg-white border border-zinc-300 p-6 shadow-sm">
                 <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Active Registry Size</span>
@@ -471,7 +482,6 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
-
           </div>
         )}
 
@@ -479,7 +489,7 @@ export default function AdminDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in">
             <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
-              <div className="p-6 border-b border-zinc-800 checked sticky top-0 bg-[#111]">
+              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
               </div>
               <div className="flex flex-col">
