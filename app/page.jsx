@@ -41,51 +41,51 @@ export default function EditorialLanding() {
   const displayedImage = products.length > 0 ? products[heroIndex]?.image : defaultHero;
 
   return (
-    <div className="w-full h-screen relative md:grid md:grid-cols-2 bg-[#0a0a0a] text-white font-sans antialiased overflow-hidden select-none">
+    <div className="w-full h-screen relative md:grid md:grid-cols-2 bg-[#F5F5F4] text-[#0A0A0A] font-sans antialiased overflow-hidden select-none">
       
       {/* COLUMN 1: THE BRAND STATEMENT & CTA OVERLAY */}
-      <div className="absolute inset-0 md:relative md:inset-auto z-20 flex flex-col justify-between p-8 sm:p-16 lg:p-24 bg-gradient-to-r from-black/70 via-black/20 to-transparent md:from-transparent md:bg-transparent h-full">
+      <div className="absolute inset-0 md:relative md:inset-auto z-20 flex flex-col justify-between p-8 sm:p-16 lg:p-24 bg-gradient-to-r from-[#F5F5F4] via-[#F5F5F4]/90 to-transparent md:from-transparent md:bg-transparent h-full">
         <div>
-          <h1 className="text-xs font-normal tracking-[0.5em] uppercase font-serif text-white">
+          <h1 className="text-xs font-normal tracking-[0.5em] uppercase font-serif text-[#0A0A0A]">
             S. SIKAMÒRE
           </h1>
         </div>
 
         <div className="space-y-4 md:space-y-8 my-auto max-w-sm">
-          <span className="text-zinc-300 md:text-zinc-500 text-[9px] tracking-[0.4em] uppercase font-medium block">
+          <span className="text-zinc-500 text-[9px] tracking-[0.4em] uppercase font-medium block">
             NEW ARRIVALS
           </span>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-light font-serif tracking-[0.2em] leading-tight uppercase text-white">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-light font-serif tracking-[0.2em] leading-tight uppercase text-[#0A0A0A]">
             SUMMER IN AFRICA
           </h2>
-          <p className="text-zinc-400 md:text-zinc-500 tracking-widest leading-relaxed font-light text-[10px] uppercase hidden sm:block">
+          <p className="text-zinc-600 tracking-widest leading-relaxed font-light text-[10px] uppercase hidden sm:block">
             A study in raw textures, effortless silhouettes, and structural elegance. Designed for the modern vanguard.
           </p>
           
           <div className="pt-2">
             <Link 
               href="/shop" 
-              className="inline-block bg-white text-black px-8 py-3.5 text-[10px] font-medium tracking-[0.2em] uppercase hover:bg-zinc-200 transition-all duration-300 rounded-sm shadow-xl text-center min-w-[140px]"
+              className="inline-block bg-[#0A0A0A] text-white px-8 py-3.5 text-[10px] font-medium tracking-[0.2em] uppercase hover:bg-zinc-800 transition-all duration-300 rounded-sm shadow-xl text-center min-w-[140px]"
             >
               DISCOVER THE CURATION
             </Link>
           </div>
         </div>
 
-        <div className="text-[8px] md:text-[9px] text-zinc-500 md:text-zinc-600 tracking-[0.2em] uppercase">
+        <div className="text-[8px] md:text-[9px] text-zinc-500 tracking-[0.2em] uppercase">
           © 2026 S. SIKAMÒRE. ARCHIVE COLLECTION.
         </div>
       </div>
 
       {/* COLUMN 2: THE FULL-SCREEN EDITORIAL CANVAS */}
-      <div className="absolute inset-0 md:relative md:inset-auto w-full h-full z-10 md:z-auto border-l border-zinc-950">
+      <div className="absolute inset-0 md:relative md:inset-auto w-full h-full z-10 md:z-auto border-l border-zinc-200">
         <img 
           src={displayedImage} 
           alt="Campaign Visual" 
           className="w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
           key={heroIndex}
         />
-        <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/40 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#F5F5F4]/20 via-transparent to-transparent pointer-events-none" />
         
         {/* Minimalist Slide Progress Dots */}
         {products.length > 1 && (
@@ -93,7 +93,7 @@ export default function EditorialLanding() {
             {products.map((_, idx) => (
               <div 
                 key={idx} 
-                className={`h-[2px] transition-all duration-700 ${idx === heroIndex ? 'w-6 bg-white' : 'w-1.5 bg-zinc-800'}`} 
+                className={`h-[2px] transition-all duration-700 ${idx === heroIndex ? 'w-6 bg-[#0A0A0A]' : 'w-1.5 bg-zinc-300'}`} 
               />
             ))}
           </div>
