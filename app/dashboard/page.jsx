@@ -32,7 +32,7 @@ export default function UserDashboard() {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !user) {
-          router.push('/'); // Kick them out if not logged in
+          router.push('/login'); // Kicks them to login page if not logged in
           return;
         }
         
@@ -253,7 +253,7 @@ export default function UserDashboard() {
                 <input 
                   type="text" 
                   value={supportSubject} 
-                  onChange={(e) => setSubject(e.target.value)} 
+                  onChange={(e) => setSupportSubject(e.target.value)} 
                   required 
                   placeholder="E.G. ORDER #12345 UPDATE"
                   className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase tracking-wider transition-colors"
