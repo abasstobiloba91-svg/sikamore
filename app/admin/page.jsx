@@ -72,26 +72,24 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- DYNAMIC UPLOADER LOGIC ---
+  // --- BULK UPLOADER MUTATORS (FIXED WITH STRICT FUNCTIONAL UPDATES) ---
   const addProductRow = () => {
-    setProductsList([...productsList, { id: Date.now(), name: '', price: '', stock: '', file: null, preview: null }]);
+    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', file: null, preview: null }]);
   };
 
   const removeProductRow = (id) => {
-    if (productsList.length > 1) {
-      setProductsList(productsList.filter(p => p.id !== id));
-    }
+    setProductsList(prev => prev.filter(p => p.id !== id));
   };
 
   const updateProductData = (id, field, value) => {
-    setProductsList(productsList.map(p => p.id === id ? { ...p, [field]: value } : p));
+    setProductsList(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files;
+    const file = e.target.files[0];
     if (file) {
       const preview = URL.createObjectURL(file);
-      setProductsList(productsList.map(p => p.id === id ? { ...p, file, preview } : p));
+      setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
     }
   };
 
@@ -100,11 +98,10 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      // PINPOINT VALIDATION ENGINE DETECTS EXACTLY WHAT IS EMPTY
       let detailedError = '';
       
       productsList.forEach((product, index) => {
-        if (detailedError) return; // Stop checking if an error is already found
+        if (detailedError) return; 
         
         const itemNum = index + 1;
         if (!product.name || String(product.name).trim() === '') {
@@ -123,7 +120,6 @@ export default function AdminDashboard() {
         return showToast(`ERROR: ${detailedError}`);
       }
 
-      // If all elements clear validation perfectly, proceed with secure upload sequence
       for (const product of productsList) {
         const fileExt = product.file.name.split('.').pop().toLowerCase();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
