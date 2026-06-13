@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { showToast } = useApp();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
-  const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support
+  const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support, vendors, analytics
   
   // --- STATE LEDGERS ---
   const [productsList, setProductsList] = useState([
@@ -27,6 +27,12 @@ export default function AdminDashboard() {
   const [subscribers, setSubscribers] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [tickets, setTickets] = useState([]);
+  
+  // VENDOR & ANALYTICS NEW LEDGERS
+  const [vendors, setVendors] = useState([]);
+  const [activeVendor, setActiveVendor] = useState(null);
+  const [vendorOrders, setVendorOrders] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState([]);
   
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -70,12 +76,34 @@ export default function AdminDashboard() {
           const { data } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
           if (data) setTickets(data);
         }
+        if (activeTab === 'vendors') {
+          const { data } = await supabase.from('vendors').select('*').order('name', { ascending: true });
+          if (data) setVendors(data);
+        }
+        if (activeTab === 'analytics') {
+          const { data } = await supabase.from('page_analytics').select('*').order('created_at', { ascending: false });
+          if (data) setAnalyticsData(data);
+        }
       } catch (err) {
         console.error("Data fetch exception: ", err);
       }
     }
     loadAdminData();
   }, [isAuthenticated, activeTab]);
+
+  // Handle active vendor order streams
+  useEffect(() => {
+    if (!activeVendor) return;
+    async function fetchVendorOrderHistory() {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_email', activeVendor.email)
+        .order('created_at', { ascending: false });
+      if (data) setVendorOrders(data);
+    }
+    fetchVendorOrderHistory();
+  }, [activeVendor]);
 
   useEffect(() => {
     if (activeChat && chatEndRef.current) {
@@ -87,7 +115,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (passcode === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
-      localStorage.setItem('sikamore_admin_authenticated', 'true'); // Lock session to local storage
+      localStorage.setItem('sikamore_admin_authenticated', 'true');
       showToast('ACCESS GRANTED. WELCOME BACK.');
     } else {
       showToast('ACCESS DENIED: INCORRECT PASSCODE.');
@@ -97,7 +125,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('sikamore_admin_authenticated'); // Clear secure session
+    localStorage.removeItem('sikamore_admin_authenticated');
     showToast('PORTAL SESSION TERMINATED.');
   };
 
@@ -115,7 +143,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files;
+    const file = e.target.files[0];
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -201,38 +229,18 @@ export default function AdminDashboard() {
       const customHTMLTemplate = `
         <!DOCTYPE html>
         <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin:0; padding:0; background-color:#F5F5F4; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-text-size-adjust:100%;">
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="margin:0; padding:0; background-color:#F5F5F4; font-family:-apple-system, sans-serif;">
             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F5F5F4; padding:60px 20px;">
               <tr>
                 <td align="center">
-                  <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+                  <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a;">
                     <tr>
                       <td align="center" style="padding-bottom:40px; border-bottom:1px solid #1A1A1A;">
-                        <h1 style="font-family:'Times New Roman', Times, Baskerville, Georgia, serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase; text-align:center;">S. SIKAMÒRE</h1>
-                        <p style="font-size:8px; letter-spacing:0.3em; color:#555555; margin-top:8px; margin-bottom:0; text-transform:uppercase; text-align:center;">The Digital Archive Registry</p>
+                        <h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase;">S. SIKAMÒRE</h1>
                       </td>
                     </tr>
-                    <tr>
-                      <td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#D4D4D4; font-weight:300; text-transform:uppercase; text-align:left;">
-                        ${formattedLines}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="center" style="padding-top:40px; border-top:1px solid #1A1A1A;">
-                        <a href="https://sikamore.vercel.app/shop" style="display:inline-block; background-color:#FFFFFF; color:#0A0A0A; text-decoration:none; padding:14px 32px; font-size:9px; font-weight:500; letter-spacing:0.25em; text-transform:uppercase; font-family:inherit;">DISCOVER THE COLLECTION</a>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="center" style="padding-top:50px; font-size:7.5px; line-height:1.8; letter-spacing:0.2em; color:#404040; text-transform:uppercase; text-align:center;">
-                        © 2026 S. SIKAMÒRE. ARCHIVE RESIDENCE.<br />
-                        YOU ARE RECEIVING THIS DISPATCH AS A REGISTERED ACCOUNT OUTLINE PROFILE.<br />
-                        <span style="text-decoration:underline; color:#404040; cursor:pointer;">UNSUBSCRIBE FROM REGISTRY</span>
-                      </td>
-                    </tr>
+                    <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#D4D4D4; text-transform:uppercase;">${formattedLines}</td></tr>
                   </table>
                 </td>
               </tr>
@@ -254,7 +262,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       
       showToast(`DISPATCH SUCCESS! PRIVATE EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setCampaigns(prev => [data, ...prev]);
+      setCampaigns(prev => [data[0], ...prev]);
       setNewsletterSubj('');
       setNewsletterMsg('');
     } catch (err) {
@@ -297,6 +305,11 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- ANALYTICS COMPOSER MATH BREAKDOWNS ---
+  const totalVisits = analyticsData.filter(a => a.event_type === 'visit').length;
+  const totalClicks = analyticsData.filter(a => a.event_type === 'click').length;
+  const clickThroughRate = totalVisits > 0 ? ((totalClicks / totalVisits) * 100).toFixed(1) : 0;
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F5F5F4] text-black flex flex-col items-center justify-center px-6 font-sans antialiased">
@@ -325,7 +338,7 @@ export default function AdminDashboard() {
           </div>
           <h1 className="text-2xl font-normal tracking-[0.4em] uppercase mb-2 font-serif text-black">S. SIKAMÒRE</h1>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-8">
-            {['inventory', 'tracker', 'newsletter', 'support'].map((tab) => (
+            {['inventory', 'tracker', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[9px] tracking-[0.2em] uppercase transition-colors border ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent text-zinc-500 border-zinc-300 hover:border-black hover:text-black'}`}>
                 {tab}
               </button>
@@ -489,7 +502,7 @@ export default function AdminDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in">
             <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
-              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
+              <div className="p-6 border-b border-zinc-800 checked sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
               </div>
               <div className="flex flex-col">
@@ -540,6 +553,146 @@ export default function AdminDashboard() {
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select an active ticket from the archive log</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB 5: VENDOR LEDGER & DIRECT HISTORICAL PURCHASES --- */}
+        {activeTab === 'vendors' && (
+          <div className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-2xl flex flex-col md:flex-row h-[600px] animate-fade-in">
+            {/* Left Column: Vendor Profiles Index */}
+            <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
+              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
+                <h3 className="text-xs uppercase tracking-widest text-zinc-400">Vendor Profiles</h3>
+              </div>
+              <div className="flex flex-col">
+                {vendors.length === 0 ? (
+                  <p className="text-[9px] text-zinc-600 text-center uppercase py-8 tracking-widest">No registered vendors found.</p>
+                ) : (
+                  vendors.map(v => (
+                    <button 
+                      key={v.id} 
+                      onClick={() => setActiveVendor(v)}
+                      className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeVendor?.id === v.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}
+                    >
+                      <span className="text-xs font-medium uppercase tracking-wider text-white">{v.name}</span>
+                      <span className="text-[9px] text-zinc-500 font-serif tracking-widest uppercase">{v.company || 'Independent Vendor'}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Interactive Order Histories Manifest */}
+            <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A] overflow-y-auto p-6 sm:p-10">
+              {activeVendor ? (
+                <div className="space-y-8">
+                  {/* Profile Cards Contact Header */}
+                  <div className="border-b border-zinc-900 pb-6">
+                    <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase block mb-1">Vendor Contact Directory</span>
+                    <h2 className="text-lg font-light uppercase text-white font-serif tracking-wide">{activeVendor.name}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[10px] tracking-wider uppercase text-zinc-400">
+                      <p><span className="text-zinc-600 font-mono">EMAIL:</span> {activeVendor.email}</p>
+                      <p><span className="text-zinc-600 font-mono">PHONE:</span> {activeVendor.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  {/* Orders Stream Grid context */}
+                  <div>
+                    <h4 className="text-[9px] uppercase tracking-widest text-zinc-500 mb-4 font-medium">Historical Orders Fulfilled</h4>
+                    {vendorOrders.length === 0 ? (
+                      <p className="text-[9px] text-zinc-600 uppercase tracking-widest py-4">This vendor profile has no registered purchasing streams.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {vendorOrders.map(vo => (
+                          <div key={vo.id} className="bg-[#111] border border-zinc-800 p-4 rounded-sm">
+                            <div className="flex justify-between text-[8px] font-mono text-zinc-500 uppercase border-b border-zinc-900 pb-2 mb-3">
+                              <span>ORDER STAMP: #{vo.id.slice(0,8)}</span>
+                              <span>{new Date(vo.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className="space-y-1 text-[10px] tracking-wide text-zinc-300 uppercase">
+                              {vo.items?.map((item, i) => (
+                                <div key={i} className="flex justify-between">
+                                  <span>{item.name} (SIZE: {item.size}) <strong>x{item.quantity}</strong></span>
+                                  <span className="font-mono text-zinc-600">₦{(item.price * item.quantity).toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="border-t border-zinc-900 mt-3 pt-2 flex justify-between text-[11px] text-white font-medium uppercase tracking-wider">
+                              <span>Total Value</span>
+                              <span>₦{vo.total_amount?.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select a vendor to audit profile analytics and order logs</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB 6: REAL-TIME E-COMMERCE TRAFFIC ANALYTICS BREAKDOWN --- */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Real-time Widget Stream Metric grid blocks */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-zinc-300 p-6 shadow-sm rounded-sm">
+                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Total Page Visits</span>
+                <h2 className="text-3xl font-light tracking-wide text-black font-serif animate-pulse">{totalVisits.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Logs</span></h2>
+              </div>
+              <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 shadow-sm rounded-sm">
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1">Interactive Product Clicks</span>
+                <h2 className="text-3xl font-light tracking-wide text-white font-serif">{totalClicks.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-500 uppercase font-sans">Interactions</span></h2>
+              </div>
+              <div className="bg-white border border-zinc-300 p-6 shadow-sm rounded-sm">
+                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Click-Through Engagement</span>
+                <h2 className="text-3xl font-light tracking-wide text-black font-serif">{clickThroughRate}% <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Rate</span></h2>
+              </div>
+            </div>
+
+            {/* Real-time Traffic stream history ledger logs */}
+            <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 shadow-2xl rounded-sm">
+              <div className="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center">
+                <h4 className="text-[10px] tracking-widest uppercase text-zinc-400 font-medium">Real-Time Interaction Feed Matrix</h4>
+                <span className="text-[7.5px] bg-green-900/50 text-green-400 border border-green-800 px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse">Live</span>
+              </div>
+
+              {analyticsData.length === 0 ? (
+                <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center py-8">Awaiting real-time pipeline event transfers...</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[10px] tracking-wider uppercase divide-y divide-zinc-900 text-zinc-400">
+                    <thead>
+                      <tr className="text-zinc-600 text-[8px] tracking-widest border-b border-zinc-900 pb-2">
+                        <th className="py-2.5 font-medium">Timestamp</th>
+                        <th className="py-2.5 font-medium">Action Event</th>
+                        <th className="py-2.5 font-medium">Target Canvas Log</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-900">
+                      {analyticsData.slice(0, 20).map((metric) => (
+                        <tr key={metric.id} className="hover:bg-[#111] transition-colors">
+                          <td className="py-3 font-mono text-[8.5px] text-zinc-500">{new Date(metric.created_at).toLocaleTimeString()}</td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded-sm text-[8px] font-medium tracking-widest ${metric.event_type === 'visit' ? 'bg-zinc-800 text-zinc-300' : 'bg-white text-black'}`}>
+                              {metric.event_type}
+                            </span>
+                          </td>
+                          <td className="py-3 text-white truncate max-w-[240px]">
+                            {metric.event_type === 'click' ? `Clicked Product: ${metric.product_name || 'Item Tile'}` : `Viewed Path: ${metric.page_path}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
