@@ -27,10 +27,11 @@ export default function ShopCatalog() {
     "CRAFTED SILHOUETTES • A STUDY IN TEXTURE AND MINIMALIST FORM",
   ];
 
-  // ALL ORIGINAL APP STATES RESTORED
+  // ALL ORIGINAL APP STATES RESTORED + NEW UNREAD SUPPORT DOT
   const { 
     cart, wishlist, toggleWishlist, addToCart, removeFromCart,
-    isCartOpen, setIsCartOpen, quickViewProduct, setQuickViewProduct 
+    isCartOpen, setIsCartOpen, quickViewProduct, setQuickViewProduct,
+    hasUnreadSupport
   } = useApp();
 
   const [selectedSize, setSelectedSize] = useState('M');
@@ -104,8 +105,17 @@ export default function ShopCatalog() {
           <Link href="/" className="text-base sm:text-xl font-normal tracking-[0.4em] uppercase text-center block pl-[0.4em] font-serif">S. SIKAMÒRE</Link>
           
           <div className="flex items-center gap-6">
-            <button className="hidden sm:block hover:text-zinc-500 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg></button>
-            <button className="hidden sm:block hover:text-zinc-500 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg></button>
+            <button className="hidden sm:block hover:text-zinc-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            </button>
+            
+            {/* PROFILE ICON - PERFECTLY WIRED TO /dashboard WITH LIVE UNREAD DOT */}
+            <Link href="/dashboard" className="hidden sm:block hover:text-zinc-500 transition-colors relative">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+              {hasUnreadSupport && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-[#F5F5F4] animate-pulse"></span>
+              )}
+            </Link>
             
             {/* CART ICON RESTORED TO OPEN DRAWER + LIVE RED BADGE */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors flex items-center gap-2">
@@ -166,6 +176,7 @@ export default function ShopCatalog() {
             {products.map((product) => {
               const isLiked = wishlist.some(item => item.id === product.id);
               
+              // --- LIST VIEW FORMAT ---
               if (isListView) {
                 return (
                   <div key={product.id} className="flex gap-4 sm:gap-6 bg-[#0A0A0A] p-3 border border-zinc-900 shadow-xl rounded-sm items-center relative group">
@@ -212,6 +223,7 @@ export default function ShopCatalog() {
                 );
               }
 
+              // --- GRID VIEW FORMAT ---
               return (
                 <div key={product.id} className="group flex flex-col relative bg-[#0A0A0A] p-2 shadow-xl rounded-sm">
                   <div className="bg-[#111] aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
