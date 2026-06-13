@@ -1,81 +1,107 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
+  // 1. Initial states
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const [toastMessage, setToastMessage] = useState('');
 
-  // PREMIUM TOAST NOTIFICATION STATE
-  const [toast, setToast] = useState({ visible: false, message: '' });
+  // 2. LOAD FROM LOCAL STORAGE ON MOUNT
+  // We use useEffect so it runs safely on the client side without breaking Next.js hydration
+  useEffect(() => {
+    const savedCart = localStorage.getItem('sikamore_cart');
+    const savedWishlist = localStorage.getItem('sikamore_wishlist');
+    
+    if (savedCart) {
+      try { setCart(JSON.parse(savedCart)); } catch (e) {}
+    }
+    if (savedWishlist) {
+      try { setWishlist(JSON.parse(savedWishlist)); } catch (e) {}
+    }
+  }, []);
 
-  const showToast = (message) => {
-    setToast({ visible: true, message });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 4000); // Auto-hides after 4 seconds
-  };
+  // 3. SAVE TO LOCAL STORAGE WHENEVER CART OR WISHLIST CHANGES
+  useEffect(() => {
+    localStorage.setItem('sikamore_cart', JSON.stringify(cart));
+  }, [cart]);
 
-  const addToCart = (product, quantity = 1, size = 'M') => {
-    setCart((prev) => {
+  useEffect(() => {
+    localStorage.setItem('sikamore_wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
+
+  // --- ACTIONS ---
+
+  const addToCart = (product, quantity, size) => {
+    setCart(prev => {
+      // Check if exact item + size already exists in cart
       const existing = prev.find(item => item.id === product.id && item.size === size);
+      
       if (existing) {
+        // Just increase quantity
         return prev.map(item => 
           item.id === product.id && item.size === size 
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
+      // Add as new line item
       return [...prev, { ...product, quantity, size }];
     });
     
-    setQuickViewProduct(null);
-    setIsCartOpen(true);
+    // Default action is to open the cart (components can override this by immediately setting false)
+    setIsCartOpen(true); 
+    showToast('ADDED TO BAG.');
   };
 
-  const removeFromCart = (productId, size) => {
-    setCart((prev) => prev.filter(item => !(item.id === productId && item.size === size)));
+  const removeFromCart = (id, size) => {
+    setCart(prev => prev.filter(item => !(item.id === id && item.size === size)));
+  };
+
+  const clearCart = () => {
+    setCart([]);
   };
 
   const toggleWishlist = (product) => {
-    setWishlist((prev) => {
-      const exists = prev.find((item) => item.id === product.id);
+    setWishlist(prev => {
+      const exists = prev.some(item => item.id === product.id);
       if (exists) {
-        showToast(`${product.name} REMOVED FROM WISHLIST`);
-        return prev.filter((item) => item.id !== product.id);
+        showToast('REMOVED FROM WISHLIST.');
+        return prev.filter(item => item.id !== product.id);
       }
-      showToast(`${product.name} ADDED TO WISHLIST`);
+      showToast('ADDED TO WISHLIST.');
       return [...prev, product];
     });
   };
 
-  const clearCart = () => setCart([]);
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
 
   return (
-    <AppContext.Provider value={{ 
-      cart, wishlist, addToCart, removeFromCart, toggleWishlist, clearCart,
-      isCartOpen, setIsCartOpen, quickViewProduct, setQuickViewProduct, showToast
+    <AppContext.Provider value={{
+      cart, addToCart, removeFromCart, clearCart,
+      wishlist, toggleWishlist,
+      isCartOpen, setIsCartOpen,
+      quickViewProduct, setQuickViewProduct,
+      showToast
     }}>
       {children}
-
-      {/* S. SIKAMÒRE CUSTOM POPUP (TOAST) */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z- transition-all duration-500 ease-in-out ${toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-        <div className="bg-black text-white border border-zinc-800 px-8 py-4 shadow-2xl flex items-center gap-6">
-          <span className="text-[9px] uppercase tracking-[0.3em] font-light">{toast.message}</span>
-          <button onClick={() => setToast({ visible: false, message: '' })} className="text-zinc-500 hover:text-white transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
+      
+      {/* GLOBAL TOAST NOTIFICATION COMPONENT */}
+      {toastMessage && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] bg-[#0A0A0A] text-white px-6 py-3 text-[10px] tracking-[0.2em] uppercase font-medium shadow-2xl border border-zinc-800 animate-fade-in-up whitespace-nowrap">
+          {toastMessage}
         </div>
-      </div>
-
+      )}
     </AppContext.Provider>
   );
 }
 
-export function useApp() {
-  return useContext(AppContext);
-}
+export const useApp = () => useContext(AppContext);
