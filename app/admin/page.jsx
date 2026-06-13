@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support, vendors, analytics
   
-  // --- STATE LEDGERS (Now includes optional accordion fields) ---
+  // --- STATE LEDGERS ---
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
@@ -36,6 +36,11 @@ export default function AdminDashboard() {
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  
+  // --- REALTIME TYPING STATES ---
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const typingChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const [newsletterSubj, setNewsletterSubj] = useState('');
   const [newsletterMsg, setNewsletterMsg] = useState('');
@@ -87,17 +92,62 @@ export default function AdminDashboard() {
     loadAdminData();
   }, [isAuthenticated, activeTab]);
 
+  // --- REAL-TIME MESSAGING SYNC ---
   useEffect(() => {
-    if (!activeVendor) return;
-    async function fetchVendorOrderHistory() {
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('customer_email', activeVendor.email)
-        .order('created_at', { ascending: false });
-      if (data) setVendorOrders(data);
+    if (!isAuthenticated || activeTab !== 'support') return;
+
+    const messageSync = supabase.channel('realtime_support_admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setTickets((prev) => [payload.new, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
+          setActiveChat((prev) => prev?.id === payload.new.id ? payload.new : prev);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageSync);
+    };
+  }, [isAuthenticated, activeTab]);
+
+  // --- REAL-TIME TYPING INDICATOR SYNC ---
+  useEffect(() => {
+    if (!activeChat) return;
+
+    const channel = supabase.channel(`typing_support_${activeChat.id}`);
+    typingChannelRef.current = channel;
+
+    channel.on('broadcast', { event: 'typing' }, (payload) => {
+      if (payload.payload.sender !== 'admin') {
+        setIsUserTyping(payload.payload.isTyping);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        if (payload.payload.isTyping) {
+          typingTimeoutRef.current = setTimeout(() => setIsUserTyping(false), 3000);
+        }
+      }
+    }).subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingChannelRef.current = null;
+    };
+  }, [activeChat?.id]);
+
+  useEffect(() => {
+    if (activeVendor) {
+      async function fetchVendorOrderHistory() {
+        const { data } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('customer_email', activeVendor.email)
+          .order('created_at', { ascending: false });
+        if (data) setVendorOrders(data);
+      }
+      fetchVendorOrderHistory();
     }
-    fetchVendorOrderHistory();
   }, [activeVendor]);
 
   useEffect(() => {
@@ -137,7 +187,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files[0];
+    const file = e.target.files;
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -153,7 +203,6 @@ export default function AdminDashboard() {
       productsList.forEach((product, index) => {
         if (detailedError) return;
         const itemNum = index + 1;
-        // Strict validation remains only on critical fields
         if (!product.name || String(product.name).trim() === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
         else if (!product.price || String(product.price).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
         else if (!product.stock || String(product.stock).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
@@ -177,7 +226,6 @@ export default function AdminDashboard() {
         if (uploadError) throw new Error(uploadError.message);
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         
-        // Pushes all optional fields securely
         const { error: dbError } = await supabase.from('products').insert([{ 
           name: product.name.toUpperCase(), 
           price: parseFloat(product.price), 
@@ -253,13 +301,24 @@ export default function AdminDashboard() {
       if (error) throw error;
       
       showToast(`DISPATCH SUCCESS! PRIVATE EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setCampaigns(prev => [data[0], ...prev]);
+      setCampaigns(prev => [data, ...prev]);
       setNewsletterSubj('');
       setNewsletterMsg('');
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
     } finally {
       setSendingNewsletter(false);
+    }
+  };
+
+  const handleAdminTyping = (e) => {
+    setReplyText(e.target.value);
+    if (typingChannelRef.current) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { sender: 'admin', isTyping: e.target.value.length > 0 }
+      });
     }
   };
 
@@ -279,11 +338,12 @@ export default function AdminDashboard() {
       const { error } = await supabase.from('support_tickets').update({ chat_history: updatedHistory, status: 'replied', has_unread_user: true }).eq('id', activeChat.id);
 
       if (error) throw error;
-      showToast('DISPATCH TRANSKICKED TO CLIENT PORTAL.');
       
-      const refreshedChat = { ...activeChat, chat_history: updatedHistory, status: 'replied' };
-      setActiveChat(refreshedChat);
-      setTickets(prev => prev.map(t => t.id === activeChat.id ? refreshedChat : t));
+      if (typingChannelRef.current) {
+        typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'admin', isTyping: false } });
+      }
+
+      showToast('DISPATCH TRANSKICKED TO CLIENT PORTAL.');
       setReplyText('');
     } catch (err) {
       showToast(`ERROR: ${err.message.toUpperCase()}`);
@@ -501,8 +561,10 @@ export default function AdminDashboard() {
 
         {/* --- TAB 4: LIVE CUSTOMER CONCIERGE CHAT SUPPORT --- */}
         {activeTab === 'support' && (
-          <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in">
-            <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
+          <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in relative overflow-hidden">
+            
+            {/* Left Panel: Ticket List (Hidden on mobile when chat is active) */}
+            <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
               </div>
@@ -524,13 +586,21 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A]">
+            {/* Right Panel: Active Chat (Hidden on mobile when no chat is active) */}
+            <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
-                  <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A]">
-                    <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
-                    <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
+                  <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A] flex justify-between items-center shrink-0">
+                    <div>
+                      <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
+                      <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
+                    </div>
+                    {/* Mobile Back Button */}
+                    <button onClick={() => setActiveChat(null)} className="md:hidden text-[9px] tracking-widest uppercase border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800 text-zinc-300 transition-colors">
+                      &larr; Back
+                    </button>
                   </div>
+
                   <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
                     {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
@@ -538,10 +608,18 @@ export default function AdminDashboard() {
                         <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'admin' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>{msg.text}</div>
                       </div>
                     ))}
+                    
+                    {/* Real-time Typing Indicator */}
+                    {isUserTyping && (
+                      <div className="flex flex-col items-start animate-fade-in">
+                        <span className="text-[8px] tracking-[0.2em] text-zinc-500 uppercase mb-1">{activeChat.name} IS TYPING...</span>
+                      </div>
+                    )}
                     <div ref={chatEndRef} />
                   </div>
-                  <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4">
-                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide" />
+                  
+                  <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4 shrink-0">
+                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide" />
                     <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
@@ -557,7 +635,7 @@ export default function AdminDashboard() {
         {/* --- TAB 5: VENDOR LEDGER & DIRECT HISTORICAL PURCHASES --- */}
         {activeTab === 'vendors' && (
           <div className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-2xl flex flex-col md:flex-row h-[600px] animate-fade-in">
-            <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
+            <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto h-full">
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
                 <h3 className="text-xs uppercase tracking-widest text-zinc-400">Vendor Profiles</h3>
               </div>
@@ -575,7 +653,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A] overflow-y-auto p-6 sm:p-10">
+            <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A] overflow-y-auto p-6 sm:p-10 h-full">
               {activeVendor ? (
                 <div className="space-y-8">
                   <div className="border-b border-zinc-900 pb-6">
