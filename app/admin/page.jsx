@@ -17,9 +17,9 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory'); // inventory, tracker, newsletter, support, vendors, analytics
   
-  // --- STATE LEDGERS ---
+  // --- STATE LEDGERS (Now includes optional accordion fields) ---
   const [productsList, setProductsList] = useState([
-    { id: Date.now(), name: '', price: '', stock: '', file: null, preview: null }
+    { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,6 @@ export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
   const [tickets, setTickets] = useState([]);
   
-  // VENDOR & ANALYTICS NEW LEDGERS
   const [vendors, setVendors] = useState([]);
   const [activeVendor, setActiveVendor] = useState(null);
   const [vendorOrders, setVendorOrders] = useState([]);
@@ -38,7 +37,6 @@ export default function AdminDashboard() {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
 
-  // --- NEWSLETTER BROADCAST COMPOSITION STATE ---
   const [newsletterSubj, setNewsletterSubj] = useState('');
   const [newsletterMsg, setNewsletterMsg] = useState('');
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
@@ -46,7 +44,6 @@ export default function AdminDashboard() {
   const chatEndRef = useRef(null);
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
-  // --- PERSIST AUTH ON REFRESH ---
   useEffect(() => {
     const savedAuth = localStorage.getItem('sikamore_admin_authenticated');
     if (savedAuth === 'true') {
@@ -54,7 +51,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // --- COMPREHENSIVE RE-FETCH MONITOR ---
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -91,7 +87,6 @@ export default function AdminDashboard() {
     loadAdminData();
   }, [isAuthenticated, activeTab]);
 
-  // Handle active vendor order streams
   useEffect(() => {
     if (!activeVendor) return;
     async function fetchVendorOrderHistory() {
@@ -129,9 +124,8 @@ export default function AdminDashboard() {
     showToast('PORTAL SESSION TERMINATED.');
   };
 
-  // --- INVENTORY MANAGER CONTROLS ---
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', file: null, preview: null }]);
+    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
   };
 
   const removeProductRow = (id) => {
@@ -159,6 +153,7 @@ export default function AdminDashboard() {
       productsList.forEach((product, index) => {
         if (detailedError) return;
         const itemNum = index + 1;
+        // Strict validation remains only on critical fields
         if (!product.name || String(product.name).trim() === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
         else if (!product.price || String(product.price).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
         else if (!product.stock || String(product.stock).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
@@ -182,10 +177,15 @@ export default function AdminDashboard() {
         if (uploadError) throw new Error(uploadError.message);
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         
+        // Pushes all optional fields securely
         const { error: dbError } = await supabase.from('products').insert([{ 
           name: product.name.toUpperCase(), 
           price: parseFloat(product.price), 
           stock_quantity: parseInt(product.stock),
+          description: product.description || null,
+          additional_information: product.additional_information || null,
+          store_policies: product.store_policies || null,
+          inquiries: product.inquiries || null,
           image: data.publicUrl, 
           is_sold_out: parseInt(product.stock) <= 0 
         }]);
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
-      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', file: null, preview: null }]);
+      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
     } catch (error) {
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
     } finally {
@@ -202,14 +202,9 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- FULFILLMENT TRACKER CONTROLS ---
   const handleUpdateOrderStatus = async (orderId, currentStatus) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: currentStatus })
-        .eq('id', orderId);
-
+      const { error } = await supabase.from('orders').update({ status: currentStatus }).eq('id', orderId);
       if (error) throw error;
       showToast(`ORDER FULFILLMENT STATUS SWITCHED TO: ${currentStatus.toUpperCase()}`);
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus } : o));
@@ -218,7 +213,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- BRANDED EDITORIAL LUXURY EMAIL DISPATCH CODER ---
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
@@ -249,15 +243,12 @@ export default function AdminDashboard() {
         </html>
       `;
 
-      const { data, error } = await supabase
-        .from('campaigns')
-        .insert([{
+      const { data, error } = await supabase.from('campaigns').insert([{
           subject: newsletterSubj.toUpperCase(),
           message: newsletterMsg,
           recipient_count: subscribers.length,
           html_payload: customHTMLTemplate
-        }])
-        .select();
+        }]).select();
 
       if (error) throw error;
       
@@ -272,7 +263,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- CONCIERGE CHAT RESPONSE ENGINE ---
   const handleAdminReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -286,10 +276,7 @@ export default function AdminDashboard() {
 
       const updatedHistory = [...currentHistory, adminMessage];
 
-      const { error } = await supabase
-        .from('support_tickets')
-        .update({ chat_history: updatedHistory, status: 'replied', has_unread_user: true })
-        .eq('id', activeChat.id);
+      const { error } = await supabase.from('support_tickets').update({ chat_history: updatedHistory, status: 'replied', has_unread_user: true }).eq('id', activeChat.id);
 
       if (error) throw error;
       showToast('DISPATCH TRANSKICKED TO CLIENT PORTAL.');
@@ -305,7 +292,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- ANALYTICS COMPOSER MATH BREAKDOWNS ---
   const totalVisits = analyticsData.filter(a => a.event_type === 'visit').length;
   const totalClicks = analyticsData.filter(a => a.event_type === 'click').length;
   const clickThroughRate = totalVisits > 0 ? ((totalClicks / totalVisits) * 100).toFixed(1) : 0;
@@ -362,6 +348,7 @@ export default function AdminDashboard() {
                   )}
                   <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase">Item 0{index + 1}</p>
                   
+                  {/* Base Core Data */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                       <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Product Name</label>
@@ -377,6 +364,27 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* Optional Dynamic Accordion Modules */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-800">
+                    <div>
+                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
+                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. EMBROIDERED MESH FULLER SILHOUETTE PIECE..." />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Information (Optional)</label>
+                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. COMPOSITION: 100% VAN-GUARD TEXTILE LINING..." />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
+                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DAYS..." />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
+                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase resize-none" placeholder="E.G. CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK..." />
+                    </div>
+                  </div>
+
+                  {/* Image Attachment Payload */}
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-20 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden">
                       {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-600 uppercase tracking-widest text-center">Img</span>}
@@ -409,11 +417,7 @@ export default function AdminDashboard() {
                       <h3 className="text-xs font-normal text-white uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-400 normal-case">{order.customer_email}</span></h3>
                     </div>
                     <div>
-                      <select 
-                        value={order.status} 
-                        onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)} 
-                        className="bg-[#111] text-white border border-zinc-800 text-[9px] tracking-widest uppercase p-2.5 outline-none focus:border-white"
-                      >
+                      <select value={order.status} onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)} className="bg-[#111] text-white border border-zinc-800 text-[9px] tracking-widest uppercase p-2.5 outline-none focus:border-white">
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
@@ -476,7 +480,6 @@ export default function AdminDashboard() {
                 <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Active Registry Size</span>
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{subscribers.length.toLocaleString()} <span className="text-[10px] tracking-widest uppercase font-sans text-zinc-400 ml-1">Profiles</span></h2>
               </div>
-
               <div className="bg-[#111] text-white border border-zinc-900 p-6 flex-1 overflow-y-auto max-h-[360px]">
                 <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-800 pb-2 mb-4">Broadcast Dispatch Log</h4>
                 {campaigns.length === 0 ? (
@@ -486,9 +489,7 @@ export default function AdminDashboard() {
                     {campaigns.map((camp) => (
                       <div key={camp.id} className="border-b border-zinc-900 pb-3 last:border-0">
                         <h5 className="text-[10px] text-zinc-200 uppercase tracking-wider truncate font-medium">{camp.subject}</h5>
-                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">
-                          {new Date(camp.created_at).toLocaleDateString()} • {camp.recipient_count} Recipients
-                        </p>
+                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">{new Date(camp.created_at).toLocaleDateString()} • {camp.recipient_count} Recipients</p>
                       </div>
                     ))}
                   </div>
@@ -502,7 +503,7 @@ export default function AdminDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in">
             <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
-              <div className="p-6 border-b border-zinc-800 checked sticky top-0 bg-[#111]">
+              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
               </div>
               <div className="flex flex-col">
@@ -530,24 +531,18 @@ export default function AdminDashboard() {
                     <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
                     <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
                   </div>
-                  
                   <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
                     {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
                         <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase mb-1">{msg.sender === 'admin' ? 'You' : activeChat.name}</span>
-                        <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'admin' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>
-                          {msg.text}
-                        </div>
+                        <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'admin' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>{msg.text}</div>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
                   </div>
-                  
                   <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4">
                     <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide" />
-                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">
-                      {sendingReply ? 'SENDING...' : 'DISPATCH'}
-                    </button>
+                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
               ) : (
@@ -562,7 +557,6 @@ export default function AdminDashboard() {
         {/* --- TAB 5: VENDOR LEDGER & DIRECT HISTORICAL PURCHASES --- */}
         {activeTab === 'vendors' && (
           <div className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-2xl flex flex-col md:flex-row h-[600px] animate-fade-in">
-            {/* Left Column: Vendor Profiles Index */}
             <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto">
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
                 <h3 className="text-xs uppercase tracking-widest text-zinc-400">Vendor Profiles</h3>
@@ -572,11 +566,7 @@ export default function AdminDashboard() {
                   <p className="text-[9px] text-zinc-600 text-center uppercase py-8 tracking-widest">No registered vendors found.</p>
                 ) : (
                   vendors.map(v => (
-                    <button 
-                      key={v.id} 
-                      onClick={() => setActiveVendor(v)}
-                      className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeVendor?.id === v.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}
-                    >
+                    <button key={v.id} onClick={() => setActiveVendor(v)} className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeVendor?.id === v.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}>
                       <span className="text-xs font-medium uppercase tracking-wider text-white">{v.name}</span>
                       <span className="text-[9px] text-zinc-500 font-serif tracking-widest uppercase">{v.company || 'Independent Vendor'}</span>
                     </button>
@@ -585,11 +575,9 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Right Column: Interactive Order Histories Manifest */}
             <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A] overflow-y-auto p-6 sm:p-10">
               {activeVendor ? (
                 <div className="space-y-8">
-                  {/* Profile Cards Contact Header */}
                   <div className="border-b border-zinc-900 pb-6">
                     <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase block mb-1">Vendor Contact Directory</span>
                     <h2 className="text-lg font-light uppercase text-white font-serif tracking-wide">{activeVendor.name}</h2>
@@ -598,8 +586,6 @@ export default function AdminDashboard() {
                       <p><span className="text-zinc-600 font-mono">PHONE:</span> {activeVendor.phone || 'N/A'}</p>
                     </div>
                   </div>
-
-                  {/* Orders Stream Grid context */}
                   <div>
                     <h4 className="text-[9px] uppercase tracking-widest text-zinc-500 mb-4 font-medium">Historical Orders Fulfilled</h4>
                     {vendorOrders.length === 0 ? (
@@ -642,7 +628,6 @@ export default function AdminDashboard() {
         {/* --- TAB 6: REAL-TIME E-COMMERCE TRAFFIC ANALYTICS BREAKDOWN --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 animate-fade-in">
-            {/* Real-time Widget Stream Metric grid blocks */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-zinc-300 p-6 shadow-sm rounded-sm">
                 <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Total Page Visits</span>
@@ -657,14 +642,11 @@ export default function AdminDashboard() {
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{clickThroughRate}% <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Rate</span></h2>
               </div>
             </div>
-
-            {/* Real-time Traffic stream history ledger logs */}
             <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 shadow-2xl rounded-sm">
               <div className="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center">
                 <h4 className="text-[10px] tracking-widest uppercase text-zinc-400 font-medium">Real-Time Interaction Feed Matrix</h4>
                 <span className="text-[7.5px] bg-green-900/50 text-green-400 border border-green-800 px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse">Live</span>
               </div>
-
               {analyticsData.length === 0 ? (
                 <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center py-8">Awaiting real-time pipeline event transfers...</p>
               ) : (
