@@ -245,18 +245,38 @@ export default function AdminDashboard() {
       setDeliveryDays('');
 
       // TRIGGER RESEND EMAIL API ON SHIPPED OR DELIVERED
-      if (orderData && orderData.customer_email) {
+      if (orderData && orderData.customer_email && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
         const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #222;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #222; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
+        
+        let statusMessage = '';
+        if (currentStatus === 'shipped') {
+          statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: SHIPPED</p>
+                           ${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
+        } else if (currentStatus === 'delivered') {
+          statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: DELIVERED</p>
+                           <p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">Your package has arrived at its destination. Thank you for securing a piece from our archive.</p>`;
+        }
+
         const htmlTemplate = `
           <div style="font-family:sans-serif; background:#0A0A0A; color:#FFF; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;">
             <h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE LOGISTICS</h1>
             <p style="font-size:12px; color:#AAA;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>
-            <p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: ${currentStatus.toUpperCase()}</p>
-            ${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}
+            ${statusMessage}
             <table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table>
           </div>
         `;
-        await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: orderData.customer_email, subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, html: htmlTemplate }) });
+        
+        await fetch('/api/send', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ 
+            to: orderData.customer_email, 
+            subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, 
+            html: htmlTemplate 
+          }) 
+        });
+
+        showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
       }
     } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
   };
@@ -447,8 +467,11 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <select value={order.status} onChange={(e) => {
-                        if (e.target.value === 'shipped') setInterceptedOrder(order.id);
-                        else handleUpdateOrderStatus(order.id, e.target.value, null, order);
+                        if (e.target.value === 'shipped') {
+                          setInterceptedOrder(order.id);
+                        } else {
+                          handleUpdateOrderStatus(order.id, e.target.value, null, order);
+                        }
                       }} className="bg-[#111] text-white border border-zinc-800 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none mt-4 sm:mt-0 w-full sm:w-auto">
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
@@ -461,7 +484,7 @@ export default function AdminDashboard() {
                     <div>
                       <span className="text-[8px] block text-zinc-600 mb-1">Destination Address</span>
                       <p className="text-white leading-relaxed">{order.shipping_address || 'N/A'}</p>
-                      <p className="text-zinc-500 mt-1 font-mono">{order.customer_phone}</p>
+                      <p className="text-zinc-500 mt-1 font-mono">{order.customer_phone || 'N/A'}</p>
                     </div>
                     <div>
                       <span className="text-[8px] block text-zinc-600 mb-1">Items Summary</span>
@@ -645,9 +668,17 @@ export default function AdminDashboard() {
                         {vendorOrders.map(vo => (
                           <div key={vo.id} className="bg-[#111] border border-zinc-800 p-4 rounded-sm">
                             <div className="flex justify-between text-[8px] font-mono text-zinc-500 uppercase border-b border-zinc-900 pb-2 mb-3">
-                              <span>ORDER STAMP: #{vo.id.slice(0,8)}</span>
+                              <span>ORDER STAMP: #{vo.id.slice(0,8).toUpperCase()}</span>
                               <span>{new Date(vo.created_at).toLocaleDateString()}</span>
                             </div>
+                            
+                            {/* FIX: ADDED MISSING VENDOR SHIPPING ADDRESS VIEW */}
+                            <div className="mb-4 text-[9px] text-zinc-400 uppercase tracking-wider bg-[#161616] p-3 border border-zinc-800">
+                              <span className="block text-zinc-600 text-[8px] mb-1">Shipping Destination:</span>
+                              {vo.shipping_address || 'N/A'} <br/>
+                              <span className="text-zinc-500 font-mono mt-1 block">Phone: {vo.customer_phone || 'N/A'}</span>
+                            </div>
+
                             <div className="space-y-1 text-[10px] tracking-wide text-zinc-300 uppercase">
                               {vo.items?.map((item, i) => (
                                 <div key={i} className="flex justify-between">
