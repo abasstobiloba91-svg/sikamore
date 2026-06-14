@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
   
-  // --- STATE LEDGERS ---
+  // --- MASTER STATE LEDGERS ---
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
@@ -27,15 +27,17 @@ export default function AdminDashboard() {
   const [subscribers, setSubscribers] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [tickets, setTickets] = useState([]);
-  
   const [vendors, setVendors] = useState([]);
-  const [activeVendor, setActiveVendor] = useState(null);
   const [vendorOrders, setVendorOrders] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
   
+  const [activeVendor, setActiveVendor] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+
+  const [interceptedOrder, setInterceptedOrder] = useState(null);
+  const [deliveryDays, setDeliveryDays] = useState('');
   
   // --- REALTIME TYPING STATES ---
   const [isUserTyping, setIsUserTyping] = useState(false);
@@ -50,69 +52,73 @@ export default function AdminDashboard() {
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem('sikamore_admin_authenticated');
-    if (savedAuth === 'true') {
+    if (localStorage.getItem('sikamore_admin_authenticated') === 'true') {
       setIsAuthenticated(true);
     }
   }, []);
 
+  // --- THE GLOBAL BRAIN: FETCH EVERYTHING AT ONCE ---
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    async function loadAdminData() {
+    async function loadMasterData() {
       try {
-        if (activeTab === 'tracker') {
-          const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-          if (data) setOrders(data);
-        }
-        if (activeTab === 'newsletter') {
-          const [subRes, campRes] = await Promise.all([
-            supabase.from('subscribers').select('*').order('created_at', { ascending: false }),
-            supabase.from('campaigns').select('*').order('created_at', { ascending: false })
-          ]);
-          if (subRes.data) setSubscribers(subRes.data);
-          if (campRes.data) setCampaigns(campRes.data);
-        }
-        if (activeTab === 'support') {
-          const { data } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
-          if (data) setTickets(data);
-        }
-        if (activeTab === 'vendors') {
-          const { data } = await supabase.from('vendors').select('*').order('name', { ascending: true });
-          if (data) setVendors(data);
-        }
-        if (activeTab === 'analytics') {
-          const { data } = await supabase.from('page_analytics').select('*').order('created_at', { ascending: false });
-          if (data) setAnalyticsData(data);
-        }
+        const [
+          { data: ordersData },
+          { data: subRes },
+          { data: campRes },
+          { data: ticketsData },
+          { data: vendorsData },
+          { data: analyticsRes }
+        ] = await Promise.all([
+          supabase.from('orders').select('*').order('created_at', { ascending: false }),
+          supabase.from('subscribers').select('*').order('created_at', { ascending: false }),
+          supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
+          supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
+          supabase.from('vendors').select('*').order('name', { ascending: true }),
+          supabase.from('page_analytics').select('*').order('created_at', { ascending: false })
+        ]);
+
+        if (ordersData) setOrders(ordersData);
+        if (subRes) setSubscribers(subRes);
+        if (campRes) setCampaigns(campRes);
+        if (ticketsData) setTickets(ticketsData);
+        if (vendorsData) setVendors(vendorsData);
+        if (analyticsRes) setAnalyticsData(analyticsRes);
       } catch (err) {
-        console.error("Data fetch exception: ", err);
+        console.error("Master database alignment exception: ", err);
       }
     }
-    loadAdminData();
-  }, [isAuthenticated, activeTab]);
+    loadMasterData();
+  }, [isAuthenticated]);
 
-  // --- REAL-TIME MESSAGING SYNC ---
+  // --- THE GLOBAL BRAIN: SYNC EVERYTHING IN REAL-TIME ACROSS DEVICES ---
   useEffect(() => {
-    if (!isAuthenticated || activeTab !== 'support') return;
+    if (!isAuthenticated) return;
 
-    const messageSync = supabase.channel('realtime_support_admin')
+    const masterSync = supabase.channel('admin_global_network')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') setOrders(prev => [payload.new, ...prev]);
+        if (payload.eventType === 'UPDATE') setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setTickets((prev) => [payload.new, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
-          setActiveChat((prev) => prev?.id === payload.new.id ? payload.new : prev);
+        if (payload.eventType === 'INSERT') setTickets(prev => [payload.new, ...prev]);
+        if (payload.eventType === 'UPDATE') {
+          setTickets(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
+          setActiveChat(prev => prev?.id === payload.new.id ? payload.new : prev);
         }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'page_analytics' }, (payload) => {
+        setAnalyticsData(prev => [payload.new, ...prev]);
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(messageSync);
+      supabase.removeChannel(masterSync);
     };
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated]);
 
-  // --- REAL-TIME TYPING INDICATOR SYNC ---
+  // --- LIVE TYPING INDICATOR SYNC ---
   useEffect(() => {
     if (!activeChat) return;
 
@@ -136,14 +142,11 @@ export default function AdminDashboard() {
     };
   }, [activeChat?.id]);
 
+  // Vendor order history cascade
   useEffect(() => {
     if (activeVendor) {
       async function fetchVendorOrderHistory() {
-        const { data } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('customer_email', activeVendor.email)
-          .order('created_at', { ascending: false });
+        const { data } = await supabase.from('orders').select('*').eq('customer_email', activeVendor.email).order('created_at', { ascending: false });
         if (data) setVendorOrders(data);
       }
       fetchVendorOrderHistory();
@@ -151,9 +154,7 @@ export default function AdminDashboard() {
   }, [activeVendor]);
 
   useEffect(() => {
-    if (activeChat && chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (activeChat && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat]);
 
   const handleLogin = (e) => {
@@ -161,9 +162,9 @@ export default function AdminDashboard() {
     if (passcode === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
       localStorage.setItem('sikamore_admin_authenticated', 'true');
-      showToast('ACCESS GRANTED. WELCOME BACK.');
+      showToast('ACCESS GRANTED. SYSTEM ALIGNED.');
     } else {
-      showToast('ACCESS DENIED: INCORRECT PASSCODE.');
+      showToast('ACCESS DENIED.');
       setPasscode('');
     }
   };
@@ -171,7 +172,7 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('sikamore_admin_authenticated');
-    showToast('PORTAL SESSION TERMINATED.');
+    showToast('PORTAL LOCKED.');
   };
 
   const addProductRow = () => {
@@ -187,7 +188,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files;
+    const file = e.target.files[0];
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -219,46 +220,50 @@ export default function AdminDashboard() {
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         const safeContentType = product.file.type || `image/jpeg`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(fileName, product.file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
-
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, product.file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
         if (uploadError) throw new Error(uploadError.message);
-        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         
+        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         const { error: dbError } = await supabase.from('products').insert([{ 
-          name: product.name.toUpperCase(), 
-          price: parseFloat(product.price), 
-          stock_quantity: parseInt(product.stock),
-          description: product.description || null,
-          additional_information: product.additional_information || null,
-          store_policies: product.store_policies || null,
-          inquiries: product.inquiries || null,
-          image: data.publicUrl, 
-          is_sold_out: parseInt(product.stock) <= 0 
+          name: product.name.toUpperCase(), price: parseFloat(product.price), stock_quantity: parseInt(product.stock), description: product.description || null, additional_information: product.additional_information || null, store_policies: product.store_policies || null, inquiries: product.inquiries || null, image: data.publicUrl, is_sold_out: parseInt(product.stock) <= 0 
         }]);
-
         if (dbError) throw new Error(dbError.message);
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
       setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
-    } catch (error) {
-      showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setLoading(false); }
   };
 
-  const handleUpdateOrderStatus = async (orderId, currentStatus) => {
+  const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
-      const { error } = await supabase.from('orders').update({ status: currentStatus }).eq('id', orderId);
+      const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
       if (error) throw error;
-      showToast(`ORDER FULFILLMENT STATUS SWITCHED TO: ${currentStatus.toUpperCase()}`);
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus } : o));
-    } catch (err) {
-      showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`);
-    }
+      
+      showToast(`FULFILLMENT SWITCHED TO: ${currentStatus.toUpperCase()}`);
+      setInterceptedOrder(null);
+      setDeliveryDays('');
+
+      // TRIGGER RESEND EMAIL API ON SHIPPED OR DELIVERED
+      if (orderData && orderData.customer_email) {
+        const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #222;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #222; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
+        const htmlTemplate = `
+          <div style="font-family:sans-serif; background:#0A0A0A; color:#FFF; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;">
+            <h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE LOGISTICS</h1>
+            <p style="font-size:12px; color:#AAA;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>
+            <p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: ${currentStatus.toUpperCase()}</p>
+            ${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}
+            <table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table>
+          </div>
+        `;
+        await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: orderData.customer_email, subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, html: htmlTemplate }) });
+      }
+    } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
+  };
+
+  const confirmShipping = (order) => {
+    if (!deliveryDays.trim()) return showToast("PLEASE ENTER TRANSIT DAYS.");
+    handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
   const handleSendBrandedNewsletter = async (e) => {
@@ -269,57 +274,28 @@ export default function AdminDashboard() {
     try {
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
       const customHTMLTemplate = `
-        <!DOCTYPE html>
-        <html>
-          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-          <body style="margin:0; padding:0; background-color:#F5F5F4; font-family:-apple-system, sans-serif;">
-            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F5F5F4; padding:60px 20px;">
-              <tr>
-                <td align="center">
-                  <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a;">
-                    <tr>
-                      <td align="center" style="padding-bottom:40px; border-bottom:1px solid #1A1A1A;">
-                        <h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase;">S. SIKAMÒRE</h1>
-                      </td>
-                    </tr>
-                    <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#D4D4D4; text-transform:uppercase;">${formattedLines}</td></tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-        </html>
+        <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+        <body style="margin:0; padding:0; background-color:#F5F5F4; font-family:-apple-system, sans-serif;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F5F5F4; padding:60px 20px;">
+            <tr><td align="center">
+              <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a;">
+                <tr><td align="center" style="padding-bottom:40px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase;">S. SIKAMÒRE</h1></td></tr>
+                <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#D4D4D4; text-transform:uppercase;">${formattedLines}</td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
       `;
-
-      const { data, error } = await supabase.from('campaigns').insert([{
-          subject: newsletterSubj.toUpperCase(),
-          message: newsletterMsg,
-          recipient_count: subscribers.length,
-          html_payload: customHTMLTemplate
-        }]).select();
-
+      const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
       if (error) throw error;
-      
-      showToast(`DISPATCH SUCCESS! PRIVATE EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setCampaigns(prev => [data, ...prev]);
-      setNewsletterSubj('');
-      setNewsletterMsg('');
-    } catch (err) {
-      showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } finally {
-      setSendingNewsletter(false);
-    }
+      showToast(`DISPATCH SUCCESS! EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
+      setNewsletterSubj(''); setNewsletterMsg('');
+    } catch (err) { showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); } finally { setSendingNewsletter(false); }
   };
 
   const handleAdminTyping = (e) => {
     setReplyText(e.target.value);
-    if (typingChannelRef.current) {
-      typingChannelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { sender: 'admin', isTyping: e.target.value.length > 0 }
-      });
-    }
+    if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'admin', isTyping: e.target.value.length > 0 } });
   };
 
   const handleAdminReply = async (e) => {
@@ -329,27 +305,15 @@ export default function AdminDashboard() {
 
     try {
       const adminMessage = { sender: 'admin', text: replyText, timestamp: new Date().toISOString() };
-      const currentHistory = activeChat.chat_history && Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0
-        ? activeChat.chat_history
-        : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
-
+      const currentHistory = activeChat.chat_history && Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
       const updatedHistory = [...currentHistory, adminMessage];
 
       const { error } = await supabase.from('support_tickets').update({ chat_history: updatedHistory, status: 'replied', has_unread_user: true }).eq('id', activeChat.id);
-
       if (error) throw error;
       
-      if (typingChannelRef.current) {
-        typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'admin', isTyping: false } });
-      }
-
-      showToast('DISPATCH TRANSKICKED TO CLIENT PORTAL.');
+      if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'admin', isTyping: false } });
       setReplyText('');
-    } catch (err) {
-      showToast(`ERROR: ${err.message.toUpperCase()}`);
-    } finally {
-      setSendingReply(false);
-    }
+    } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setSendingReply(false); }
   };
 
   const totalVisits = analyticsData.filter(a => a.event_type === 'visit').length;
@@ -408,7 +372,6 @@ export default function AdminDashboard() {
                   )}
                   <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase">Item 0{index + 1}</p>
                   
-                  {/* Base Core Data */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                       <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Product Name</label>
@@ -424,7 +387,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Optional Dynamic Accordion Modules */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-800">
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
@@ -444,7 +406,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Image Attachment Payload */}
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-20 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden">
                       {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-600 uppercase tracking-widest text-center">Img</span>}
@@ -473,16 +434,27 @@ export default function AdminDashboard() {
                 <div key={order.id} className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col gap-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-900 pb-4">
                     <div>
-                      <p className="text-[8px] tracking-widest text-zinc-500 uppercase font-mono">ORDER ID: #{order.id.slice(0,8)}</p>
+                      <p className="text-[8px] tracking-widest text-zinc-500 uppercase font-mono">ORDER ID: #{order.id.slice(0,8).toUpperCase()}</p>
                       <h3 className="text-xs font-normal text-white uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-400 normal-case">{order.customer_email}</span></h3>
                     </div>
-                    <div>
-                      <select value={order.status} onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)} className="bg-[#111] text-white border border-zinc-800 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none focus:border-white">
+                    
+                    {/* SHIPPING INTERCEPTOR UI FOR EMAILS */}
+                    {interceptedOrder === order.id ? (
+                      <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
+                        <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-[#111] border border-zinc-800 text-white p-2.5 outline-none text-base uppercase tracking-widest w-full sm:w-48 placeholder-zinc-600" />
+                        <button onClick={() => confirmShipping(order)} className="bg-white text-black px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200">Confirm</button>
+                        <button onClick={() => setInterceptedOrder(null)} className="text-zinc-500 hover:text-white px-2 py-2 text-xs">✕</button>
+                      </div>
+                    ) : (
+                      <select value={order.status} onChange={(e) => {
+                        if (e.target.value === 'shipped') setInterceptedOrder(order.id);
+                        else handleUpdateOrderStatus(order.id, e.target.value, null, order);
+                      }} className="bg-[#111] text-white border border-zinc-800 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none mt-4 sm:mt-0 w-full sm:w-auto">
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                       </select>
-                    </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[10px] tracking-wider uppercase text-zinc-400">
@@ -522,11 +494,11 @@ export default function AdminDashboard() {
                 <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
-                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE EDITIONS DROP: AUTUMN SILHOUETTES" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors"/>
+                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE EDITIONS DROP: AUTUMN SILHOUETTES" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors placeholder-zinc-600"/>
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors" />
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors placeholder-zinc-600" />
                   </div>
                   <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium disabled:opacity-40 transition-colors">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
@@ -563,6 +535,7 @@ export default function AdminDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in relative overflow-hidden">
             
+            {/* Left Panel: Ticket List (Hidden on mobile when chat is opened) */}
             <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
@@ -585,6 +558,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Right Panel: Active Chat (Hidden on mobile when no chat is opened) */}
             <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
@@ -593,11 +567,12 @@ export default function AdminDashboard() {
                       <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
                       <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
                     </div>
-                    <button onClick={() => setActiveChat(null)} className="md:hidden text-[9px] tracking-widest uppercase border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800 text-zinc-300 transition-colors">
+                    {/* Mobile Back Button */}
+                    <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800 text-zinc-300 transition-colors">
                       &larr; Back
                     </button>
                   </div>
-                  
+
                   <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
                     {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
@@ -606,6 +581,7 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                     
+                    {/* Real-time Typing Indicator */}
                     {isUserTyping && (
                       <div className="flex flex-col items-start animate-fade-in">
                         <span className="text-[8px] tracking-[0.2em] text-zinc-500 uppercase mb-1">{activeChat.name} IS TYPING...</span>
@@ -615,13 +591,13 @@ export default function AdminDashboard() {
                   </div>
                   
                   <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4 shrink-0">
-                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide" />
+                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide placeholder-zinc-600" />
                     <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center p-6 text-center">
-                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select an active ticket from the archive log</p>
+                <div className="flex-1 flex items-center justify-center p-6">
+                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase text-center">Select an active ticket from the archive log</p>
                 </div>
               )}
             </div>
