@@ -157,7 +157,7 @@ export default function ShopCatalog() {
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] relative overflow-x-hidden pb-24">
       
       {/* GLOBAL ANNOUNCEMENT TICKER */}
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-[60]">
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div 
           className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" 
           style={{ transform: `translateY(-${tickerIndex * 100}%)` }}
@@ -174,7 +174,7 @@ export default function ShopCatalog() {
       </div>
 
       {/* PURE PLAIN NAVIGATION HEADER SYSTEM */}
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-[50]">
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 grid grid-cols-3 items-center">
           
           {/* Left Element: Mobile Burger Menu Toggle Link */}
@@ -226,7 +226,7 @@ export default function ShopCatalog() {
       </header>
 
       {/* PLAIN SIDE NAVIGATION DRAWER INDEX */}
-      <div className={`fixed inset-y-0 left-0 z-[140] w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z- w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1">
@@ -243,7 +243,7 @@ export default function ShopCatalog() {
           S. SIKAMÒRE COLLECTIVES © 2026
         </div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z-[135] backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z- backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
 
       {/* SORT AND FILTER ACTION MATRIX CONTROLLERS */}
       <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
@@ -391,9 +391,9 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* DETAILED PRODUCT OVERLAY MODAL - REBUILT TO FIX MOBILE CUT-OFF */}
+      {/* DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm">
           <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
             <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
               <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
@@ -504,7 +504,7 @@ export default function ShopCatalog() {
       )}
 
       {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 z-[110] w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 right-0 z- w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -557,10 +557,10 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 z- backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
       {/* STICKY BOTTOM QUICK CHECKOUT BAR */}
-      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-0 left-0 w-full z- transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="bg-[#0A0A0A] text-white h-[72px] sm:h-[80px] w-full border-t border-zinc-800 flex items-center justify-center shadow-lg">
           <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-12 flex items-center justify-between">
             <div className="flex items-center gap-4 sm:gap-8">
@@ -580,8 +580,8 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL - REBUILT TO FIX MOBILE CUT-OFF */}
-      <div className={`fixed inset-0 z-[150] overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL (ZOOM BUG FIXED) */}
+      <div className={`fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex min-h-full items-start justify-center p-4">
           <div className="w-full max-w-md bg-white relative flex flex-col rounded-sm shadow-2xl mt-8 mb-12 overflow-hidden">
             
@@ -593,7 +593,7 @@ export default function ShopCatalog() {
             <div className="relative w-full shrink-0 border-b border-zinc-200">
               <div className="absolute inset-0 bg-black">
                 {products.length > 0 && (
-                  <img src={products[0]?.image} className="w-full h-full object-cover opacity-60" alt="Background" />
+                  <img src={products?.image} className="w-full h-full object-cover opacity-60" alt="Background" />
                 )}
               </div>
               
@@ -634,7 +634,7 @@ export default function ShopCatalog() {
                         onChange={(e) => setSubscriberEmail(e.target.value)}
                         placeholder="YOUR EMAIL ADDRESS" 
                         required 
-                        className="w-full bg-white/10 p-3.5 border border-white/30 text-white placeholder-zinc-300 outline-none text-[10px] text-center tracking-widest uppercase focus:border-white rounded-sm backdrop-blur-sm"
+                        className="w-full bg-white/10 p-3.5 border border-white/30 text-white placeholder-zinc-300 outline-none text-base md:text-xs text-center tracking-widest uppercase focus:border-white rounded-sm backdrop-blur-sm"
                       />
                       <button 
                         type="submit" 
