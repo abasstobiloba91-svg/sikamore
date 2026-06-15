@@ -123,6 +123,7 @@ export default function ShopCatalog() {
   };
 
   const handleInlineAdd = (e, product) => {
+    e.preventDefault();
     e.stopPropagation();
     addToCart(product, inlineQty, inlineSize);
     setTimeout(() => setIsCartOpen(false), 10);
@@ -131,14 +132,15 @@ export default function ShopCatalog() {
     setInlineSize('M');
   };
 
-  // SMART WISHLIST HANDLER (Instantly likes if logged in)
+  // SURGICAL FIX: Strict click blockage for Wishlist
   const handleWishlistClick = (e, product) => {
+    e.preventDefault();
     e.stopPropagation();
     const localUser = localStorage.getItem('sikamore_user_profile');
     
     if (userSession || localUser) {
-      toggleWishlist(product);
       const isCurrentlyInWishlist = wishlist.some(w => w.id === product.id);
+      toggleWishlist(product);
       showToast(isCurrentlyInWishlist ? 'REMOVED FROM WISHLIST.' : 'SAVED TO WISHLIST.');
     } else {
       setPendingWishlistProduct(product);
@@ -205,11 +207,10 @@ export default function ShopCatalog() {
     }
   };
 
-  // NOTE: Removed relative and overflow-x-hidden from main container to prevent z-index clipping
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-24">
       
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 z-50">
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
             <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
@@ -219,7 +220,7 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-40">
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0" style={{ zIndex: 50 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 grid grid-cols-3 items-center">
           <div className="flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
@@ -259,7 +260,22 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
+      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999 }}>
+        <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
+          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
+          <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
+          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
+          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">New In</Link>
+          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Client Portal</Link>
+          <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Management</Link>
+        </nav>
+        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
+      </div>
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" style={{ zIndex: 9998 }} onClick={() => setIsMenuOpen(false)}></div>}
+
+      <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px]" style={{ zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Filter</button>
           <div className="flex items-center gap-3">
@@ -291,14 +307,14 @@ export default function ShopCatalog() {
                     <div className="w-28 sm:w-36 aspect-[3/4] shrink-0 overflow-hidden relative bg-zinc-50 rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
                       {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover" />}
                       
-                      <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
+                      <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-2 right-2 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
                         <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                         </svg>
                       </button>
 
                       {product.is_sold_out && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-[7px] tracking-widest text-zinc-300 uppercase bg-black/80 px-2 py-1 rounded-sm">Sold Out</span></div>
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none"><span className="text-[7px] tracking-widest text-zinc-300 uppercase bg-black/80 px-2 py-1 rounded-sm">Sold Out</span></div>
                       )}
                     </div>
                     
@@ -307,22 +323,22 @@ export default function ShopCatalog() {
                       <p className="text-[11px] sm:text-[12px] font-normal tracking-wider text-zinc-500">₦{Number(product.price).toLocaleString()}</p>
                       
                       <div className="flex items-center gap-2 pt-1">
-                        <button onClick={(e) => { e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="px-4 py-2 border border-zinc-200 bg-white hover:bg-black hover:text-white text-black transition-colors duration-300 rounded-sm disabled:opacity-30 tracking-[0.2em] text-[8px] sm:text-[9px] uppercase font-medium whitespace-nowrap">Add To Bag</button>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="px-4 py-2 border border-zinc-200 bg-white hover:bg-black hover:text-white text-black transition-colors duration-300 rounded-sm disabled:opacity-30 tracking-[0.2em] text-[8px] sm:text-[9px] uppercase font-medium whitespace-nowrap">Add To Bag</button>
                       </div>
 
                       {inlineAddId === product.id && (
-                        <div className="absolute inset-0 bg-white border border-zinc-200 p-4 z-20 text-black rounded-sm flex flex-col justify-center animate-fade-in">
-                           <button onClick={(e) => { e.stopPropagation(); setInlineAddId(null); }} className="absolute top-2 right-2 text-zinc-400 hover:text-black">✕</button>
+                        <div className="absolute inset-0 bg-white border border-zinc-200 p-4 z-20 text-black rounded-sm flex flex-col justify-center animate-fade-in pointer-events-auto">
+                           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-2 right-2 text-zinc-400 hover:text-black">✕</button>
                            <div className="flex gap-2 mb-3">
                               {['S', 'M', 'L'].map(s => (
-                                <button key={s} onClick={(e) => { e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
+                                <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
                               ))}
                            </div>
                            <div className="flex items-center gap-4">
                               <div className="flex items-center border border-zinc-200 w-[80px]">
-                                <button onClick={(e) => { e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 hover:bg-zinc-50">-</button>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 hover:bg-zinc-50">-</button>
                                 <span className="flex-1 text-center text-[10px]">{inlineQty}</span>
-                                <button onClick={(e) => { e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 hover:bg-zinc-50">+</button>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 hover:bg-zinc-50">+</button>
                               </div>
                               <button onClick={(e) => handleInlineAdd(e, product)} className="bg-black text-white px-4 py-2 text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium">Add</button>
                            </div>
@@ -338,35 +354,36 @@ export default function ShopCatalog() {
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer border border-zinc-100" onClick={() => !product.is_sold_out && openQuickView(product)}>
                     {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] group-hover:scale-102" />}
                     
-                    <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-10 p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
+                    <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
                       <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                       </svg>
                     </button>
 
-                    <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-20 text-black transition-opacity duration-300 ${inlineAddId === product.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                      <button onClick={(e) => { e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
+                    <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-20 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
                       <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Select Size</p>
                       <div className="flex gap-1.5 mb-4">
                         {['S', 'M', 'L'].map(s => (
-                          <button key={s} onClick={(e) => { e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
+                          <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
                         ))}
                       </div>
                       <div className="flex items-center border border-zinc-200 mb-4 w-full max-w-[100px]">
-                        <button onClick={(e) => { e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">-</button>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">-</button>
                         <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
-                        <button onClick={(e) => { e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
                       </div>
                       <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Confirm & Add</button>
                     </div>
 
+                    {/* SURGICAL FIX: pointer-events-none on this wrapper, pointer-events-auto on buttons */}
                     {inlineAddId !== product.id && (
-                      <div className="absolute inset-0 bg-black/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
-                        <div className="flex gap-2 bg-white p-1.5 rounded-sm border border-zinc-100">
-                          <button onClick={(e) => { e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-2 text-black hover:text-zinc-500 transition-colors">
+                      <div className="absolute inset-0 bg-black/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
+                        <div className="flex gap-2 bg-white p-1.5 rounded-sm border border-zinc-100 pointer-events-auto">
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-2 text-black hover:text-zinc-500 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }} className="p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                           </button>
                         </div>
@@ -452,7 +469,7 @@ export default function ShopCatalog() {
                     <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4">{quickViewProduct.name}</h2>
                     <button 
                       onClick={(e) => handleWishlistClick(e, quickViewProduct)} 
-                      className="text-black hover:scale-110 transition-transform mt-0.5"
+                      className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10"
                     >
                       <svg 
                         className="w-4 h-4 sm:w-5 sm:h-5" 
