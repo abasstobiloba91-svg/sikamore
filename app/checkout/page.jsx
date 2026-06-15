@@ -7,8 +7,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '../providers';
 
-// Notice: NO Paystack import at the top of the file!
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -33,6 +31,16 @@ export default function CheckoutPage() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFee = 0; 
   const orderTotal = cartSubtotal + shippingFee;
+
+  // INJECT NATIVE PAYSTACK SCRIPT DIRECTLY TO BYPASS VERCEL BUILD CRASH
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.PaystackPop) {
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v2/inline.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
 
   useEffect(() => {
     if (cart.length === 0) router.push('/shop');
@@ -107,6 +115,10 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
     
+    if (!window.PaystackPop) {
+      return showToast('PAYMENT GATEWAY STILL LOADING... PLEASE TRY AGAIN IN 2 SECONDS.');
+    }
+
     setIsProcessing(true);
 
     try {
@@ -124,11 +136,8 @@ export default function CheckoutPage() {
 
       showToast('AUTHORIZING SECURE PAYMENT GATEWAY...');
       
-      // WE DYNAMICALLY LOAD PAYSTACK HERE SO VERCEL DOES NOT CRASH
-      const PaystackModule = await import('@paystack/inline-js');
-      const PaystackPop = PaystackModule.default;
-      
-      const paystack = new PaystackPop();
+      // FIRE NATIVE WINDOW SCRIPT (Vercel will ignore this entirely!)
+      const paystack = new window.PaystackPop();
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase(),
