@@ -279,7 +279,7 @@ export default function ClientDashboard() {
                         onClick={() => { 
                           addToCart(item, 1, 'M'); 
                           toggleWishlist(item); 
-                          showToast('ITEM TRANSFERRED TO YOUR SHOPPING BAG.'); 
+                          showToast('ADDED TO CART.'); 
                         }} 
                         className="mt-3 w-full bg-black text-white py-2 text-[8px] tracking-widest uppercase hover:bg-zinc-800 transition-colors font-medium"
                       >
