@@ -237,6 +237,10 @@ export default function AdminDashboard() {
 
   const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
+      // 1. MANUALLY UPDATE LOCAL REACT STATE INSTANTLY TO FIX DROPDOWN BUG
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
+
+      // 2. SEND TO DATABASE
       const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
       if (error) throw error;
       
