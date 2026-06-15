@@ -209,7 +209,7 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] relative overflow-x-hidden pb-24">
       
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
             <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
@@ -219,7 +219,8 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
+      {/* FIXED Z-INDEX: Lowered to 50 so popups cover it */}
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0" style={{ zIndex: 50 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 grid grid-cols-3 items-center">
           <div className="flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
@@ -236,7 +237,6 @@ export default function ShopCatalog() {
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </button>
             
-            {/* GLOBAL WISHLIST ROUTING ICON */}
             <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -244,13 +244,11 @@ export default function ShopCatalog() {
               {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
             </Link>
 
-            {/* DASHBOARD PORTAL ICON */}
             <Link href="/dashboard" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
-            {/* CART ICON */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -259,7 +257,8 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      <div className={`fixed inset-y-0 left-0 z- w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+      {/* FIXED Z-INDEX: Sidebar menus set to absolute topmost layer 9999 */}
+      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
@@ -272,9 +271,10 @@ export default function ShopCatalog() {
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z- backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" style={{ zIndex: 9998 }} onClick={() => setIsMenuOpen(false)}></div>}
 
-      <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
+      {/* FIXED Z-INDEX: Lowered to 40 so popups cover it */}
+      <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px]" style={{ zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Filter</button>
           <div className="flex items-center gap-3">
@@ -403,9 +403,9 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* --- IN-PAGE GUEST WISHLIST AUTHENTICATION MODAL --- */}
+      {/* FIXED Z-INDEX: GUEST WISHLIST AUTHENTICATION MODAL */}
       {showWishlistAuthModal && (
-        <div className="fixed inset-0 z- bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999 }}>
           <div className="bg-white text-black max-w-sm w-full p-8 shadow-2xl relative">
             <button onClick={() => setShowWishlistAuthModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-black">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -447,9 +447,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* DETAILED PRODUCT OVERLAY MODAL */}
+      {/* FIXED Z-INDEX: DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm" style={{ zIndex: 9999 }}>
           <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
             <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
               <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
@@ -505,7 +505,7 @@ export default function ShopCatalog() {
                 </div>
               </div>
 
-              {/* EXPANDABLE ACCORDION */}
+              {/* EXPANDABLE ACCORDION DYNAMIC DATABASE BINDING */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
@@ -524,8 +524,8 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 z- w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+      {/* FIXED Z-INDEX: SLIDING MINI BAG CAROUSEL DRAWER */}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -578,10 +578,10 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 z- backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" style={{ zIndex: 9998 }} onClick={() => setIsCartOpen(false)}></div>}
 
-      {/* STICKY BOTTOM QUICK CHECKOUT BAR */}
-      <div className={`fixed bottom-0 left-0 w-full z- transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
+      {/* FIXED Z-INDEX: STICKY BOTTOM QUICK CHECKOUT BAR */}
+      <div className={`fixed bottom-0 left-0 w-full transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`} style={{ zIndex: 9000 }}>
         <div className="bg-[#0A0A0A] text-white h-[72px] sm:h-[80px] w-full border-t border-zinc-800 flex items-center justify-center shadow-lg">
           <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-12 flex items-center justify-between">
             <div className="flex items-center gap-4 sm:gap-8">
@@ -601,8 +601,8 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
-      <div className={`fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+      {/* FIXED Z-INDEX: DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
+      <div className={`fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: 9999 }}>
         <div className="flex min-h-full items-center justify-center p-4">
           <div className="w-full max-w-md md:max-w-4xl bg-white relative flex flex-col md:flex-row rounded-sm shadow-2xl my-8 overflow-hidden">
             
