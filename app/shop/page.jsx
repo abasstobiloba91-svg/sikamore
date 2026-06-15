@@ -580,54 +580,52 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
+      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL (DESKTOP HORIZONTAL SPLIT) */}
       <div className={`fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        <div className="flex min-h-full items-start justify-center p-4">
-          <div className="w-full max-w-md bg-white relative flex flex-col rounded-sm shadow-2xl mt-8 mb-12 overflow-hidden">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div className="w-full max-w-md md:max-w-4xl bg-white relative flex flex-col md:flex-row rounded-sm shadow-2xl my-8 overflow-hidden">
             
-            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-3 right-3 text-white hover:text-zinc-300 z-50 bg-black/40 p-1.5 rounded-full backdrop-blur-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            {/* CLOSE BUTTON - Positioned top right of the whole modal, perfectly fitting the white panel on desktop */}
+            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-50 p-2 bg-white/80 md:bg-transparent rounded-full md:rounded-none text-black hover:text-zinc-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
-            {/* STAGE 1 / 2 LOGIC CARD - WITH PRODUCT IMAGE BACKGROUND */}
-            <div className="relative w-full shrink-0 border-b border-zinc-200">
+            {/* STAGE 1 / 2 LOGIC CARD - LEFT SIDE ON DESKTOP */}
+            <div className="relative w-full md:w-1/2 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 min-h-[400px]">
               <div className="absolute inset-0 bg-black">
                 {products.length > 0 && products[0]?.image ? (
                   <img src={products[0].image} className="w-full h-full object-cover opacity-60" alt="Background" />
                 ) : null}
               </div>
               
-              <div className="relative z-10 p-8 pt-12 text-center space-y-4 text-white">
+              <div className="relative z-10 p-8 sm:p-12 flex-1 flex flex-col justify-center text-center space-y-4 text-white">
                 {!grabDiscountClicked ? (
-                  <div className="animate-fade-in">
-                    <h3 className="text-lg font-normal tracking-wide font-serif mb-1">Wait! before you leave...</h3>
-                    <p className="text-[10px] tracking-widest text-zinc-300 uppercase mb-4">Get 10% off for your first order</p>
+                  <div className="animate-fade-in w-full max-w-[280px] mx-auto flex flex-col items-center">
+                    <h3 className="text-2xl sm:text-3xl font-normal tracking-wide font-serif mb-2">Wait! before you leave...</h3>
+                    <p className="text-[11px] tracking-widest text-zinc-200 mb-6">Get 10% off for your first order</p>
                     
-                    <div className="bg-white text-black p-3 flex items-center justify-between rounded-sm mt-4 w-3/4 mx-auto shadow-md">
-                      <span className="font-mono text-[11px] tracking-widest font-bold">CODE20OFF</span>
-                      <button type="button" onClick={copyCouponCode} className="text-black hover:text-zinc-600 p-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                      </button>
+                    <div className="bg-white text-black py-3 px-6 flex items-center justify-center gap-4 rounded-sm mb-6 w-full shadow-md">
+                      <span className="font-sans text-[13px] tracking-widest font-bold">CODE20OFF</span>
                     </div>
 
-                    <p className="text-[9px] leading-relaxed text-zinc-300 mt-4 mb-4">
+                    <p className="text-[10px] leading-relaxed text-white mb-6">
                       Use above code to get 10% OFF for your first order when checkout
                     </p>
 
                     <button 
                       type="button" 
                       onClick={() => setGrabDiscountClicked(true)}
-                      className="w-full bg-[#D31313] hover:bg-red-700 text-white py-3.5 text-[10px] tracking-[0.1em] font-medium transition-colors rounded-sm shadow-md"
+                      className="w-full bg-[#D31313] hover:bg-red-700 text-white py-3.5 text-[11px] tracking-[0.1em] font-medium transition-colors rounded-sm shadow-md"
                     >
                       Grab the discount
                     </button>
                   </div>
                 ) : (
-                  <div className="animate-fade-in">
-                    <h3 className="text-lg font-normal tracking-wide font-serif mb-1">Secure Your Discount</h3>
-                    <p className="text-[10px] tracking-widest text-zinc-300 uppercase mb-4">Enter email to join the registry</p>
+                  <div className="animate-fade-in w-full max-w-[280px] mx-auto flex flex-col items-center">
+                    <h3 className="text-2xl sm:text-3xl font-normal tracking-wide font-serif mb-2">Secure Your Discount</h3>
+                    <p className="text-[11px] tracking-widest text-zinc-200 mb-6">Enter email to join the registry</p>
                     
-                    <form onSubmit={handlePopupSubscription} className="space-y-3 pt-2">
+                    <form onSubmit={handlePopupSubscription} className="space-y-3 w-full">
                       <input 
                         type="email" 
                         value={subscriberEmail}
@@ -639,7 +637,7 @@ export default function ShopCatalog() {
                       <button 
                         type="submit" 
                         disabled={submittingEmail}
-                        className="w-full bg-[#D31313] text-white py-3.5 text-[10px] tracking-[0.1em] font-medium hover:bg-red-700 disabled:opacity-40 rounded-sm transition-colors shadow-md"
+                        className="w-full bg-[#D31313] text-white py-3.5 text-[11px] tracking-[0.1em] font-medium hover:bg-red-700 disabled:opacity-40 rounded-sm transition-colors shadow-md"
                       >
                         {submittingEmail ? 'REGISTERING...' : 'SUBMIT REGISTRY'}
                       </button>
@@ -649,25 +647,30 @@ export default function ShopCatalog() {
               </div>
             </div>
 
-            {/* LOWER PORTION MATRIX: LIVE RECOMMENDED PRODUCTS */}
-            <div className="bg-white p-6 sm:p-8">
-              <h4 className="text-[12px] font-medium text-black mb-5">Recommended Products</h4>
-              <div className="space-y-4">
+            {/* RIGHT PORTION MATRIX: LIVE RECOMMENDED PRODUCTS */}
+            <div className="w-full md:w-1/2 bg-white p-6 sm:p-10 flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                 <h4 className="text-[14px] font-medium text-black">Recommended Products</h4>
+                 {/* Invisible spacer to prevent title overlapping the absolute close button */}
+                 <div className="w-6 h-6"></div> 
+              </div>
+              
+              <div className="space-y-5 flex-1 overflow-y-auto">
                 {products.slice(0, 3).map((recProd) => (
                   <div 
                     key={recProd.id} 
                     onClick={() => { setShowNewsletter(false); openQuickView(recProd); }}
-                    className="flex gap-4 items-center bg-white p-0 cursor-pointer group"
+                    className="flex gap-5 items-center bg-white p-0 cursor-pointer group"
                   >
-                    <div className="w-16 h-20 bg-zinc-100 shrink-0 overflow-hidden rounded-sm border border-zinc-100">
+                    <div className="w-[72px] h-[90px] bg-zinc-100 shrink-0 overflow-hidden border border-zinc-100">
                       {recProd.image && <img src={recProd.image} alt={recProd.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <div className="flex text-yellow-400 text-[9px] mb-1">
+                      <div className="flex text-zinc-300 text-[10px] mb-1.5">
                         ★ ★ ★ ★ ★ <span className="text-zinc-400 ml-1 font-mono">(0)</span>
                       </div>
-                      <h5 className="text-[10px] font-medium uppercase tracking-wider text-black truncate">{recProd.name}</h5>
-                      <p className="text-[11px] text-black font-semibold tracking-wide mt-1">₦{Number(recProd.price).toLocaleString()}</p>
+                      <h5 className="text-[11px] font-medium uppercase tracking-wider text-black truncate mb-1">{recProd.name}</h5>
+                      <p className="text-[12px] text-black font-semibold tracking-wide">₦{Number(recProd.price).toLocaleString()}</p>
                     </div>
                   </div>
                 ))}
