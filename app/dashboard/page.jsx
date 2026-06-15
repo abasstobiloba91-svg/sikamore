@@ -14,8 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default function ClientDashboard() {
   const { showToast, wishlist, toggleWishlist, addToCart } = useApp();
   
-  // Restored full navigation structure
-  const [activeTab, setActiveTab] = useState('orders'); // orders, wishlist, support, profile
+  const [activeTab, setActiveTab] = useState('orders'); 
   const [userProfile, setUserProfile] = useState(null);
   
   const [tickets, setTickets] = useState([]);
@@ -35,19 +34,30 @@ export default function ClientDashboard() {
   const typingTimeoutRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Authenticate / Load Profile Log
+  // Address Book Operational States
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
+
+  // SECURE AUTHENTICATION BRIDGE LOAD
   useEffect(() => {
-    const storedUser = localStorage.getItem('sikamore_user_profile');
-    if (storedUser) {
-      setUserProfile(JSON.parse(storedUser));
-    } else {
-      const fallback = { name: 'VALUED CLIENT', email: 'client@sikamore.internal' };
-      setUserProfile(fallback);
-      localStorage.setItem('sikamore_user_profile', JSON.stringify(fallback));
+    async function fetchSecureSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const profile = {
+          name: session.user.user_metadata?.name || 'VALUED CLIENT',
+          email: session.user.email,
+          address: session.user.user_metadata?.address || ''
+        };
+        setUserProfile(profile);
+        setAddressInput(profile.address);
+      } else {
+        window.location.href = '/checkout';
+      }
     }
+    fetchSecureSession();
   }, []);
 
-  // Fetch Core Tab Data
+  // Fetch Tab Specific Context Data
   useEffect(() => {
     if (!userProfile) return;
     async function loadClientData() {
@@ -121,7 +131,7 @@ export default function ClientDashboard() {
       if (error) throw error;
       setNewTicketSubject(''); setNewTicketMessage(''); setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
-      if (data && data) setActiveChat(data);
+      if (data && data[0]) setActiveChat(data[0]);
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setCreatingTicket(false); }
   };
 
@@ -138,6 +148,27 @@ export default function ClientDashboard() {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
     } finally { setSendingReply(false); }
   };
+
+  // SECURE ADDRESS METADATA MUTATION 
+  const handleSaveAddress = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({ data: { address: addressInput } });
+      if (error) throw error;
+      setUserProfile(prev => ({ ...prev, address: addressInput }));
+      setIsEditingAddress(false);
+      showToast('ADDRESS BOOK REGISTRY SAVED.');
+    } catch (err) {
+      showToast(`MUTATION ERROR: ${err.message.toUpperCase()}`);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('sikamore_user_profile');
+    window.location.href='/';
+  };
+
+  if (!userProfile) return null;
 
   return (
     <div className="min-h-screen bg-white text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
@@ -226,7 +257,7 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {/* --- PROFILE / SETTINGS TAB --- */}
+        {/* --- PROFILE / SETTINGS TAB (INTEGRATED LIVE ADDRESS BOOK BOOKING) --- */}
         {activeTab === 'profile' && (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="bg-white border border-zinc-200 shadow-sm p-8 sm:p-12 text-center flex flex-col items-center">
@@ -236,19 +267,53 @@ export default function ClientDashboard() {
               <h2 className="text-lg font-medium tracking-widest uppercase mb-1">{userProfile?.name}</h2>
               <p className="text-xs text-zinc-500 tracking-widest mb-8 font-mono">{userProfile?.email}</p>
               
+              {/* SAVED ADDRESS MODULE CONFIG */}
+              <div className="w-full text-left bg-zinc-50 border border-zinc-200 p-6 mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-[10px] tracking-widest uppercase font-medium text-black">Saved Dispatch Destination</h3>
+                  {!isEditingAddress && (
+                    <button onClick={() => setIsEditingAddress(true)} className="text-[9px] uppercase tracking-widest text-zinc-500 hover:text-black border-b border-zinc-300 hover:border-black transition-all">
+                      Edit
+                    </button>
+                  )}
+                </div>
+                {isEditingAddress ? (
+                  <div className="space-y-4">
+                    <textarea 
+                      value={addressInput} 
+                      onChange={(e) => setAddressInput(e.target.value)} 
+                      rows="3" 
+                      className="w-full bg-white p-4 border border-zinc-300 text-base uppercase tracking-wider outline-none focus:border-black resize-none" 
+                      placeholder="ENTER PRIMARY SHIPPING ADDRESS MATRIX (STREET, CITY, STATE)..." 
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleSaveAddress} className="flex-1 bg-black text-white py-2.5 text-[9px] tracking-widest uppercase font-medium transition-colors hover:bg-zinc-800">
+                        Save Address
+                      </button>
+                      <button onClick={() => { setIsEditingAddress(false); setAddressInput(userProfile?.address || ''); }} className="flex-1 border border-zinc-300 text-black py-2.5 text-[9px] tracking-widest uppercase font-medium transition-colors hover:bg-zinc-100">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-600 uppercase tracking-widest leading-relaxed font-mono">
+                    {userProfile?.address || "No fallback delivery itinerary logged to this profile."}
+                  </p>
+                )}
+              </div>
+
               <div className="w-full space-y-4 border-t border-zinc-100 pt-8">
-                <button onClick={() => showToast('Address Book functionality under construction.')} className="w-full border border-zinc-300 text-black py-4 text-[10px] tracking-widest uppercase hover:border-black transition-colors font-medium">Manage Address Book</button>
-                <button onClick={() => { localStorage.removeItem('sikamore_user_profile'); window.location.href='/'; }} className="w-full bg-zinc-900 text-white py-4 text-[10px] tracking-widest uppercase hover:bg-black transition-colors font-medium">Sign Out</button>
+                <button onClick={handleSignOut} className="w-full bg-zinc-900 text-white py-4 text-[10px] tracking-widest uppercase hover:bg-black transition-colors font-medium">Sign Out Profile</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* --- CONCIERGE SUPPORT INBOX CHANNEL (MOBILE BACK BUTTON + TYPING IND) --- */}
+        {/* --- CONCIERGE SUPPORT INBOX CHANNEL --- */}
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[650px] border border-zinc-800 shadow-2xl relative overflow-hidden">
             
-            {/* Left Panel: Ticket List (Hidden on mobile when chat is opened) */}
+            {/* Left Panel: Ticket List */}
             <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] flex justify-between items-center z-10">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Your Tickets</h2>
@@ -273,7 +338,7 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            {/* Right Panel: Active Chat Room (Hidden on mobile when no chat is opened) */}
+            {/* Right Panel: Active Chat Room */}
             <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
@@ -282,7 +347,6 @@ export default function ClientDashboard() {
                       <h3 className="text-xs uppercase tracking-widest text-white font-medium truncate max-w-[200px] sm:max-w-md">{activeChat.subject}</h3>
                       <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{activeChat.id.slice(0,8).toUpperCase()}</p>
                     </div>
-                    {/* MOBILE BACK BUTTON FIX */}
                     <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-4 py-2 hover:bg-zinc-800 text-zinc-300 transition-colors rounded-sm">
                       &larr; Back
                     </button>
@@ -338,12 +402,10 @@ export default function ClientDashboard() {
               <form onSubmit={handleCreateTicket} className="space-y-6">
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Subject Header</label>
-                  {/* ZOOM FIX: text-base */}
                   <input type="text" value={newTicketSubject} onChange={(e) => setNewTicketSubject(e.target.value)} required placeholder="E.G. TRANSACTION DISCREPANCY / SIZE EXCHANGE" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors" />
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Detailed Message Context</label>
-                  {/* ZOOM FIX: text-base */}
                   <textarea value={newTicketMessage} onChange={(e) => setNewTicketMessage(e.target.value)} required rows="5" placeholder="State your context inquiries clearly here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors" />
                 </div>
                 <button type="submit" disabled={creatingTicket} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium transition-colors disabled:opacity-40">
