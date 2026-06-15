@@ -34,7 +34,6 @@ export default function ClientDashboard() {
   const typingTimeoutRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Address Book Operational States
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState('');
 
@@ -51,13 +50,29 @@ export default function ClientDashboard() {
         setUserProfile(profile);
         setAddressInput(profile.address);
       } else {
-        window.location.href = '/checkout';
+        // Look for local profile fallback if database sync delay occurs
+        const localUser = localStorage.getItem('sikamore_user_profile');
+        if (localUser) {
+          setUserProfile(JSON.parse(localUser));
+        } else {
+          window.location.href = '/shop';
+        }
       }
     }
     fetchSecureSession();
   }, []);
 
-  // Fetch Tab Specific Context Data
+  // SMART URL ROUTING (Intercepts ?tab=wishlist parameter gracefully)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['orders', 'wishlist', 'support', 'profile'].includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!userProfile) return;
     async function loadClientData() {
@@ -77,7 +92,6 @@ export default function ClientDashboard() {
     loadClientData();
   }, [userProfile, activeTab]);
 
-  // Real-time Chat Sync Connection
   useEffect(() => {
     if (!userProfile || activeTab !== 'support') return;
     const messageSync = supabase.channel('realtime_support_client')
@@ -91,7 +105,6 @@ export default function ClientDashboard() {
     return () => { supabase.removeChannel(messageSync); };
   }, [userProfile, activeTab, activeChat]);
 
-  // Real-time Typing Indicator Connection
   useEffect(() => {
     if (!activeChat) return;
     const channel = supabase.channel(`typing_support_${activeChat.id}`);
@@ -149,7 +162,6 @@ export default function ClientDashboard() {
     } finally { setSendingReply(false); }
   };
 
-  // SECURE ADDRESS METADATA MUTATION 
   const handleSaveAddress = async () => {
     try {
       const { error } = await supabase.auth.updateUser({ data: { address: addressInput } });
@@ -174,7 +186,6 @@ export default function ClientDashboard() {
     <div className="min-h-screen bg-white text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-6xl mx-auto">
         
-        {/* HEADER BRANDING & MAIN TABS */}
         <div className="mb-12 text-center relative border-b border-zinc-200 pb-10">
           <Link href="/" className="text-2xl font-normal tracking-[0.4em] uppercase font-serif text-black hover:text-zinc-600 transition-colors">S. SIKAMÒRE</Link>
           <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mt-2 mb-8">Client Private Console</p>
@@ -188,7 +199,7 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* --- ORDERS ARCHIVE WITH DELIVERY ESTIMATES --- */}
+        {/* --- ORDERS ARCHIVE --- */}
         {activeTab === 'orders' && (
           <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
             {orders.length === 0 ? (
@@ -246,7 +257,16 @@ export default function ClientDashboard() {
                     <div className="flex flex-col mt-3 text-center pb-2">
                       <h3 className="text-[9px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-600 truncate">{item.name}</h3>
                       <p className="text-[10px] tracking-widest text-black font-medium mt-1">₦{Number(item.price).toLocaleString()}</p>
-                      <button onClick={() => { addToCart(item, 1, 'M'); showToast('ADDED TO BAG FROM WISHLIST'); }} className="mt-3 w-full bg-black text-white py-2 text-[8px] tracking-widest uppercase hover:bg-zinc-800 transition-colors">
+                      
+                      {/* ADDS ITEM TO BAG AND AUTOMATICALLY CLEARS IT FROM WISHLIST SEAMLESSLY */}
+                      <button 
+                        onClick={() => { 
+                          addToCart(item, 1, 'M'); 
+                          toggleWishlist(item); 
+                          showToast('ITEM TRANSFERRED TO YOUR SHOPPING BAG.'); 
+                        }} 
+                        className="mt-3 w-full bg-black text-white py-2 text-[8px] tracking-widest uppercase hover:bg-zinc-800 transition-colors font-medium"
+                      >
                         Quick Add
                       </button>
                     </div>
@@ -257,7 +277,7 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {/* --- PROFILE / SETTINGS TAB (INTEGRATED LIVE ADDRESS BOOK BOOKING) --- */}
+        {/* --- PROFILE / SETTINGS TAB --- */}
         {activeTab === 'profile' && (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="bg-white border border-zinc-200 shadow-sm p-8 sm:p-12 text-center flex flex-col items-center">
@@ -267,7 +287,6 @@ export default function ClientDashboard() {
               <h2 className="text-lg font-medium tracking-widest uppercase mb-1">{userProfile?.name}</h2>
               <p className="text-xs text-zinc-500 tracking-widest mb-8 font-mono">{userProfile?.email}</p>
               
-              {/* SAVED ADDRESS MODULE CONFIG */}
               <div className="w-full text-left bg-zinc-50 border border-zinc-200 p-6 mb-8">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-[10px] tracking-widest uppercase font-medium text-black">Saved Dispatch Destination</h3>
@@ -313,7 +332,6 @@ export default function ClientDashboard() {
         {activeTab === 'support' && (
           <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[650px] border border-zinc-800 shadow-2xl relative overflow-hidden">
             
-            {/* Left Panel: Ticket List */}
             <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] flex justify-between items-center z-10">
                 <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Your Tickets</h2>
@@ -338,7 +356,6 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            {/* Right Panel: Active Chat Room */}
             <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
@@ -360,7 +377,6 @@ export default function ClientDashboard() {
                       </div>
                     ))}
                     
-                    {/* Live Support Typing Indicator */}
                     {isAdminTyping && (
                       <div className="flex flex-col items-start animate-fade-in">
                         <span className="text-[8px] tracking-[0.2em] text-green-400 uppercase mb-1">Support is typing...</span>
@@ -369,7 +385,6 @@ export default function ClientDashboard() {
                     <div ref={chatEndRef} />
                   </div>
                   
-                  {/* ZOOM FIX: Input is strictly `text-base` */}
                   <form onSubmit={handleClientReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4 shrink-0">
                     <input 
                       type="text" 
@@ -396,7 +411,7 @@ export default function ClientDashboard() {
         {showCreateModal && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-[#0A0A0A] border border-zinc-800 text-white max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
-              <button onClick={() => setShowCreateModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors text-xs p-2">✕</button>
+              <button onClick={() => { setShowCreateModal(false); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors text-xs p-2">✕</button>
               <h3 className="text-xs uppercase tracking-[0.25em] text-zinc-400 border-b border-zinc-900 pb-3 mb-6 font-medium">Log New Support File</h3>
               
               <form onSubmit={handleCreateTicket} className="space-y-6">
