@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '../providers';
+import PaystackPop from '@paystack/inline-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -90,7 +91,10 @@ export default function CheckoutPage() {
 
       if (orderError) throw orderError;
       
-      router.push('/success');
+      // CLEAR CART FROM MEMORY AND HARD REDIRECT TO PREVENT BACK-NAVIGATION GHOSTING
+      localStorage.removeItem('sikamore_cart');
+      window.location.href = '/success';
+      
     } catch (err) {
       showToast(`DATABASE ERROR: ${err.message.toUpperCase()}`);
       setIsProcessing(false);
@@ -104,7 +108,6 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // SECURE SUPABASE AUTHENTICATION
       if (accountStatus === 'new') {
         const { error } = await supabase.auth.signUp({
           email: email.toLowerCase(),
@@ -117,7 +120,6 @@ export default function CheckoutPage() {
         if (error) throw error;
       }
 
-      // DYNAMICALLY IMPORT PAYSTACK ONLY IN THE BROWSER
       showToast('AUTHORIZING SECURE PAYMENT GATEWAY...');
       
       const PaystackModule = await import('@paystack/inline-js');
@@ -127,7 +129,7 @@ export default function CheckoutPage() {
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase(),
-        amount: orderTotal * 100, // Paystack uses Kobo/Cents
+        amount: orderTotal * 100, 
         reference: `SKM_${new Date().getTime().toString()}`,
         onSuccess: (transaction) => {
           finalizeOrderDatabase(transaction);
