@@ -105,15 +105,16 @@ export default function ClientDashboard() {
         setTickets((prev) => [payload.new, ...prev]);
       }).subscribe();
 
-    // Channel 2: Live Order Tracking 
+// Channel 2: Live Order Tracking 
     const orderSync = supabase.channel('realtime_orders_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_email=eq.${userProfile.email}` }, (payload) => {
+        
+        // 1. Instantly update the React screen
         setOrders((prev) => prev.map(o => o.id === payload.new.id ? payload.new : o));
         
-        // Notify the client instantly that the admin has moved their package!
-        if (payload.new.status !== payload.old.status) {
-          showToast(`UPDATE: ORDER #${payload.new.id.slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
-        }
+        // 2. Fire the live notification safely
+        showToast(`UPDATE: ORDER #${payload.new.id.slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
+        
       }).subscribe();
 
     return () => { 
