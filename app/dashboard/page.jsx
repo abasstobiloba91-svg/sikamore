@@ -50,7 +50,6 @@ export default function ClientDashboard() {
         setUserProfile(profile);
         setAddressInput(profile.address);
       } else {
-        // Look for local profile fallback if database sync delay occurs
         const localUser = localStorage.getItem('sikamore_user_profile');
         if (localUser) {
           setUserProfile(JSON.parse(localUser));
@@ -62,7 +61,7 @@ export default function ClientDashboard() {
     fetchSecureSession();
   }, []);
 
-  // SMART URL ROUTING (Intercepts ?tab=wishlist parameter gracefully)
+  // SMART URL ROUTING
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -92,8 +91,11 @@ export default function ClientDashboard() {
     loadClientData();
   }, [userProfile, activeTab]);
 
+  // SUPABASE REAL-TIME WEBSOCKETS HUB (Now handles BOTH Support and Live Orders)
   useEffect(() => {
-    if (!userProfile || activeTab !== 'support') return;
+    if (!userProfile) return;
+    
+    // Channel 1: Support Tickets
     const messageSync = supabase.channel('realtime_support_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `email=eq.${userProfile.email}` }, (payload) => {
         setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
@@ -102,8 +104,23 @@ export default function ClientDashboard() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_tickets', filter: `email=eq.${userProfile.email}` }, (payload) => {
         setTickets((prev) => [payload.new, ...prev]);
       }).subscribe();
-    return () => { supabase.removeChannel(messageSync); };
-  }, [userProfile, activeTab, activeChat]);
+
+    // Channel 2: Live Order Tracking 
+    const orderSync = supabase.channel('realtime_orders_client')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_email=eq.${userProfile.email}` }, (payload) => {
+        setOrders((prev) => prev.map(o => o.id === payload.new.id ? payload.new : o));
+        
+        // Notify the client instantly that the admin has moved their package!
+        if (payload.new.status !== payload.old.status) {
+          showToast(`UPDATE: ORDER #${payload.new.id.slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
+        }
+      }).subscribe();
+
+    return () => { 
+      supabase.removeChannel(messageSync); 
+      supabase.removeChannel(orderSync);
+    };
+  }, [userProfile, activeChat, showToast]);
 
   useEffect(() => {
     if (!activeChat) return;
@@ -144,7 +161,7 @@ export default function ClientDashboard() {
       if (error) throw error;
       setNewTicketSubject(''); setNewTicketMessage(''); setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
-      if (data && data[0]) setActiveChat(data[0]);
+      if (data && data) setActiveChat(data);
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setCreatingTicket(false); }
   };
 
@@ -258,7 +275,6 @@ export default function ClientDashboard() {
                       <h3 className="text-[9px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-600 truncate">{item.name}</h3>
                       <p className="text-[10px] tracking-widest text-black font-medium mt-1">₦{Number(item.price).toLocaleString()}</p>
                       
-                      {/* ADDS ITEM TO BAG AND AUTOMATICALLY CLEARS IT FROM WISHLIST SEAMLESSLY */}
                       <button 
                         onClick={() => { 
                           addToCart(item, 1, 'M'); 
