@@ -5,7 +5,6 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '../providers';
-import PaystackPop from '@paystack/inline-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -118,8 +117,11 @@ export default function CheckoutPage() {
         if (error) throw error;
       }
 
-      // TRIGGER LIVE PAYSTACK INLINE POPUP
+      // DYNAMICALLY IMPORT PAYSTACK ONLY IN THE BROWSER
       showToast('AUTHORIZING SECURE PAYMENT GATEWAY...');
+      
+      const PaystackModule = await import('@paystack/inline-js');
+      const PaystackPop = PaystackModule.default;
       
       const paystack = new PaystackPop();
       paystack.newTransaction({
