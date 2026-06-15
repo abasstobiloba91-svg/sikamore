@@ -60,9 +60,17 @@ export default function ShopCatalog() {
   const [inlineSize, setInlineSize] = useState('M');
   const [inlineQty, setInlineQty] = useState(1);
 
+  // SMART SESSION MEMORY CHECK
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setUserSession(session.user);
+      if (session) {
+        setUserSession(session.user);
+      } else {
+        const localUser = localStorage.getItem('sikamore_user_profile');
+        if (localUser) {
+          setUserSession(JSON.parse(localUser)); 
+        }
+      }
     });
   }, []);
 
@@ -123,10 +131,12 @@ export default function ShopCatalog() {
     setInlineSize('M');
   };
 
-  // SMART WISHLIST HANDLER
+  // SMART WISHLIST HANDLER (Only pop up if absolutely no profile found)
   const handleWishlistClick = (e, product) => {
     e.stopPropagation();
-    if (userSession) {
+    const localUser = localStorage.getItem('sikamore_user_profile');
+    
+    if (userSession || localUser) {
       toggleWishlist(product);
       const isCurrentlyInWishlist = wishlist.some(w => w.id === product.id);
       showToast(isCurrentlyInWishlist ? 'REMOVED FROM WISHLIST.' : 'SAVED TO WISHLIST.');
@@ -157,6 +167,13 @@ export default function ShopCatalog() {
 
       if (sessionData && sessionData.user) {
         setUserSession(sessionData.user);
+        
+        // Save to local storage so they are permanently remembered across tabs
+        localStorage.setItem('sikamore_user_profile', JSON.stringify({
+          email: sessionData.user.email,
+          name: 'VALUED CLIENT'
+        }));
+
         if (pendingWishlistProduct) {
           toggleWishlist(pendingWishlistProduct);
         }
@@ -192,7 +209,7 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] relative overflow-x-hidden pb-24">
       
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-[60]">
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
             <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
@@ -202,7 +219,7 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-[50]">
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 grid grid-cols-3 items-center">
           <div className="flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
@@ -219,8 +236,8 @@ export default function ShopCatalog() {
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </button>
             
-            {/* NEW GLOBAL WISHLIST ICON */}
-            <Link href="/dashboard" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
+            {/* GLOBAL WISHLIST ROUTING ICON */}
+            <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
               </svg>
@@ -239,11 +256,10 @@ export default function ShopCatalog() {
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
             </button>
           </div>
-
         </div>
       </header>
 
-      <div className={`fixed inset-y-0 left-0 z-[9999] w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z- w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
@@ -256,7 +272,7 @@ export default function ShopCatalog() {
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z-[9998] backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 z- backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
 
       <section className="bg-white border-b border-zinc-200 sticky top-[121px] sm:top-[137px] z-30">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
@@ -290,7 +306,6 @@ export default function ShopCatalog() {
                     <div className="w-28 sm:w-36 aspect-[3/4] shrink-0 overflow-hidden relative bg-zinc-50 rounded-sm cursor-pointer" onClick={() => !product.is_sold_out && openQuickView(product)}>
                       {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover" />}
                       
-                      {/* HEART ICON IN LIST VIEW */}
                       <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
                         <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -338,7 +353,6 @@ export default function ShopCatalog() {
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm cursor-pointer border border-zinc-100" onClick={() => !product.is_sold_out && openQuickView(product)}>
                     {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] group-hover:scale-102" />}
                     
-                    {/* HEART ICON IN GRID VIEW */}
                     <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-10 p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
                       <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -391,7 +405,7 @@ export default function ShopCatalog() {
 
       {/* --- IN-PAGE GUEST WISHLIST AUTHENTICATION MODAL --- */}
       {showWishlistAuthModal && (
-        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z- bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white text-black max-w-sm w-full p-8 shadow-2xl relative">
             <button onClick={() => setShowWishlistAuthModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-black">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -435,7 +449,7 @@ export default function ShopCatalog() {
 
       {/* DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm">
           <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
             <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
               <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
@@ -491,7 +505,7 @@ export default function ShopCatalog() {
                 </div>
               </div>
 
-              {/* EXPANDABLE ACCORDION DYNAMIC DATABASE BINDING */}
+              {/* EXPANDABLE ACCORDION */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
@@ -511,7 +525,7 @@ export default function ShopCatalog() {
       )}
 
       {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 z-[9999] w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 right-0 z- w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -564,10 +578,10 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[9998] backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 z- backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
 
       {/* STICKY BOTTOM QUICK CHECKOUT BAR */}
-      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-0 left-0 w-full z- transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="bg-[#0A0A0A] text-white h-[72px] sm:h-[80px] w-full border-t border-zinc-800 flex items-center justify-center shadow-lg">
           <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-12 flex items-center justify-between">
             <div className="flex items-center gap-4 sm:gap-8">
@@ -587,8 +601,8 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL (DESKTOP HORIZONTAL SPLIT) */}
-      <div className={`fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
+      <div className={`fixed inset-0 z- overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex min-h-full items-center justify-center p-4">
           <div className="w-full max-w-md md:max-w-4xl bg-white relative flex flex-col md:flex-row rounded-sm shadow-2xl my-8 overflow-hidden">
             
@@ -598,8 +612,8 @@ export default function ShopCatalog() {
 
             <div className="relative w-full md:w-1/2 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 min-h-[400px]">
               <div className="absolute inset-0 bg-black">
-                {products.length > 0 && products[0]?.image ? (
-                  <img src={products[0].image} className="w-full h-full object-cover opacity-60" alt="Background" />
+                {products.length > 0 && products?.image ? (
+                  <img src={products.image} className="w-full h-full object-cover opacity-60" alt="Background" />
                 ) : null}
               </div>
               
@@ -718,15 +732,6 @@ export default function ShopCatalog() {
               <input type="email" placeholder="Your email address" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Subscribe</button>
             </form>
-          </div>
-        </div>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 border-t border-zinc-100 mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[9px] tracking-[0.2em] text-zinc-400">
-          <p>© 2026 S. SIKAMÒRE. ALL RIGHTS RESERVED.</p>
-          <div className="flex items-center gap-4 opacity-40">
-            <span className="border border-zinc-300 px-1.5 py-0.5 rounded font-bold">VISA</span>
-            <span className="border border-zinc-300 px-1.5 py-0.5 rounded font-bold">MC</span>
-            <span className="border border-zinc-300 px-1.5 py-0.5 rounded font-bold">AMEX</span>
-            <span className="border border-zinc-300 px-1.5 py-0.5 rounded font-bold">PAYPAL</span>
           </div>
         </div>
       </footer>
