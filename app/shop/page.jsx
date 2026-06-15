@@ -89,7 +89,7 @@ export default function ShopCatalog() {
     return () => { document.body.style.overflow = ''; };
   }, [isMenuOpen, isCartOpen, showNewsletter, quickViewProduct, showWishlistAuthModal, isSearchOpen]);
 
-  // LIVE SEARCH ENGINE FILTER
+  // BULLETPROOF LIVE SEARCH ENGINE
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -97,7 +97,11 @@ export default function ShopCatalog() {
     }
     const lowerQ = searchQuery.toLowerCase();
     setSearchResults(
-      products.filter(p => p.name.toLowerCase().includes(lowerQ) || (p.description && p.description.toLowerCase().includes(lowerQ)))
+      products.filter(p => {
+        const n = p.name ? p.name.toLowerCase() : '';
+        const d = p.description ? p.description.toLowerCase() : '';
+        return n.includes(lowerQ) || d.includes(lowerQ);
+      })
     );
   }, [searchQuery, products]);
 
@@ -301,9 +305,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* FIXED Z-INDEX: DETAILED PRODUCT OVERLAY MODAL */}
+      {/* DETAILED PRODUCT OVERLAY MODAL WITH NEW 4-TAB ACCORDION */}
       {quickViewProduct && (
-        <div className="fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm" style={{ zIndex: 999999 }}>
+        <div className="fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm" style={{ zIndex: 9999999 }}>
           <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
             <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
               <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
@@ -345,25 +349,69 @@ export default function ShopCatalog() {
                 </div>
               </div>
 
+              {/* 4-TAB LUXURY EXPANDABLE ACCORDION */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
+                
+                {/* 1. Description Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
-                  <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                     <span>Description</span>
-                    <span>{openAccordion === 'description' ? '—' : '+'}</span>
+                    <span className="text-zinc-400">{openAccordion === 'description' ? '—' : '+'}</span>
                   </button>
                   {openAccordion === 'description' && (
-                    <div className="p-4 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap">
+                    <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
                       {quickViewProduct.description || "Embroidered mesh fuller silhouette piece with a micro structural alignment framing rule."}
                     </div>
                   )}
                 </div>
+
+                {/* 2. Additional Information Tab */}
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'additional' ? '' : 'additional')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                    <span>Additional Information</span>
+                    <span className="text-zinc-400">{openAccordion === 'additional' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'additional' && (
+                    <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
+                      {quickViewProduct.additional_information || "No additional product specifications provided by the atelier."}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Store Policies Tab */}
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'policies' ? '' : 'policies')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                    <span>Store Policies</span>
+                    <span className="text-zinc-400">{openAccordion === 'policies' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'policies' && (
+                    <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
+                      {quickViewProduct.store_policies || "Complimentary drops require 3-5 business days for standard fulfillment."}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Inquiries Tab */}
+                <div className="border border-zinc-200 rounded-sm overflow-hidden">
+                  <button onClick={() => setOpenAccordion(openAccordion === 'inquiries' ? '' : 'inquiries')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                    <span>Inquiries</span>
+                    <span className="text-zinc-400">{openAccordion === 'inquiries' ? '—' : '+'}</span>
+                  </button>
+                  {openAccordion === 'inquiries' && (
+                    <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
+                      {quickViewProduct.inquiries || "For specific sizing, measurements, and custom requests, please contact our direct client concierge."}
+                    </div>
+                  )}
+                </div>
+
               </div>
+
             </div>
           </div>
         </div>
       )}
 
-      {/* --- NEW FULL-SCREEN DYNAMIC SEARCH MODAL WITH LIVE HOVERS --- */}
+      {/* --- FULL-SCREEN DYNAMIC SEARCH MODAL WITH LIVE HOVERS --- */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 999999 }}>
           
@@ -667,123 +715,6 @@ export default function ShopCatalog() {
           </div>
         )}
       </main>
-
-      {/* DYNAMIC TWO-STAGE INTERACTIVE CONVERSION POPUP MODAL */}
-      <div className={`fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${showNewsletter ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: 999999 }}>
-        <div className="flex min-h-full items-center justify-center p-4">
-          <div className="w-full max-w-md md:max-w-4xl bg-white relative flex flex-col md:flex-row rounded-sm shadow-2xl my-8 overflow-hidden">
-            
-            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-50 p-2 bg-white/80 md:bg-transparent rounded-full md:rounded-none text-black hover:text-zinc-500 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
-            <div className="relative w-full md:w-1/2 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 min-h-[400px]">
-              <div className="absolute inset-0 bg-black">
-                {products.length > 0 && products[0]?.image ? (
-                  <img src={products[0].image} className="w-full h-full object-cover opacity-60" alt="Background" />
-                ) : null}
-              </div>
-              
-              <div className="relative z-10 p-8 sm:p-12 flex-1 flex flex-col justify-center text-center space-y-4 text-white">
-                {!grabDiscountClicked ? (
-                  <div className="animate-fade-in w-full max-w-[280px] mx-auto flex flex-col items-center">
-                    <h3 className="text-2xl sm:text-3xl font-normal tracking-wide font-serif mb-2">Wait! before you leave...</h3>
-                    <p className="text-[11px] tracking-widest text-zinc-200 mb-6">Get 10% off for your first order</p>
-                    
-                    <div className="bg-white text-black py-3 px-6 flex items-center justify-center gap-4 rounded-sm mb-6 w-full shadow-md">
-                      <span className="font-sans text-[13px] tracking-widest font-bold">CODE20OFF</span>
-                    </div>
-
-                    <p className="text-[10px] leading-relaxed text-white mb-6">
-                      Use above code to get 10% OFF for your first order when checkout
-                    </p>
-
-                    <button 
-                      type="button" 
-                      onClick={() => setGrabDiscountClicked(true)}
-                      className="w-full bg-[#D31313] hover:bg-red-700 text-white py-3.5 text-[11px] tracking-[0.1em] font-medium transition-colors rounded-sm shadow-md"
-                    >
-                      Grab the discount
-                    </button>
-                  </div>
-                ) : (
-                  <div className="animate-fade-in w-full max-w-[280px] mx-auto flex flex-col items-center">
-                    <h3 className="text-2xl sm:text-3xl font-normal tracking-wide font-serif mb-2">Secure Your Discount</h3>
-                    <p className="text-[11px] tracking-widest text-zinc-200 mb-6">Enter email to join the registry</p>
-                    
-                    <form onSubmit={handlePopupSubscription} className="space-y-3 w-full">
-                      <input 
-                        type="email" 
-                        value={subscriberEmail}
-                        onChange={(e) => setSubscriberEmail(e.target.value)}
-                        placeholder="YOUR EMAIL ADDRESS" 
-                        required 
-                        className="w-full bg-white/10 p-3.5 border border-white/30 text-white placeholder-zinc-300 outline-none text-base md:text-xs text-center tracking-widest uppercase focus:border-white rounded-sm backdrop-blur-sm"
-                      />
-                      <button 
-                        type="submit" 
-                        disabled={submittingEmail}
-                        className="w-full bg-[#D31313] text-white py-3.5 text-[11px] tracking-[0.1em] font-medium hover:bg-red-700 disabled:opacity-40 rounded-sm transition-colors shadow-md"
-                      >
-                        {submittingEmail ? 'REGISTERING...' : 'SUBMIT REGISTRY'}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="w-full md:w-1/2 bg-white p-6 sm:p-10 flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                 <h4 className="text-[14px] font-medium text-black">Recommended Products</h4>
-                 <div className="w-6 h-6"></div> 
-              </div>
-              
-              <div className="space-y-5 flex-1 overflow-y-auto">
-                {products.slice(0, 3).map((recProd) => (
-                  <div 
-                    key={recProd.id} 
-                    onClick={() => { setShowNewsletter(false); openQuickView(recProd); }}
-                    className="flex gap-5 items-center bg-white p-0 cursor-pointer group"
-                  >
-                    <div className="w-[72px] h-[90px] bg-zinc-100 shrink-0 overflow-hidden border border-zinc-100">
-                      {recProd.image && <img src={recProd.image} alt={recProd.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex text-zinc-300 text-[10px] mb-1.5">
-                        ★ ★ ★ ★ ★ <span className="text-zinc-400 ml-1 font-mono">(0)</span>
-                      </div>
-                      <h5 className="text-[11px] font-medium uppercase tracking-wider text-black truncate mb-1">{recProd.name}</h5>
-                      <p className="text-[12px] text-black font-semibold tracking-wide">₦{Number(recProd.price).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      <div className={`fixed bottom-0 left-0 w-full transition-transform duration-500 ease-in-out ${cart.length > 0 ? 'translate-y-0' : 'translate-y-full'}`} style={{ zIndex: 90000 }}>
-        <div className="bg-[#0A0A0A] text-white h-[72px] sm:h-[80px] w-full border-t border-zinc-800 flex items-center justify-center shadow-lg">
-          <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-12 flex items-center justify-between">
-            <div className="flex items-center gap-4 sm:gap-8">
-              <span className="text-[10px] sm:text-xs tracking-[0.2em] uppercase font-light text-zinc-300 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse hidden sm:block"></span>
-                {cartItemCount} Item{cartItemCount > 1 ? 's' : ''}
-              </span>
-              <span className="text-zinc-700 hidden sm:inline">|</span>
-              <span className="text-[11px] sm:text-sm tracking-widest font-medium">
-                ₦{cartSubtotal.toLocaleString()}
-              </span>
-            </div>
-            <Link href="/checkout" className="bg-white text-black px-6 sm:px-12 py-3.5 sm:py-4 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-200 transition-colors">
-              CHECK OUT &rarr;
-            </Link>
-          </div>
-        </div>
-      </div>
 
       <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
