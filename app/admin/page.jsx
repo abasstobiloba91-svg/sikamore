@@ -188,7 +188,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files[0];
+    const file = e.target.files;
     if (file) {
       const preview = URL.createObjectURL(file);
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
@@ -245,38 +245,29 @@ export default function AdminDashboard() {
       setDeliveryDays('');
 
       // TRIGGER RESEND EMAIL API ON SHIPPED OR DELIVERED
-      if (orderData && orderData.customer_email && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
+      if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
         const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #222;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #222; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
         
-        let statusMessage = '';
-        if (currentStatus === 'shipped') {
-          statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: SHIPPED</p>
-                           ${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
-        } else if (currentStatus === 'delivered') {
-          statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: DELIVERED</p>
-                           <p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">Your package has arrived at its destination. Thank you for securing a piece from our archive.</p>`;
+        // 1. CLIENT NOTIFICATION
+        if (orderData.customer_email) {
+          let statusMessage = '';
+          if (currentStatus === 'shipped') {
+            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: SHIPPED</p>${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
+          } else if (currentStatus === 'delivered') {
+            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: DELIVERED</p><p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">Your package has arrived at its destination.</p>`;
+          }
+          const htmlTemplate = `<div style="font-family:sans-serif; background:#0A0A0A; color:#FFF; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE LOGISTICS</h1><p style="font-size:12px; color:#AAA;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>${statusMessage}<table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: orderData.customer_email, subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, html: htmlTemplate }) });
         }
 
-        const htmlTemplate = `
-          <div style="font-family:sans-serif; background:#0A0A0A; color:#FFF; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;">
-            <h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE LOGISTICS</h1>
-            <p style="font-size:12px; color:#AAA;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>
-            ${statusMessage}
-            <table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table>
-          </div>
-        `;
-        
-        await fetch('/api/send', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ 
-            to: orderData.customer_email, 
-            subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, 
-            html: htmlTemplate 
-          }) 
-        });
-
-        showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
+        // 2. VENDOR DISPATCH NOTIFICATION
+        if (currentStatus === 'shipped') {
+          const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">VENDOR DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PRODUCT IN YOUR PORTFOLIO HAS BEEN LOGGED AS SHIPPED.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'vendors@sikamoreofficial.com', subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, html: vendorHtml }) });
+          showToast('CLIENT & VENDOR AUTOMATICALLY NOTIFIED VIA EMAIL.');
+        } else {
+          showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
+        }
       }
     } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
   };
@@ -672,7 +663,6 @@ export default function AdminDashboard() {
                               <span>{new Date(vo.created_at).toLocaleDateString()}</span>
                             </div>
                             
-                            {/* FIX: ADDED MISSING VENDOR SHIPPING ADDRESS VIEW */}
                             <div className="mb-4 text-[9px] text-zinc-400 uppercase tracking-wider bg-[#161616] p-3 border border-zinc-800">
                               <span className="block text-zinc-600 text-[8px] mb-1">Shipping Destination:</span>
                               {vo.shipping_address || 'N/A'} <br/>
