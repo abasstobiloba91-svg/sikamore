@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '../providers';
-import PaystackPop from '@paystack/inline-js';
+
+// Notice: NO Paystack import at the top of the file!
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -91,7 +93,7 @@ export default function CheckoutPage() {
 
       if (orderError) throw orderError;
       
-      // CLEAR CART FROM MEMORY AND HARD REDIRECT TO PREVENT BACK-NAVIGATION GHOSTING
+      // Wipe the cart clean and redirect
       localStorage.removeItem('sikamore_cart');
       window.location.href = '/success';
       
@@ -122,6 +124,7 @@ export default function CheckoutPage() {
 
       showToast('AUTHORIZING SECURE PAYMENT GATEWAY...');
       
+      // WE DYNAMICALLY LOAD PAYSTACK HERE SO VERCEL DOES NOT CRASH
       const PaystackModule = await import('@paystack/inline-js');
       const PaystackPop = PaystackModule.default;
       
