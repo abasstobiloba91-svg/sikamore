@@ -437,7 +437,7 @@ export default function ShopCatalog() {
               </div>
             ) : searchResults.length === 0 ? (
               <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
-                We couldn't quite find what you're looking for. Try a different search.
+                We couldn&apos;t quite find what you&apos;re looking for. Try a different search.
               </div>
             ) : (
               <>
@@ -517,7 +517,7 @@ export default function ShopCatalog() {
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let&apos;s find you something beautiful.</div>
           ) : (
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
