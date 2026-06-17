@@ -17,7 +17,6 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
   
-  // --- MASTER STATE LEDGERS ---
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
@@ -39,7 +38,6 @@ export default function AdminDashboard() {
   const [interceptedOrder, setInterceptedOrder] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState('');
   
-  // --- REALTIME TYPING STATES ---
   const [isUserTyping, setIsUserTyping] = useState(false);
   const typingChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -57,7 +55,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // --- THE GLOBAL BRAIN: FETCH EVERYTHING AT ONCE ---
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -92,7 +89,6 @@ export default function AdminDashboard() {
     loadMasterData();
   }, [isAuthenticated]);
 
-  // --- THE GLOBAL BRAIN: SYNC EVERYTHING IN REAL-TIME ACROSS DEVICES ---
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -118,10 +114,8 @@ export default function AdminDashboard() {
     };
   }, [isAuthenticated]);
 
-  // --- LIVE TYPING INDICATOR SYNC ---
   useEffect(() => {
     if (!activeChat) return;
-
     const channel = supabase.channel(`typing_support_${activeChat.id}`);
     typingChannelRef.current = channel;
 
@@ -142,7 +136,6 @@ export default function AdminDashboard() {
     };
   }, [activeChat?.id]);
 
-  // Vendor order history cascade
   useEffect(() => {
     if (activeVendor) {
       async function fetchVendorOrderHistory() {
@@ -237,10 +230,7 @@ export default function AdminDashboard() {
 
   const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
-      // 1. MANUALLY UPDATE LOCAL REACT STATE INSTANTLY TO FIX DROPDOWN BUG
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
-
-      // 2. SEND TO DATABASE
       const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
       if (error) throw error;
       
@@ -248,25 +238,22 @@ export default function AdminDashboard() {
       setInterceptedOrder(null);
       setDeliveryDays('');
 
-      // TRIGGER RESEND EMAIL API ON SHIPPED OR DELIVERED
       if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
-        const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #222;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #222; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
+        const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #E5E7EB;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #E5E7EB; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
         
-        // 1. CLIENT NOTIFICATION
         if (orderData.customer_email) {
           let statusMessage = '';
           if (currentStatus === 'shipped') {
-            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: SHIPPED</p>${estDelivery ? `<p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">ESTIMATED TRANSIT TIME: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
+            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#000; font-weight:bold;">STATUS: EN ROUTE</p><p style="font-size:12px; margin-bottom:20px;">Your carefully curated piece has left our atelier.</p>${estDelivery ? `<p style="font-size:12px; border-left:3px solid #000; padding-left:10px; margin-bottom:30px;">ESTIMATED ARRIVAL: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
           } else if (currentStatus === 'delivered') {
-            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#4ADE80;">STATUS: DELIVERED</p><p style="font-size:12px; border-left:3px solid #FFF; padding-left:10px; margin-bottom:30px;">Your package has arrived at its destination.</p>`;
+            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#000; font-weight:bold;">STATUS: DELIVERED</p><p style="font-size:12px; border-left:3px solid #000; padding-left:10px; margin-bottom:30px;">Your S. Sikamòre piece has arrived. We hope you enjoy your new acquisition.</p>`;
           }
-          const htmlTemplate = `<div style="font-family:sans-serif; background:#0A0A0A; color:#FFF; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE LOGISTICS</h1><p style="font-size:12px; color:#AAA;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>${statusMessage}<table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+          const htmlTemplate = `<div style="font-family:sans-serif; background:#FFF; color:#000; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6; border: 1px solid #E5E7EB;"><h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE CONCIERGE</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>${statusMessage}<table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></div>`;
           await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: orderData.customer_email, subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, html: htmlTemplate }) });
         }
 
-        // 2. VENDOR DISPATCH NOTIFICATION
         if (currentStatus === 'shipped') {
-          const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">VENDOR DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PRODUCT IN YOUR PORTFOLIO HAS BEEN LOGGED AS SHIPPED.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+          const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">ATELIER DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PIECE FROM YOUR COLLECTION HAS BEEN LOGGED FOR DISPATCH.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
           await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'comms@arclightsfoundation.com', subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, html: vendorHtml }) });
           showToast('CLIENT & VENDOR AUTOMATICALLY NOTIFIED VIA EMAIL.');
         } else {
@@ -290,12 +277,12 @@ export default function AdminDashboard() {
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
       const customHTMLTemplate = `
         <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-        <body style="margin:0; padding:0; background-color:#F5F5F4; font-family:-apple-system, sans-serif;">
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F5F5F4; padding:60px 20px;">
+        <body style="margin:0; padding:0; background-color:#FFFFFF; font-family:-apple-system, sans-serif;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF; padding:60px 20px;">
             <tr><td align="center">
-              <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1c1c1a;">
-                <tr><td align="center" style="padding-bottom:40px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#FFFFFF; text-transform:uppercase;">S. SIKAMÒRE</h1></td></tr>
-                <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#D4D4D4; text-transform:uppercase;">${formattedLines}</td></tr>
+              <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF; color:#000000; padding:45px; border:1px solid #E5E7EB;">
+                <tr><td align="center" style="padding-bottom:40px; border-bottom:1px solid #E5E7EB;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#000000; text-transform:uppercase;">S. SIKAMÒRE</h1></td></tr>
+                <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#333333; text-transform:uppercase;">${formattedLines}</td></tr>
               </table>
             </td></tr>
           </table>
@@ -337,13 +324,13 @@ export default function AdminDashboard() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#F5F5F4] text-black flex flex-col items-center justify-center px-6 font-sans antialiased">
-        <div className="max-w-md w-full bg-[#0A0A0A] text-white p-10 shadow-2xl text-center">
+      <div className="min-h-screen bg-zinc-50 text-black flex flex-col items-center justify-center px-6 font-sans antialiased">
+        <div className="max-w-md w-full bg-white text-black p-10 shadow-lg border border-zinc-200 text-center">
           <h1 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h1>
-          <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-400 mb-8">Admin Portal Access</p>
+          <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Admin Portal Access</p>
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
-            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-center tracking-widest text-white uppercase" />
-            <button type="submit" className="w-full bg-white text-black py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-200 font-medium">Unlock Dashboard</button>
+            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base text-center tracking-widest text-black uppercase" />
+            <button type="submit" className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 font-medium transition-colors">Unlock Dashboard</button>
           </form>
         </div>
       </div>
@@ -351,20 +338,20 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
+    <div className="min-h-screen bg-zinc-50 text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
         
         {/* TOP COMMAND NAVIGATION */}
         <div className="mb-10 text-center relative">
           <div className="absolute right-0 top-0">
-            <button onClick={handleLogout} className="text-[8px] sm:text-[9px] tracking-widest text-zinc-400 hover:text-black uppercase transition-colors border border-zinc-300 hover:border-black px-3 py-1.5 font-medium">
+            <button onClick={handleLogout} className="text-[8px] sm:text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
               Sign Out
             </button>
           </div>
           <h1 className="text-2xl font-normal tracking-[0.4em] uppercase mb-2 font-serif text-black">S. SIKAMÒRE</h1>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-8">
             {['inventory', 'tracker', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[9px] tracking-[0.2em] uppercase transition-colors border ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent text-zinc-500 border-zinc-300 hover:border-black hover:text-black'}`}>
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[9px] tracking-[0.2em] uppercase transition-colors border ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black'}`}>
                 {tab}
               </button>
             ))}
@@ -373,66 +360,66 @@ export default function AdminDashboard() {
 
         {/* --- TAB 1: PRODUCT DEPLOYMENT INVENTORY --- */}
         {activeTab === 'inventory' && (
-          <div className="bg-[#0A0A0A] text-white p-6 sm:p-10 shadow-2xl animate-fade-in">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4 mb-8">
-              <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Product Deployment</h2>
-              <button onClick={addProductRow} className="text-[9px] bg-zinc-800 hover:bg-zinc-700 px-4 py-2 uppercase tracking-widest">+ Add Row</button>
+          <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200 animate-fade-in">
+            <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
+              <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Product Deployment</h2>
+              <button onClick={addProductRow} className="text-[9px] bg-zinc-100 hover:bg-zinc-200 text-black px-4 py-2 uppercase tracking-widest transition-colors">+ Add Row</button>
             </div>
             
             <form onSubmit={handleBulkSubmit} className="flex flex-col gap-10">
               {productsList.map((product, index) => (
-                <div key={product.id} className="relative border border-zinc-800 p-6 bg-[#111]">
+                <div key={product.id} className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
                   {productsList.length > 1 && (
-                    <button type="button" onClick={() => removeProductRow(product.id)} className="absolute top-4 right-4 text-zinc-500 hover:text-red-500 text-xs">✕</button>
+                    <button type="button" onClick={() => removeProductRow(product.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 text-xs">✕</button>
                   )}
-                  <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase">Item 0{index + 1}</p>
+                  <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Product Name</label>
-                      <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase" placeholder="E.G. LUMIÈRE DRESS" />
+                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
+                      <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
                     </div>
                     <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Price (₦)</label>
-                      <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white" placeholder="E.G. 85000" />
+                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
+                      <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 85000" />
                     </div>
                     <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-400 mb-2 uppercase">Stock Qty</label>
-                      <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white" placeholder="E.G. 15" />
+                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
+                      <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 15" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-800">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
-                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. EMBROIDERED MESH FULLER SILHOUETTE PIECE..." />
+                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
                     </div>
                     <div>
-                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Information (Optional)</label>
-                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. COMPOSITION: 100% VAN-GUARD TEXTILE LINING..." />
+                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info (Optional)</label>
+                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
-                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 BUSINESS DAYS..." />
+                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
-                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-[#161616] p-3 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase resize-none" placeholder="E.G. CONTACT OUR DIRECT CLIENT CONCIERGE NETWORK..." />
+                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6">
-                    <div className="w-16 h-20 shrink-0 bg-[#0a0a0a] border border-zinc-800 flex items-center justify-center overflow-hidden">
-                      {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-600 uppercase tracking-widest text-center">Img</span>}
+                    <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
+                      {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-400 uppercase tracking-widest text-center">Img</span>}
                     </div>
                     <div className="flex-1">
-                      <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[8px] file:tracking-widest file:bg-white file:text-black file:uppercase file:cursor-pointer text-zinc-500" />
+                      <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                     </div>
                   </div>
                 </div>
               ))}
 
-              <button type="submit" disabled={loading} className="w-full bg-white text-black py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50 mt-4">
+              <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
                 {loading ? 'DEPLOYING TO STORE...' : `PUBLISH ${productsList.length} ITEM(S)`}
               </button>
             </form>
@@ -443,31 +430,27 @@ export default function AdminDashboard() {
         {activeTab === 'tracker' && (
           <div className="space-y-6 animate-fade-in">
             {orders.length === 0 ? (
-              <div className="bg-[#0A0A0A] text-zinc-500 p-12 text-center border border-zinc-800 uppercase tracking-widest text-[10px]">No sales items logged in database.</div>
+              <div className="bg-white text-zinc-500 p-12 text-center border border-zinc-200 uppercase tracking-widest text-[10px] rounded-sm">No sales items logged in database.</div>
             ) : (
               orders.map((order) => (
-                <div key={order.id} className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col gap-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-900 pb-4">
+                <div key={order.id} className="bg-white text-black border border-zinc-200 shadow-sm overflow-hidden p-6 sm:p-8 flex flex-col gap-6 rounded-sm">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 pb-4">
                     <div>
                       <p className="text-[8px] tracking-widest text-zinc-500 uppercase font-mono">ORDER ID: #{order.id.slice(0,8).toUpperCase()}</p>
-                      <h3 className="text-xs font-normal text-white uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-400 normal-case">{order.customer_email}</span></h3>
+                      <h3 className="text-xs font-medium text-black uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-500 font-normal normal-case">{order.customer_email}</span></h3>
                     </div>
                     
-                    {/* SHIPPING INTERCEPTOR UI FOR EMAILS */}
                     {interceptedOrder === order.id ? (
                       <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
-                        <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-[#111] border border-zinc-800 text-white p-2.5 outline-none text-base uppercase tracking-widest w-full sm:w-48 placeholder-zinc-600" />
-                        <button onClick={() => confirmShipping(order)} className="bg-white text-black px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200">Confirm</button>
-                        <button onClick={() => setInterceptedOrder(null)} className="text-zinc-500 hover:text-white px-2 py-2 text-xs">✕</button>
+                        <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-white border border-zinc-300 text-black p-2.5 outline-none text-xs uppercase tracking-widest w-full sm:w-48 placeholder-zinc-400 focus:border-black" />
+                        <button onClick={() => confirmShipping(order)} className="bg-black text-white px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors">Confirm</button>
+                        <button onClick={() => setInterceptedOrder(null)} className="text-zinc-400 hover:text-red-500 px-2 py-2 text-xs transition-colors">✕</button>
                       </div>
                     ) : (
                       <select value={order.status} onChange={(e) => {
-                        if (e.target.value === 'shipped') {
-                          setInterceptedOrder(order.id);
-                        } else {
-                          handleUpdateOrderStatus(order.id, e.target.value, null, order);
-                        }
-                      }} className="bg-[#111] text-white border border-zinc-800 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none mt-4 sm:mt-0 w-full sm:w-auto">
+                        if (e.target.value === 'shipped') setInterceptedOrder(order.id);
+                        else handleUpdateOrderStatus(order.id, e.target.value, null, order);
+                      }} className="bg-white text-black border border-zinc-300 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none mt-4 sm:mt-0 w-full sm:w-auto focus:border-black">
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
@@ -475,23 +458,23 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[10px] tracking-wider uppercase text-zinc-400">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[10px] tracking-wider uppercase text-zinc-600">
                     <div>
-                      <span className="text-[8px] block text-zinc-600 mb-1">Destination Address</span>
-                      <p className="text-white leading-relaxed">{order.shipping_address || 'N/A'}</p>
+                      <span className="text-[8px] block text-zinc-400 mb-1 font-medium">Destination Address</span>
+                      <p className="text-black leading-relaxed">{order.shipping_address || 'N/A'}</p>
                       <p className="text-zinc-500 mt-1 font-mono">{order.customer_phone || 'N/A'}</p>
                     </div>
                     <div>
-                      <span className="text-[8px] block text-zinc-600 mb-1">Items Summary</span>
+                      <span className="text-[8px] block text-zinc-400 mb-1 font-medium">Items Summary</span>
                       <div className="space-y-2 mt-2">
                         {order.items?.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-zinc-300">
-                            <span>{item.name} (SIZE: {item.size}) <strong className="text-white">x{item.quantity}</strong></span>
+                          <div key={idx} className="flex justify-between text-zinc-700">
+                            <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
                             <span className="font-mono text-zinc-500">₦{(item.price * item.quantity).toLocaleString()}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="border-t border-zinc-900 mt-4 pt-3 flex justify-between text-white font-medium text-xs">
+                      <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between text-black font-medium text-xs">
                         <span>Aggregate Total</span>
                         <span>₦{order.total_amount?.toLocaleString()}</span>
                       </div>
@@ -506,19 +489,19 @@ export default function AdminDashboard() {
         {/* --- TAB 3: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER --- */}
         {activeTab === 'newsletter' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            <div className="lg:col-span-2 bg-[#0A0A0A] text-white p-6 sm:p-8 border border-zinc-900 shadow-2xl flex flex-col justify-between">
+            <div className="lg:col-span-2 bg-white text-black p-6 sm:p-8 border border-zinc-200 shadow-sm flex flex-col justify-between rounded-sm">
               <div>
-                <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-900 pb-3 mb-6">Create Registry Broadcast</h3>
+                <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Create Registry Broadcast</h3>
                 <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
-                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE EDITIONS DROP: AUTUMN SILHOUETTES" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors placeholder-zinc-600"/>
+                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors placeholder-zinc-600" />
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
                   </div>
-                  <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium disabled:opacity-40 transition-colors">
+                  <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
                   </button>
                 </form>
@@ -526,19 +509,19 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex flex-col gap-6">
-              <div className="bg-white border border-zinc-300 p-6 shadow-sm">
-                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Active Registry Size</span>
+              <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Active Registry Size</span>
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{subscribers.length.toLocaleString()} <span className="text-[10px] tracking-widest uppercase font-sans text-zinc-400 ml-1">Profiles</span></h2>
               </div>
-              <div className="bg-[#111] text-white border border-zinc-900 p-6 flex-1 overflow-y-auto max-h-[360px]">
-                <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-800 pb-2 mb-4">Broadcast Dispatch Log</h4>
+              <div className="bg-zinc-50 text-black border border-zinc-200 p-6 flex-1 overflow-y-auto max-h-[360px] rounded-sm shadow-sm">
+                <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-200 pb-2 mb-4 font-medium">Broadcast Dispatch Log</h4>
                 {campaigns.length === 0 ? (
-                  <p className="text-[8px] text-zinc-600 uppercase tracking-widest text-center py-6">No historical dispatches found.</p>
+                  <p className="text-[8px] text-zinc-400 uppercase tracking-widest text-center py-6">No historical dispatches found.</p>
                 ) : (
                   <div className="space-y-4">
                     {campaigns.map((camp) => (
-                      <div key={camp.id} className="border-b border-zinc-900 pb-3 last:border-0">
-                        <h5 className="text-[10px] text-zinc-200 uppercase tracking-wider truncate font-medium">{camp.subject}</h5>
+                      <div key={camp.id} className="border-b border-zinc-200 pb-3 last:border-0">
+                        <h5 className="text-[10px] text-black uppercase tracking-wider truncate font-medium">{camp.subject}</h5>
                         <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">{new Date(camp.created_at).toLocaleDateString()} • {camp.recipient_count} Recipients</p>
                       </div>
                     ))}
@@ -551,91 +534,87 @@ export default function AdminDashboard() {
 
         {/* --- TAB 4: LIVE CUSTOMER CONCIERGE CHAT SUPPORT --- */}
         {activeTab === 'support' && (
-          <div className="bg-[#0A0A0A] text-white p-0 flex flex-col md:flex-row h-[600px] border border-zinc-800 shadow-2xl animate-fade-in relative overflow-hidden">
+          <div className="bg-white text-black p-0 flex flex-col md:flex-row h-[600px] border border-zinc-200 shadow-sm animate-fade-in relative overflow-hidden rounded-sm">
             
-            {/* Left Panel: Ticket List (Hidden on mobile when chat is opened) */}
-            <div className={`w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
-              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111]">
-                <h2 className="text-xs tracking-[0.3em] text-zinc-400 uppercase">Support Inbox</h2>
+            <div className={`w-full md:w-1/3 border-r border-zinc-200 bg-zinc-50 overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
+              <div className="p-6 border-b border-zinc-200 sticky top-0 bg-zinc-50 z-10">
+                <h2 className="text-xs tracking-[0.3em] text-black uppercase font-medium">Support Inbox</h2>
               </div>
               <div className="flex flex-col">
                 {tickets.length === 0 ? (
-                  <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center py-10">No messages found.</p>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest text-center py-10">No messages found.</p>
                 ) : (
                   tickets.map((ticket) => (
-                    <button key={ticket.id} onClick={() => setActiveChat(ticket)} className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeChat?.id === ticket.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}>
+                    <button key={ticket.id} onClick={() => setActiveChat(ticket)} className={`p-5 text-left border-b border-zinc-200 hover:bg-zinc-100 transition-colors flex flex-col gap-1 ${activeChat?.id === ticket.id ? 'bg-white border-l-2 border-l-black' : ''}`}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-medium uppercase tracking-wider">{ticket.name}</span>
-                        {ticket.status === 'unread' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>}
+                        <span className="text-xs font-medium uppercase tracking-wider text-black">{ticket.name}</span>
+                        {ticket.status === 'unread' && <span className="w-1.5 h-1.5 bg-black rounded-full animate-pulse"></span>}
                       </div>
-                      <p className="text-[10px] text-zinc-400 truncate tracking-wide">{ticket.subject}</p>
-                      <p className="text-[8px] text-zinc-600 mt-1 uppercase tracking-widest">{ticket.status}</p>
+                      <p className="text-[10px] text-zinc-500 truncate tracking-wide">{ticket.subject}</p>
+                      <p className="text-[8px] text-zinc-400 mt-1 uppercase tracking-widest font-medium">{ticket.status}</p>
                     </button>
                   ))
                 )}
               </div>
             </div>
 
-            {/* Right Panel: Active Chat (Hidden on mobile when no chat is opened) */}
-            <div className={`w-full md:w-2/3 flex-col bg-[#0A0A0A] ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
+            <div className={`w-full md:w-2/3 flex-col bg-white ${!activeChat ? 'hidden md:flex' : 'flex'} h-full`}>
               {activeChat ? (
                 <>
-                  <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A] flex justify-between items-center shrink-0">
+                  <div className="p-6 border-b border-zinc-200 bg-white flex justify-between items-center shrink-0">
                     <div>
-                      <h3 className="text-xs uppercase tracking-widest text-white font-medium">{activeChat.name}</h3>
+                      <h3 className="text-xs uppercase tracking-widest text-black font-medium">{activeChat.name}</h3>
                       <p className="text-[9px] text-zinc-500 tracking-[0.1em] mt-1">{activeChat.email} | {activeChat.subject}</p>
                     </div>
-                    {/* Mobile Back Button */}
-                    <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800 text-zinc-300 transition-colors">
+                    <button onClick={() => setActiveChat(null)} className="md:hidden text-[9px] tracking-widest uppercase border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 text-black transition-colors rounded-sm">
                       &larr; Back
                     </button>
                   </div>
 
-                  <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
+                  <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-zinc-50">
                     {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
-                        <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase mb-1">{msg.sender === 'admin' ? 'You' : activeChat.name}</span>
-                        <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'admin' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>{msg.text}</div>
+                        <span className="text-[8px] tracking-[0.2em] text-zinc-400 uppercase mb-1">{msg.sender === 'admin' ? 'You' : activeChat.name}</span>
+                        <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border rounded-sm ${msg.sender === 'admin' ? 'bg-black border-black text-white' : 'bg-white border-zinc-200 text-black font-medium'}`}>{msg.text}</div>
                       </div>
                     ))}
                     
-                    {/* Real-time Typing Indicator */}
                     {isUserTyping && (
                       <div className="flex flex-col items-start animate-fade-in">
-                        <span className="text-[8px] tracking-[0.2em] text-zinc-500 uppercase mb-1">{activeChat.name} IS TYPING...</span>
+                        <span className="text-[8px] tracking-[0.2em] text-zinc-400 uppercase mb-1">{activeChat.name} IS TYPING...</span>
                       </div>
                     )}
                     <div ref={chatEndRef} />
                   </div>
                   
-                  <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-800 bg-[#111] flex gap-4 shrink-0">
-                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide placeholder-zinc-600" />
-                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
+                  <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-200 bg-white flex gap-4 shrink-0">
+                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black tracking-wide placeholder-zinc-400 rounded-sm transition-colors" />
+                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-black text-white px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-30 rounded-sm">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center p-6">
-                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase text-center">Select an active ticket from the archive log</p>
+                <div className="flex-1 flex items-center justify-center p-6 bg-zinc-50">
+                  <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase text-center">Select an active ticket from the archive log</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* --- TAB 5: VENDOR LEDGER & DIRECT HISTORICAL PURCHASES --- */}
+        {/* --- TAB 5: VENDOR LEDGER --- */}
         {activeTab === 'vendors' && (
-          <div className="bg-[#0A0A0A] text-white border border-zinc-900 shadow-2xl flex flex-col md:flex-row h-[600px] animate-fade-in">
-            <div className="w-full md:w-1/3 border-r border-zinc-800 bg-[#111] overflow-y-auto h-full">
-              <div className="p-6 border-b border-zinc-800 sticky top-0 bg-[#111] z-10">
-                <h3 className="text-xs uppercase tracking-widest text-zinc-400">Vendor Profiles</h3>
+          <div className="bg-white text-black border border-zinc-200 shadow-sm flex flex-col md:flex-row h-[600px] animate-fade-in rounded-sm overflow-hidden">
+            <div className="w-full md:w-1/3 border-r border-zinc-200 bg-zinc-50 overflow-y-auto h-full">
+              <div className="p-6 border-b border-zinc-200 sticky top-0 bg-zinc-50 z-10">
+                <h3 className="text-xs uppercase tracking-widest text-black font-medium">Vendor Profiles</h3>
               </div>
               <div className="flex flex-col">
                 {vendors.length === 0 ? (
-                  <p className="text-[9px] text-zinc-600 text-center uppercase py-8 tracking-widest">No registered vendors found.</p>
+                  <p className="text-[9px] text-zinc-500 text-center uppercase py-8 tracking-widest">No registered vendors found.</p>
                 ) : (
                   vendors.map(v => (
-                    <button key={v.id} onClick={() => setActiveVendor(v)} className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeVendor?.id === v.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}>
-                      <span className="text-xs font-medium uppercase tracking-wider text-white">{v.name}</span>
+                    <button key={v.id} onClick={() => setActiveVendor(v)} className={`p-5 text-left border-b border-zinc-200 hover:bg-zinc-100 transition-colors flex flex-col gap-1 ${activeVendor?.id === v.id ? 'bg-white border-l-2 border-l-black' : ''}`}>
+                      <span className="text-xs font-medium uppercase tracking-wider text-black">{v.name}</span>
                       <span className="text-[9px] text-zinc-500 font-serif tracking-widest uppercase">{v.company || 'Independent Vendor'}</span>
                     </button>
                   ))
@@ -643,45 +622,45 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="w-full md:w-2/3 flex flex-col bg-[#0A0A0A] overflow-y-auto p-6 sm:p-10 h-full">
+            <div className="w-full md:w-2/3 flex flex-col bg-white overflow-y-auto p-6 sm:p-10 h-full">
               {activeVendor ? (
                 <div className="space-y-8">
-                  <div className="border-b border-zinc-900 pb-6">
-                    <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase block mb-1">Vendor Contact Directory</span>
-                    <h2 className="text-lg font-light uppercase text-white font-serif tracking-wide">{activeVendor.name}</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[10px] tracking-wider uppercase text-zinc-400">
-                      <p><span className="text-zinc-600 font-mono">EMAIL:</span> {activeVendor.email}</p>
-                      <p><span className="text-zinc-600 font-mono">PHONE:</span> {activeVendor.phone || 'N/A'}</p>
+                  <div className="border-b border-zinc-200 pb-6">
+                    <span className="text-[8px] tracking-[0.2em] text-zinc-400 uppercase block mb-1 font-medium">Vendor Contact Directory</span>
+                    <h2 className="text-lg font-normal uppercase text-black font-serif tracking-wide">{activeVendor.name}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[10px] tracking-wider uppercase text-zinc-600">
+                      <p><span className="text-zinc-400 font-mono">EMAIL:</span> {activeVendor.email}</p>
+                      <p><span className="text-zinc-400 font-mono">PHONE:</span> {activeVendor.phone || 'N/A'}</p>
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-[9px] uppercase tracking-widest text-zinc-500 mb-4 font-medium">Historical Orders Fulfilled</h4>
+                    <h4 className="text-[9px] uppercase tracking-widest text-black mb-4 font-medium">Historical Orders Fulfilled</h4>
                     {vendorOrders.length === 0 ? (
-                      <p className="text-[9px] text-zinc-600 uppercase tracking-widest py-4">This vendor profile has no registered purchasing streams.</p>
+                      <p className="text-[9px] text-zinc-500 uppercase tracking-widest py-4">This vendor profile has no registered purchasing streams.</p>
                     ) : (
                       <div className="space-y-4">
                         {vendorOrders.map(vo => (
-                          <div key={vo.id} className="bg-[#111] border border-zinc-800 p-4 rounded-sm">
-                            <div className="flex justify-between text-[8px] font-mono text-zinc-500 uppercase border-b border-zinc-900 pb-2 mb-3">
+                          <div key={vo.id} className="bg-zinc-50 border border-zinc-200 p-4 rounded-sm">
+                            <div className="flex justify-between text-[8px] font-mono text-zinc-500 uppercase border-b border-zinc-200 pb-2 mb-3">
                               <span>ORDER STAMP: #{vo.id.slice(0,8).toUpperCase()}</span>
                               <span>{new Date(vo.created_at).toLocaleDateString()}</span>
                             </div>
                             
-                            <div className="mb-4 text-[9px] text-zinc-400 uppercase tracking-wider bg-[#161616] p-3 border border-zinc-800">
-                              <span className="block text-zinc-600 text-[8px] mb-1">Shipping Destination:</span>
-                              {vo.shipping_address || 'N/A'} <br/>
+                            <div className="mb-4 text-[9px] text-zinc-600 uppercase tracking-wider bg-white p-3 border border-zinc-200">
+                              <span className="block text-zinc-400 text-[8px] mb-1 font-medium">Shipping Destination:</span>
+                              <span className="text-black">{vo.shipping_address || 'N/A'}</span> <br/>
                               <span className="text-zinc-500 font-mono mt-1 block">Phone: {vo.customer_phone || 'N/A'}</span>
                             </div>
 
-                            <div className="space-y-1 text-[10px] tracking-wide text-zinc-300 uppercase">
+                            <div className="space-y-1 text-[10px] tracking-wide text-zinc-700 uppercase">
                               {vo.items?.map((item, i) => (
                                 <div key={i} className="flex justify-between">
-                                  <span>{item.name} (SIZE: {item.size}) <strong>x{item.quantity}</strong></span>
-                                  <span className="font-mono text-zinc-600">₦{(item.price * item.quantity).toLocaleString()}</span>
+                                  <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
+                                  <span className="font-mono text-zinc-500">₦{(item.price * item.quantity).toLocaleString()}</span>
                                 </div>
                               ))}
                             </div>
-                            <div className="border-t border-zinc-900 mt-3 pt-2 flex justify-between text-[11px] text-white font-medium uppercase tracking-wider">
+                            <div className="border-t border-zinc-200 mt-3 pt-2 flex justify-between text-[11px] text-black font-medium uppercase tracking-wider">
                               <span>Total Value</span>
                               <span>₦{vo.total_amount?.toLocaleString()}</span>
                             </div>
@@ -692,58 +671,59 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-center">
-                  <p className="text-[10px] tracking-[0.2em] text-zinc-600 uppercase">Select a vendor to audit profile analytics and order logs</p>
+                <div className="h-full flex items-center justify-center text-center bg-zinc-50">
+                  <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">Select a vendor to audit profile analytics and order logs</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* --- TAB 6: REAL-TIME E-COMMERCE TRAFFIC ANALYTICS BREAKDOWN --- */}
+        {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white border border-zinc-300 p-6 shadow-sm rounded-sm">
-                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Total Page Visits</span>
+              <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Total Page Visits</span>
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif animate-pulse">{totalVisits.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Logs</span></h2>
               </div>
-              <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 shadow-sm rounded-sm">
-                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1">Interactive Product Clicks</span>
+              <div className="bg-black text-white border border-black p-6 shadow-sm rounded-sm text-center">
+                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1 font-medium">Interactive Product Clicks</span>
                 <h2 className="text-3xl font-light tracking-wide text-white font-serif">{totalClicks.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-500 uppercase font-sans">Interactions</span></h2>
               </div>
-              <div className="bg-white border border-zinc-300 p-6 shadow-sm rounded-sm">
-                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1">Click-Through Engagement</span>
+              <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Click-Through Engagement</span>
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{clickThroughRate}% <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Rate</span></h2>
               </div>
             </div>
-            <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 shadow-2xl rounded-sm">
-              <div className="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center">
-                <h4 className="text-[10px] tracking-widest uppercase text-zinc-400 font-medium">Real-Time Interaction Feed Matrix</h4>
-                <span className="text-[7.5px] bg-green-900/50 text-green-400 border border-green-800 px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse">Live</span>
+            
+            <div className="bg-white text-black border border-zinc-200 p-6 sm:p-8 shadow-sm rounded-sm">
+              <div className="border-b border-zinc-200 pb-3 mb-4 flex justify-between items-center">
+                <h4 className="text-[10px] tracking-widest uppercase text-black font-medium">Real-Time Interaction Feed Matrix</h4>
+                <span className="text-[7.5px] bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded-full uppercase tracking-widest font-bold animate-pulse">Live</span>
               </div>
               {analyticsData.length === 0 ? (
-                <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center py-8">Awaiting real-time pipeline event transfers...</p>
+                <p className="text-[9px] text-zinc-400 uppercase tracking-widest text-center py-8">Awaiting real-time pipeline event transfers...</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[10px] tracking-wider uppercase divide-y divide-zinc-900 text-zinc-400">
+                  <table className="w-full text-left text-[10px] tracking-wider uppercase divide-y divide-zinc-200 text-zinc-600">
                     <thead>
-                      <tr className="text-zinc-600 text-[8px] tracking-widest border-b border-zinc-900 pb-2">
+                      <tr className="text-black text-[8px] tracking-widest border-b border-zinc-200 pb-2">
                         <th className="py-2.5 font-medium">Timestamp</th>
                         <th className="py-2.5 font-medium">Action Event</th>
                         <th className="py-2.5 font-medium">Target Canvas Log</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-900">
+                    <tbody className="divide-y divide-zinc-100">
                       {analyticsData.slice(0, 20).map((metric) => (
-                        <tr key={metric.id} className="hover:bg-[#111] transition-colors">
-                          <td className="py-3 font-mono text-[8.5px] text-zinc-500">{new Date(metric.created_at).toLocaleTimeString()}</td>
+                        <tr key={metric.id} className="hover:bg-zinc-50 transition-colors">
+                          <td className="py-3 font-mono text-[8.5px] text-zinc-400">{new Date(metric.created_at).toLocaleTimeString()}</td>
                           <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded-sm text-[8px] font-medium tracking-widest ${metric.event_type === 'visit' ? 'bg-zinc-800 text-zinc-300' : 'bg-white text-black'}`}>
+                            <span className={`px-2 py-0.5 rounded-sm text-[8px] font-medium tracking-widest ${metric.event_type === 'visit' ? 'bg-zinc-100 text-zinc-600' : 'bg-black text-white'}`}>
                               {metric.event_type}
                             </span>
                           </td>
-                          <td className="py-3 text-white truncate max-w-[240px]">
+                          <td className="py-3 text-black truncate max-w-[240px]">
                             {metric.event_type === 'click' ? `Clicked Product: ${metric.product_name || 'Item Tile'}` : `Viewed Path: ${metric.page_path}`}
                           </td>
                         </tr>
