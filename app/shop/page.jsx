@@ -79,15 +79,7 @@ export default function ShopCatalog() {
     });
   }, []);
 
-  // OVERFLOW LOCK MANAGER
-  useEffect(() => {
-    if (isMenuOpen || isCartOpen || showNewsletter || quickViewProduct || showWishlistAuthModal || isSearchOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [isMenuOpen, isCartOpen, showNewsletter, quickViewProduct, showWishlistAuthModal, isSearchOpen]);
+ 
 
   // BULLETPROOF LIVE SEARCH ENGINE
   useEffect(() => {
