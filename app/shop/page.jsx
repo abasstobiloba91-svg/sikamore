@@ -273,6 +273,60 @@ export default function ShopCatalog() {
         </div>
       </header>
 
+      {/* 2-STAGE NEWSLETTER POPUP MODAL */}
+      {showNewsletter && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
+          <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl max-h-[90vh] overflow-hidden">
+            <button onClick={() => setShowNewsletter(false)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 backdrop-blur-sm p-1.5 rounded-full shadow-sm transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            
+            <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
+              <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop" alt="10% Off Promotion" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center p-6">
+                <span className="bg-white/10 text-white border border-white/40 backdrop-blur-md px-6 py-3 text-sm md:text-base tracking-[0.3em] uppercase font-medium shadow-2xl text-center">
+                  Unlock 10% Off
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white overflow-y-auto">
+              {!grabDiscountClicked ? (
+                <div className="animate-fade-in">
+                  <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">A Gift For You</h2>
+                  <p className="text-[10px] tracking-widest text-zinc-500 uppercase leading-relaxed mb-8">
+                    Join the Sikamòre circle to receive exclusive access to new arrivals, bespoke styling inspiration, and a complimentary 10% off your first atelier purchase.
+                  </p>
+                  <button onClick={() => setGrabDiscountClicked(true)} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium">
+                    Reveal My 10% Discount
+                  </button>
+                </div>
+              ) : (
+                <div className="animate-fade-in">
+                  <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">Welcome to the Circle</h2>
+                  <p className="text-[10px] tracking-widest text-zinc-500 uppercase leading-relaxed mb-8">
+                    Enter your email to receive your 10% off code and finalize your subscription.
+                  </p>
+                  <form onSubmit={handlePopupSubscription} className="space-y-4">
+                    <input 
+                      type="email" 
+                      value={subscriberEmail}
+                      onChange={(e) => setSubscriberEmail(e.target.value)}
+                      placeholder="EMAIL ADDRESS" 
+                      required 
+                      className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-xs uppercase tracking-widest text-center" 
+                    />
+                    <button type="submit" disabled={submittingEmail} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50">
+                      {submittingEmail ? 'VERIFYING...' : 'SUBSCRIBE & CLAIM OFFER'}
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FIXED Z-INDEX: GUEST WISHLIST AUTHENTICATION MODAL */}
       {showWishlistAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
@@ -342,7 +396,6 @@ export default function ShopCatalog() {
               {/* 4-TAB LUXURY EXPANDABLE ACCORDION */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
                 
-                {/* 1. Description Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                     <span>The Details</span>
@@ -355,7 +408,6 @@ export default function ShopCatalog() {
                   )}
                 </div>
 
-                {/* 2. Additional Information Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'additional' ? '' : 'additional')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                     <span>More Information</span>
@@ -368,7 +420,6 @@ export default function ShopCatalog() {
                   )}
                 </div>
 
-                {/* 3. Store Policies Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'policies' ? '' : 'policies')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                     <span>Shipping & Returns</span>
@@ -381,7 +432,6 @@ export default function ShopCatalog() {
                   )}
                 </div>
 
-                {/* 4. Inquiries Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'inquiries' ? '' : 'inquiries')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                     <span>Need Help?</span>
@@ -475,14 +525,15 @@ export default function ShopCatalog() {
                             <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                           </div>
 
+                          {/* FIXED MOBILE HOVER BUTTONS */}
                           {inlineAddId !== product.id && (
-                            <div className="absolute inset-0 bg-black/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
-                              <div className="flex gap-2 bg-white p-1.5 rounded-sm border border-zinc-100 pointer-events-auto">
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-2 text-black hover:text-zinc-500 transition-colors">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+                            <div className="absolute inset-x-0 bottom-4 md:inset-0 md:bottom-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
+                              <div className="flex gap-2 bg-white/95 backdrop-blur-sm p-1.5 rounded-sm border border-zinc-100 shadow-sm pointer-events-auto">
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-3 md:p-2 text-black hover:text-zinc-500 transition-colors">
+                                  <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
                                 </button>
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} className="p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} className="p-3 md:p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
+                                  <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                 </button>
                               </div>
                             </div>
@@ -678,14 +729,15 @@ export default function ShopCatalog() {
                       <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                     </div>
 
+                    {/* FIXED MOBILE HOVER BUTTONS */}
                     {inlineAddId !== product.id && (
-                      <div className="absolute inset-0 bg-black/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
-                        <div className="flex gap-2 bg-white p-1.5 rounded-sm border border-zinc-100 pointer-events-auto">
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-2 text-black hover:text-zinc-500 transition-colors">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+                      <div className="absolute inset-x-0 bottom-4 md:inset-0 md:bottom-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
+                        <div className="flex gap-2 bg-white/95 backdrop-blur-sm p-1.5 rounded-sm border border-zinc-100 shadow-sm pointer-events-auto">
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="p-3 md:p-2 text-black hover:text-zinc-500 transition-colors">
+                            <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
                           </button>
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }} className="p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }} className="p-3 md:p-2 text-black hover:text-zinc-500 transition-colors border-l border-zinc-200">
+                            <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                           </button>
                         </div>
                       </div>
