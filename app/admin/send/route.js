@@ -4,8 +4,8 @@ export async function POST(req) {
   try {
     const { to, subject, html } = await req.json();
     
-    // USE YOUR OFFICIAL CONNECTED ACCOUNT
-    const senderEmail = 'comms@arclightsfoundation.com';
+    // REVERTED TO SANDBOX FOR GUARANTEED DELIVERY WITHOUT DNS VERIFICATION
+    const senderEmail = 'onboarding@resend.dev';
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -28,11 +28,9 @@ export async function POST(req) {
       throw new Error(data.message || 'Error sending email');
     }
     
-    console.log("RESEND SUCCESS! Email sent to:", to);
     return NextResponse.json(data);
     
   } catch (error) {
-    console.error("API ROUTE ERROR:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
