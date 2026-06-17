@@ -267,7 +267,7 @@ export default function AdminDashboard() {
         // 2. VENDOR DISPATCH NOTIFICATION
         if (currentStatus === 'shipped') {
           const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">VENDOR DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PRODUCT IN YOUR PORTFOLIO HAS BEEN LOGGED AS SHIPPED.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
-          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'vendors@sikamoreofficial.com', subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, html: vendorHtml }) });
+          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'comms@arclightsfoundation.com', subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, html: vendorHtml }) });
           showToast('CLIENT & VENDOR AUTOMATICALLY NOTIFIED VIA EMAIL.');
         } else {
           showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
