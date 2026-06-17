@@ -47,9 +47,9 @@ export default function ShopCatalog() {
 
   const [tickerIndex, setTickerIndex] = useState(0);
   const announcements = [
-    "COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
-    "DISCOVER THE ARCHIVE: NEW READY-TO-WEAR & ACCESSORIES NOW LIVE",
-    "CRAFTED SILHOUETTES • A STUDY IN TEXTURE AND MINIMALIST FORM",
+    "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
+    "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
+    "BEAUTIFULLY CRAFTED SILHOUETTES • DESIGNED FOR YOU",
   ];
 
   const { 
@@ -78,8 +78,6 @@ export default function ShopCatalog() {
       }
     });
   }, []);
-
- 
 
   // BULLETPROOF LIVE SEARCH ENGINE
   useEffect(() => {
@@ -155,7 +153,7 @@ export default function ShopCatalog() {
     if (userSession || localUser) {
       toggleWishlist(product);
       const isCurrentlyInWishlist = wishlist.some(w => w.id === product.id);
-      showToast(isCurrentlyInWishlist ? 'REMOVED FROM WISHLIST.' : 'SAVED TO WISHLIST.');
+      showToast(isCurrentlyInWishlist ? 'Removed from your wishlist.' : 'Added to your beautifully curated wishlist.');
     } else {
       setPendingWishlistProduct(product);
       setShowWishlistAuthModal(true);
@@ -193,12 +191,12 @@ export default function ShopCatalog() {
           toggleWishlist(pendingWishlistProduct);
         }
         setShowWishlistAuthModal(false);
-        showToast('PROFILE CONNECTED. ITEM SECURED TO WISHLIST.');
+        showToast('Welcome! Your piece is safely stored in your wishlist.');
         setAuthEmail('');
         setAuthPassword('');
       }
     } catch (err) {
-      showToast(`AUTH ERROR: ${err.message.toUpperCase()}`);
+      showToast(`Oops, there was an issue: ${err.message}`);
     } finally {
       setIsAuthenticating(false);
     }
@@ -211,11 +209,11 @@ export default function ShopCatalog() {
     try {
       const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
       if (error && error.code !== '23505') throw error;
-      showToast('PROFILE SECURED IN ARCHIVE REGISTRY.');
+      showToast('Thank you for joining our community.');
       setShowNewsletter(false);
       sessionStorage.setItem('sikamore_newsletter', 'true');
     } catch (err) {
-      showToast(`REGISTRY ERROR: ${err.message.toUpperCase()}`);
+      showToast(`Oops, there was an issue: ${err.message}`);
     } finally {
       setSubmittingEmail(false);
     }
@@ -241,7 +239,7 @@ export default function ShopCatalog() {
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
-            <Link href="/admin" className="tracking-[0.2em] text-zinc-500 hover:text-black uppercase text-[9px] sm:text-[10px] hidden sm:inline-block">Portal</Link>
+            <Link href="/admin" className="tracking-[0.2em] text-zinc-500 hover:text-black uppercase text-[9px] sm:text-[10px] hidden sm:inline-block">Atelier</Link>
           </div>
           <div className="flex items-center justify-center">
             <Link href="/" className="text-sm sm:text-xl font-normal tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.4em] whitespace-nowrap">S. SIKAMÒRE</Link>
@@ -283,14 +281,14 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="text-center mb-6">
-              <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif mb-2">Archive Access</h2>
-              <p className="text-[10px] tracking-widest uppercase text-zinc-500 leading-relaxed">Connect a profile to secure items to your permanent wishlist.</p>
+              <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif mb-2">Welcome to Your Wishlist</h2>
+              <p className="text-[10px] tracking-widest uppercase text-zinc-500 leading-relaxed">Create or connect your profile to save your favorite pieces for later.</p>
             </div>
             <form onSubmit={handleGuestWishlistAuth} className="space-y-4">
               <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="EMAIL ADDRESS" required className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base uppercase tracking-widest" />
               <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder="PASSWORD" required className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base uppercase tracking-widest" />
               <button type="submit" disabled={isAuthenticating} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.25em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50 mt-2">
-                {isAuthenticating ? 'SECURING PROFILE...' : 'CONTINUE SHOPPING'}
+                {isAuthenticating ? 'CONNECTING...' : 'SAVE MY WISHLIST'}
               </button>
             </form>
           </div>
@@ -320,7 +318,7 @@ export default function ShopCatalog() {
                   <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">₦{quickViewProduct.price.toLocaleString()}</p>
                   
                   <div className="mb-5">
-                    <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Size selection</span>
+                    <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
                     <div className="flex gap-2">
                       {['S', 'M', 'L'].map(s => (
                         <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
@@ -336,7 +334,7 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   <button onClick={() => { addToCart(quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
-                    Add to Cart • ₦{(quickViewProduct.price * qty).toLocaleString()}
+                    Add to Bag • ₦{(quickViewProduct.price * qty).toLocaleString()}
                   </button>
                 </div>
               </div>
@@ -347,12 +345,12 @@ export default function ShopCatalog() {
                 {/* 1. Description Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'description' ? '' : 'description')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                    <span>Description</span>
+                    <span>The Details</span>
                     <span className="text-zinc-400">{openAccordion === 'description' ? '—' : '+'}</span>
                   </button>
                   {openAccordion === 'description' && (
                     <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
-                      {quickViewProduct.description || "Embroidered mesh fuller silhouette piece with a micro structural alignment framing rule."}
+                      {quickViewProduct.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace."}
                     </div>
                   )}
                 </div>
@@ -360,12 +358,12 @@ export default function ShopCatalog() {
                 {/* 2. Additional Information Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'additional' ? '' : 'additional')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                    <span>Additional Information</span>
+                    <span>More Information</span>
                     <span className="text-zinc-400">{openAccordion === 'additional' ? '—' : '+'}</span>
                   </button>
                   {openAccordion === 'additional' && (
                     <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
-                      {quickViewProduct.additional_information || "No additional product specifications provided by the atelier."}
+                      {quickViewProduct.additional_information || "No additional styling or fit specifications provided by our atelier."}
                     </div>
                   )}
                 </div>
@@ -373,12 +371,12 @@ export default function ShopCatalog() {
                 {/* 3. Store Policies Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'policies' ? '' : 'policies')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                    <span>Store Policies</span>
+                    <span>Shipping & Returns</span>
                     <span className="text-zinc-400">{openAccordion === 'policies' ? '—' : '+'}</span>
                   </button>
                   {openAccordion === 'policies' && (
                     <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
-                      {quickViewProduct.store_policies || "Complimentary drops require 3-5 business days for standard fulfillment."}
+                      {quickViewProduct.store_policies || "Enjoy complimentary shipping on your favorites, thoughtfully packaged and delivered within 3-5 business days."}
                     </div>
                   )}
                 </div>
@@ -386,12 +384,12 @@ export default function ShopCatalog() {
                 {/* 4. Inquiries Tab */}
                 <div className="border border-zinc-200 rounded-sm overflow-hidden">
                   <button onClick={() => setOpenAccordion(openAccordion === 'inquiries' ? '' : 'inquiries')} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                    <span>Inquiries</span>
+                    <span>Need Help?</span>
                     <span className="text-zinc-400">{openAccordion === 'inquiries' ? '—' : '+'}</span>
                   </button>
                   {openAccordion === 'inquiries' && (
                     <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
-                      {quickViewProduct.inquiries || "For specific sizing, measurements, and custom requests, please contact our direct client concierge."}
+                      {quickViewProduct.inquiries || "Looking for custom sizing or styling advice? Our concierge team is always here to help you."}
                     </div>
                   )}
                 </div>
@@ -408,7 +406,7 @@ export default function ShopCatalog() {
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 999999 }}>
           
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
-            <h2 className="text-xl sm:text-2xl font-serif tracking-[0.1em] uppercase text-black">Search Archive</h2>
+            <h2 className="text-xl sm:text-2xl font-serif tracking-[0.1em] uppercase text-black">Find Your Perfect Piece</h2>
             <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 text-zinc-400 hover:text-black transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -423,7 +421,7 @@ export default function ShopCatalog() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full outline-none text-base sm:text-2xl text-black uppercase tracking-widest bg-transparent placeholder-zinc-300 font-light"
-                placeholder="ENTER PRODUCT NAME OR KEYWORD..."
+                placeholder="WHAT ARE YOU LOOKING FOR TODAY?..."
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="ml-4 text-zinc-400 hover:text-black uppercase text-[10px] tracking-[0.2em] font-medium">Clear</button>
@@ -435,16 +433,16 @@ export default function ShopCatalog() {
             {searchQuery.trim() === '' ? (
               <div className="h-full flex flex-col items-center justify-start pt-10 text-zinc-400 text-center space-y-4">
                  <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                 <p className="text-[10px] uppercase tracking-[0.2em]">Begin typing to initiate search sequence.</p>
+                 <p className="text-[10px] uppercase tracking-[0.2em]">Type a keyword or style to begin exploring our collection.</p>
               </div>
             ) : searchResults.length === 0 ? (
               <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
-                No products matching "{searchQuery}" located in archive.
+                We couldn't quite find what you're looking for. Try a different search.
               </div>
             ) : (
               <>
                 <div className="flex justify-between items-center mb-8 border-b border-zinc-100 pb-3">
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">Search Results</span>
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">Your Matches</span>
                   <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-mono">{searchResults.length} Match{searchResults.length !== 1 && 'es'}</span>
                 </div>
 
@@ -463,7 +461,7 @@ export default function ShopCatalog() {
 
                           <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-20 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
-                            <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Select Size</p>
+                            <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
                             <div className="flex gap-1.5 mb-4">
                               {['S', 'M', 'L'].map(s => (
                                 <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
@@ -474,7 +472,7 @@ export default function ShopCatalog() {
                               <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
                               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
                             </div>
-                            <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Confirm & Add</button>
+                            <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                           </div>
 
                           {inlineAddId !== product.id && (
@@ -511,7 +509,7 @@ export default function ShopCatalog() {
       {/* SLIDING MINI BAG CAROUSEL DRAWER */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
-          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Shopping Cart ({cartItemCount})</h2>
+          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -519,7 +517,7 @@ export default function ShopCatalog() {
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is empty.</div>
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
           ) : (
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
@@ -553,7 +551,7 @@ export default function ShopCatalog() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
-                Continue
+                Keep Shopping
               </button>
               <Link href="/checkout" onClick={() => setIsCartOpen(false)} className="flex-1 bg-white text-black text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors">
                 Checkout
@@ -566,14 +564,14 @@ export default function ShopCatalog() {
 
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
-          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Index Menu</span>
+          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
         <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
           <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
-          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">New In</Link>
-          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Client Portal</Link>
-          <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Management</Link>
+          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
+          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
+          <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Atelier Management</Link>
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
@@ -581,7 +579,7 @@ export default function ShopCatalog() {
 
       <section className="bg-white border-b border-zinc-200 relative" style={{ zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Filter</button>
+          <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 md:hidden">
               <button onClick={() => setIsListView(true)} className={`p-1.5 border transition-all ${isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-500'}`}><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
@@ -593,13 +591,13 @@ export default function ShopCatalog() {
               <button onClick={() => { setViewCols(4); setIsListView(false); }} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg></button>
             </div>
           </div>
-          <select className="bg-transparent border-0 outline-none text-[9px] uppercase tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black font-light py-1 pr-2 max-w-[120px] text-right"><option>Sort by latest</option></select>
+          <select className="bg-transparent border-0 outline-none text-[9px] uppercase tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black font-light py-1 pr-2 max-w-[120px] text-right"><option>Sort by newest arrivals</option></select>
         </div>
       </section>
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z-10">
         {loading ? (
-          <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Loading Archive...</div>
+          <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
         ) : (
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12`}`}>
             {products.map((product) => {
@@ -644,7 +642,7 @@ export default function ShopCatalog() {
                                 <span className="flex-1 text-center text-[10px]">{inlineQty}</span>
                                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 hover:bg-zinc-50">+</button>
                               </div>
-                              <button onClick={(e) => handleInlineAdd(e, product)} className="bg-black text-white px-4 py-2 text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium">Add</button>
+                              <button onClick={(e) => handleInlineAdd(e, product)} className="bg-black text-white px-4 py-2 text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium">Add to Bag</button>
                            </div>
                         </div>
                       )}
@@ -666,7 +664,7 @@ export default function ShopCatalog() {
 
                     <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-20 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
-                      <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Select Size</p>
+                      <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
                       <div className="flex gap-1.5 mb-4">
                         {['S', 'M', 'L'].map(s => (
                           <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
@@ -677,7 +675,7 @@ export default function ShopCatalog() {
                         <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
                         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
                       </div>
-                      <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Confirm & Add</button>
+                      <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                     </div>
 
                     {inlineAddId !== product.id && (
@@ -716,30 +714,30 @@ export default function ShopCatalog() {
         </div>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
           <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Information Outline</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Curated high-fashion textiles and ready-to-wear luxury conceptualized for the modern vanguard.</p>
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
             <p className="text-[9px] text-zinc-600 pt-1">Email: contact@sikamoreofficial.com</p>
           </div>
           <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Help</h4>
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
             <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
             <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
             <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
             <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
           </div>
           <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Useful Links</h4>
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
             <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
             <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
             <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
             <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
           </div>
           <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Sign up for email</h4>
-            <p className="text-[10px] text-zinc-400 leading-relaxed">Stay informed about the latest releases and luxury lookbooks.</p>
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
             <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              <input type="email" placeholder="Your email address" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
-              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Subscribe</button>
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
             </form>
           </div>
         </div>
