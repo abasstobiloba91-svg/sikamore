@@ -16,17 +16,14 @@ export function AppProvider({ children }) {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   
-  // NEW: GLOBAL NOTIFICATION STATE FOR UNREAD MESSAGES
   const [hasUnreadSupport, setHasUnreadSupport] = useState(false);
 
-  // LOAD CART, WISHLIST & CHECK NOTIFICATIONS
   useEffect(() => {
     const savedCart = localStorage.getItem('sikamore_cart');
     const savedWishlist = localStorage.getItem('sikamore_wishlist');
     if (savedCart) try { setCart(JSON.parse(savedCart)); } catch (e) {}
     if (savedWishlist) try { setWishlist(JSON.parse(savedWishlist)); } catch (e) {}
 
-    // Check for unread admin responses silently in the background
     const checkNotifications = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -85,7 +82,7 @@ export function AppProvider({ children }) {
     }}>
       {children}
       {toastMessage && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] bg-[#0A0A0A] text-white px-6 py-3 text-[10px] tracking-[0.2em] uppercase font-medium shadow-2xl border border-zinc-800 animate-fade-in-up whitespace-nowrap">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z- bg-[#0A0A0A] text-white px-6 py-3 text-[10px] tracking-[0.2em] uppercase font-medium shadow-2xl border border-zinc-800 animate-fade-in-up whitespace-nowrap">
           {toastMessage}
         </div>
       )}
