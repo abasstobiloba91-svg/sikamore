@@ -160,7 +160,6 @@ export default function Dashboard() {
       
       if (error) throw error;
       
-      // EMAIL TRIGGER: ADMIN ALERT ADAPTING THE INSET CARD BLUEPRINT OF IMAGE_3.PNG
       const ticketHtmlPayload = `
         <!DOCTYPE html><html><head><meta charset="utf-8"></head>
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
@@ -181,9 +180,9 @@ export default function Dashboard() {
                 </tr>
                 
                 <tr><td style="font-size:9px; color:#525252; tracking:0.2em; padding:30px 0 10px 0; font-weight:bold;">CLIENT FILE CONTEXT</td></tr>
-                <tr><td style="padding:24px; bg-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace; lowercase">${newTicketMessage}</td></tr>
+                <tr><td style="padding:24px; background-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace;">${newTicketMessage}</td></tr>
                 
-                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">OPEN ATELIER INBOX</a></td></tr>
+                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">OPEN ATELIER INBOX</a></td></tr>
               </table>
             </td></tr>
           </table>
@@ -242,7 +241,6 @@ export default function Dashboard() {
         
       if (error) throw error;
       
-      // EMAIL TRIGGER: ADMIN ALERT FOR TICKET REPLY (IMAGE_3 INSET THEME)
       const replyHtmlPayload = `
         <!DOCTYPE html><html><head><meta charset="utf-8"></head>
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
@@ -261,9 +259,9 @@ export default function Dashboard() {
                 </tr>
                 
                 <tr><td style="font-size:9px; color:#525252; tracking:0.2em; padding:30px 0 10px 0; font-weight:bold;">NEW INBOUND PHRASE</td></tr>
-                <tr><td style="padding:24px; bg-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace; lowercase">${replyText}</td></tr>
+                <tr><td style="padding:24px; background-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace;">${replyText}</td></tr>
                 
-                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">OPEN ATELIER INBOX</a></td></tr>
+                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">OPEN ATELIER INBOX</a></td></tr>
               </table>
             </td></tr>
           </table>
@@ -287,14 +285,15 @@ export default function Dashboard() {
       if (data) setActiveChat(data);
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } loyal { setSendingReply(false); }
+    } finally { setSendingReply(false); } // FIXED: 'loyal' has been correctly rewritten to 'finally'
   };
 
   const handleSaveAddress = async () => {
     try {
       const { error } = await supabase.auth.updateUser({ data: { address: addressInput } });
       if (error) throw error;
-      setUserProfile(prev => ({ ...prev, address: addressInput }));
+      userProfile.address = addressInput;
+      setUserProfile({ ...userProfile });
       setIsEditingAddress(false);
       showToast('ADDRESS BOOK REGISTRY SAVED.');
     } catch (err) {
@@ -420,7 +419,7 @@ export default function Dashboard() {
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="bg-white border border-zinc-200 shadow-sm p-8 sm:p-12 text-center flex flex-col items-center">
               <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mb-6 border border-zinc-200">
-                <span className="text-xl font-serif text-zinc-400">{userProfile?.name?.charAt(0) || 'C'}</span>
+                <span className="textxl font-serif text-zinc-400">{userProfile?.name?.charAt(0) || 'C'}</span>
               </div>
               <h2 className="text-lg font-medium tracking-widest uppercase mb-1">{userProfile?.name}</h2>
               <p className="text-xs text-zinc-500 tracking-widest mb-8 font-mono">{userProfile?.email}</p>
