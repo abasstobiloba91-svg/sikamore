@@ -11,7 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// REAL-TIME MARKET EXCHANGE RATES (Base = NGN)
 const exchangeRates = {
   NGN: 1,
   USD: 1 / 1360,
@@ -29,41 +28,32 @@ const currencySymbols = {
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // CURRENT USER SESSION
   const [userSession, setUserSession] = useState(null);
-
-  // GLOBAL CURRENCY STATE (Defaults to NGN until Auto-Detect kicks in)
   const [currency, setCurrency] = useState('NGN');
 
-  // GRID LAYOUT STATE
+  // GEOLOCATION LOCK STATES
+  const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
+  const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
+  const [isEuropeanUser, setIsEuropeanUser] = useState(false);
+
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
-
-  // SIDE MENU DRAWER STATE
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // SEARCH OVERLAY STATE
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-
-  // PRODUCT VIEW MODAL
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
-
-  // NEWSLETTER POPUP STATE
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // REAL-TIME AUTOMATED DISPATCH CALCULATOR STATE
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
-
   const [tickerIndex, setTickerIndex] = useState(0);
+
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
     "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
@@ -81,51 +71,53 @@ export default function ShopCatalog() {
   const hasUnreadSupport = appContext.hasUnreadSupport || false;
   const showToast = appContext.showToast || ((msg) => console.log(msg));
 
-  // Quick View States
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // CURRENCY FORMATTER ENGINE
+  // AUTOMATED REGIONAL MARKUP CALCULATOR
   const formatPrice = (ngnPrice) => {
-    const converted = ngnPrice * exchangeRates[currency];
-    if (currency === 'NGN') return `₦${converted.toLocaleString()}`;
+    const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
+    const converted = ngnPrice * markupRate * exchangeRates[currency];
+    if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
     return `${currencySymbols[currency]}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // SMART AUTO-DETECT GEOLOCATION ENGINE
   useEffect(() => {
-    async function autoDetectCurrency() {
+    async function locateClientNetwork() {
       try {
         const res = await fetch('https://ipapi.co/json/');
         const data = await res.json();
         
         if (data && data.country_code) {
+          setDetectedCountryCode(data.country_code);
+          setDetectedCountryName(data.country_name);
+          
+          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
+          setIsEuropeanUser(checkEurope);
+
           if (data.country_code === 'NG') {
             setCurrency('NGN');
           } else if (data.country_code === 'GB') {
             setCurrency('GBP');
-          } else if (data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL'].includes(data.country_code)) {
+          } else if (checkEurope) {
             setCurrency('EUR');
           } else {
             setCurrency('USD');
           }
         }
       } catch (err) {
-        // Silently catch exceptions
+        // Safe operational baseline fallback defaults
       }
     }
-    autoDetectCurrency();
+    locateClientNetwork();
   }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUserSession(session.user);
-      } else {
+      if (session) setUserSession(session.user);
+      else {
         const localUser = localStorage.getItem('sikamore_user_profile');
-        if (localUser) {
-          setUserSession(JSON.parse(localUser)); 
-        }
+        if (localUser) setUserSession(JSON.parse(localUser)); 
       }
     });
   }, []);
@@ -219,38 +211,56 @@ export default function ShopCatalog() {
     }
   };
 
+  // HARD GATED GEOLOCATION DISPATCH VERIFICATION MATRIX
   const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("Please enter your delivery city or country context.");
+    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER COHORT LOCATION DATA.");
     
     setIsCalculating(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const lowerAddress = deliveryAddress.toLowerCase().trim();
+    
+    // STRICT BOUNDARY PASSPORT VALIDATION LAYER
+    let isBoundValid = lowerAddress.includes(detectedCountryName.toLowerCase()) || lowerAddress.includes(detectedCountryCode.toLowerCase());
+    
+    if (detectedCountryCode === 'NG') {
+      if (lowerAddress.includes('lagos') || lowerAddress.includes('abuja') || lowerAddress.includes('ibadan') || lowerAddress.includes('nigeria') || lowerAddress.includes('lekki')) {
+        isBoundValid = true;
+      }
+    }
+
+    if (!isBoundValid) {
+      showToast("LOCATION NOT FOUND.");
+      setDeliveryFee(0);
+      setDeliveryZone('');
+      setIsCalculating(false);
+      return;
+    }
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      const lowerAddress = deliveryAddress.toLowerCase().trim();
       let fee = 15000; 
-      let zone = "Nigeria Nationwide";
+      let zone = "Nigeria Nationwide Network";
       let autoCurrency = 'NGN';
 
       const internationalBaseFee = 55 / exchangeRates['USD'];
 
-      if (lowerAddress.includes('uk') || lowerAddress.includes('london') || lowerAddress.includes('united kingdom') || lowerAddress.includes('england')) {
+      if (lowerAddress.includes('uk') || lowerAddress.includes('london') || lowerAddress.includes('united kingdom')) {
         fee = internationalBaseFee; 
         zone = "International Flat Rate (UK)";
         autoCurrency = 'GBP';
       } 
-      else if (lowerAddress.includes('europe') || lowerAddress.includes('germany') || lowerAddress.includes('france') || lowerAddress.includes('italy') || lowerAddress.includes('spain') || lowerAddress.includes('ireland')) {
+      else if (lowerAddress.includes('europe') || lowerAddress.includes('germany') || lowerAddress.includes('france')) {
         fee = internationalBaseFee; 
         zone = "International Flat Rate (Europe)";
         autoCurrency = 'EUR';
       }
-      else if (lowerAddress.includes('usa') || lowerAddress.includes('states') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international') || lowerAddress.includes('outside nigeria') || lowerAddress.includes('ghana')) {
+      else if (lowerAddress.includes('usa') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international')) {
         fee = internationalBaseFee; 
-        zone = "International Flat Rate";
+        zone = "International Flat Rate (Global)";
         autoCurrency = 'USD';
       } 
       else if (lowerAddress.includes('lagos')) {
-        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('vi') || lowerAddress.includes('victoria island') || lowerAddress.includes('ajah')) {
+        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi')) {
           fee = 7000;
           zone = "Lagos (Island)";
         } else {
@@ -261,15 +271,11 @@ export default function ShopCatalog() {
 
       setDeliveryFee(fee);
       setDeliveryZone(zone);
-      
-      if (autoCurrency !== currency) {
-        setCurrency(autoCurrency);
-      }
-      
-      showToast(`Dispatch Matrix Logged: ${zone}`);
+      if (autoCurrency !== currency) setCurrency(autoCurrency);
+      showToast(`Dispatch Logged: ${zone}`);
       
     } catch (err) {
-      showToast("Error processing real-time rate tracking.");
+      showToast("Error processing dynamic pricing vector.");
     } finally {
       setIsCalculating(false);
     }
@@ -278,13 +284,6 @@ export default function ShopCatalog() {
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
@@ -325,8 +324,8 @@ export default function ShopCatalog() {
             >
               <option value="NGN">NGN ₦</option>
               <option value="USD">USD $</option>
-              <option value="GBP">GBP £</option>
-              <option value="EUR">EUR €</option>
+              {isEuropeanUser && <option value="GBP">GBP £</option>}
+              {isEuropeanUser && <option value="EUR">EUR €</option>}
             </select>
 
             <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
@@ -472,7 +471,7 @@ export default function ShopCatalog() {
 
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
             <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input
                 type="text"
                 autoFocus
@@ -669,7 +668,7 @@ export default function ShopCatalog() {
                 Continue Shopping
               </button>
               
-              {/* HARD GATE CHECKOUT INTERCEPTOR LOGIC TRIGGER */}
+              {/* HARD GATED GEOLOCATION ACTION STEP EXCLUSION PIPELINE */}
               <button 
                 onClick={() => {
                   if (deliveryFee <= 0 || !deliveryAddress.trim()) {
