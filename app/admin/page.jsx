@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
-  const [loading, setLoading] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   const [orders, setOrders] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
           supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
           supabase.from('vendors').select('*').order('name', { ascending: true }),
           supabase.from('page_analytics').select('*').order('created_at', { ascending: false }),
-          supabase.from('products').select('*').order('created_at', { ascending: false }) // Fetch live products
+          supabase.from('products').select('*').order('created_at', { ascending: false })
         ]);
 
         if (ordersData) setOrders(ordersData);
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
 
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setDisabled(true);
 
     try {
       let detailedError = '';
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
       });
 
       if (detailedError) {
-        setLoading(false);
+        setDisabled(false);
         return showToast(`ERROR: ${detailedError}`);
       }
 
@@ -241,8 +241,8 @@ export default function AdminDashboard() {
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
       setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
-      setInventoryMode('manage'); // Switch back to manage to view the new products
-    } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setLoading(false); }
+      setInventoryMode('manage'); 
+    } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setDisabled(false); }
   };
 
   // ====================== INVENTORY: MANAGE LIVE ====================== //
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ====================== ORDERS ====================== //
+  // ====================== ORDERS WITH IMAGE_3 BLUEPRINT ====================== //
   const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
@@ -324,17 +324,44 @@ export default function AdminDashboard() {
       setDeliveryDays('');
 
       if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
-        const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #E5E7EB;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #E5E7EB; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
+        const itemsHtml = orderData.items.map(i => `
+          <tr>
+            <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #E5E5E5;">${i.name.toUpperCase()} (${i.size}) x${i.quantity}</td>
+            <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">₦${(i.price * i.quantity).toLocaleString()}</td>
+          </tr>
+        `).join('');
         
-        // 1. ALERTING THE CLIENT
         if (orderData.customer_email) {
-          let statusMessage = '';
+          let statusHeader = 'ORDER PROCESSING';
+          let statusMessage = 'Your carefully curated acquisition is being prepared within our atelier.';
+          
           if (currentStatus === 'shipped') {
-            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#000; font-weight:bold;">STATUS: EN ROUTE</p><p style="font-size:12px; margin-bottom:20px;">Your carefully curated piece has left our atelier.</p>${estDelivery ? `<p style="font-size:12px; border-left:3px solid #000; padding-left:10px; margin-bottom:30px;">ESTIMATED ARRIVAL: <br/><strong style="font-size:14px;">${estDelivery}</strong></p>` : ''}`;
+            statusHeader = 'DISPATCH EN ROUTE';
+            statusMessage = `Your parcel has left our central directory and is currently in transit. ${estDelivery ? `<br/><br/>ESTIMATED DELIVERY PORTAL:<br/><strong style="color: #FFFFFF; font-size: 12px; tracking: 0.2em;">${estDelivery.toUpperCase()}</strong>` : ''}`;
           } else if (currentStatus === 'delivered') {
-            statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#000; font-weight:bold;">STATUS: DELIVERED</p><p style="font-size:12px; border-left:3px solid #000; padding-left:10px; margin-bottom:30px;">Your S. Sikamòre piece has arrived. We hope you enjoy your new acquisition.</p>`;
+            statusHeader = 'DELIVERY CONFIRMED';
+            statusMessage = 'Our logistics ledger logs this parcel as successfully delivered. We hope you enjoy your new piece.';
           }
-          const htmlTemplate = `<div style="font-family:sans-serif; background:#FFF; color:#000; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6; border: 1px solid #E5E7EB;"><h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE CONCIERGE</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>${statusMessage}<table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+
+          // ADAPTING STRUCTURAL BLUEPRINT OF IMAGE_3.PNG INTO SIKAMORE LUXURY MONOCHROME
+          const clientHtmlTemplate = `
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
+                <tr><td align="center">
+                  <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                    <tr><td align="center" style="padding-bottom:30px; border-b:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h2></td></tr>
+                    <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; height:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
+                    <tr><td style="font-size:10px; color:#A3A3A3; text-align:center; padding-bottom:30px; tracking:0.1em; line-height:2.0;">${statusMessage}</td></tr>
+                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; margin-bottom:20px;"><span style="font-size:8px; color:#A3A3A3; block; margin-bottom:5px;">ORDER TRACKING STAMP</span><br/><span style="font-size:10px; color:#FFFFFF; font-family:monospace;">#${orderId.toUpperCase()}</span></td></tr>
+                    <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
+                    <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>AGGREGATE TOTAL</td><td align="right" style="font-family:monospace;">₦${orderData.total_amount?.toLocaleString()}</td></tr></table></td></tr>
+                    <tr><td align="center" style="padding-top:50px; border-top:1px solid #1A1A1A; margin-top:40px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.2em;">S. SIKAMÒRE COLLECTIVES © 2026</p></td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body></html>
+          `;
           
           await fetch('/api/send', { 
             method: 'POST', 
@@ -344,14 +371,28 @@ export default function AdminDashboard() {
               fromEmail: 'shipping@ssikamore.com',
               fromName: 'S. SIKAMÒRE LOGISTICS',
               subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, 
-              html: htmlTemplate 
+              html: clientHtmlTemplate 
             }) 
           });
         }
 
-        // 2. ALERTING THE WAREHOUSE/SHIPPING TEAM
         if (currentStatus === 'shipped') {
-          const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">ATELIER DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PIECE FROM YOUR COLLECTION HAS BEEN LOGGED FOR DISPATCH.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
+          const vendorHtml = `
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
+                <tr><td align="center">
+                  <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                    <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">ATELIER DISPATCH</h2></td></tr>
+                    <tr><td style="font-size:11px; color:#FFFFFF; padding:30px 0 10px 0; font-weight:bold; text-align:center;">PARCEL HANDED OVER TO COURIER PIPELINE</td></tr>
+                    <tr><td style="font-size:9px; color:#A3A3A3; padding-bottom:20px; text-align:center;">ORDER REF: #${orderId.toUpperCase()}</td></tr>
+                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; font-size:10px; color:#FFFFFF;"><span style="color:#525252; font-size:8px; block; margin-bottom:5px;">DELIVERY DESTINATION ITINERARY</span><br/>${orderData.shipping_address || 'N/A'}</td></tr>
+                    <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body></html>
+          `;
           
           await fetch('/api/send', { 
             method: 'POST', 
@@ -378,37 +419,81 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-const handleSendBrandedNewsletter = async (e) => {
+  // ====================== NEWSLETTER WITH IMAGE_3 BLUEPRINT ====================== //
+  const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
     setSendingNewsletter(true);
 
     try {
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
+      
+      // GENERATING DUAL-COLUMN GRIDS DYNAMICALLY FROM RECENT PRODUCTS TO MATCH IMAGE_3.PNG BLUEPRINT
+      const gridProducts = liveProducts.slice(0, 2);
+      let productGridHtml = '';
+      
+      if (gridProducts.length >= 2) {
+        productGridHtml = `
+          <tr>
+            <td>
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top:40px; border-top:1px solid #1A1A1A; padding-top:40px;">
+                <tr><td colspan="2" style="font-size:11px; color:#FFFFFF; tracking:0.25em; padding-bottom:20px; font-weight:bold;">OUR LATEST CURATIONS</td></tr>
+                <tr>
+                  <td width="48%" valign="top">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[0].image}" width="100%" style="display:block; object-cover:fit;" /></td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[0].name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[0].price.toLocaleString()}</td></tr>
+                      <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
+                    </table>
+                  </td>
+                  <td width="4%"></td>
+                  <td width="48%" valign="top">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[1].image}" width="100%" style="display:block; object-cover:fit;" /></td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[1].name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[1].price.toLocaleString()}</td></tr>
+                      <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        `;
+      }
+
+      // FULL MONOCHROME TRANSFORMATION INSPIRED BY IMAGE_3.PNG
       const customHTMLTemplate = `
         <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-        <body style="margin:0; padding:0; background-color:#FFFFFF; font-family:-apple-system, sans-serif;">
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF; padding:60px 20px;">
+        <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:60px 10px;">
             <tr><td align="center">
-              <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF; color:#000000; padding:45px; border:1px solid #E5E7EB;">
-                <tr><td align="center" style="padding-bottom:40px; border-bottom:1px solid #E5E7EB;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:22px; margin:0; color:#000000; text-transform:uppercase;">S. SIKAMÒRE</h1></td></tr>
-                <tr><td style="padding:50px 10px; font-size:11px; line-height:2.0; letter-spacing:0.12em; color:#333333; text-transform:uppercase;">${formattedLines}</td></tr>
+              <table width="520" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1A1A1A; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                <tr><td align="right" style="padding-bottom:15px;"><a href="https://ssikamore.com/shop" style="color:#525252; text-decoration:none; font-size:7.5px; tracking:0.2em;">VIEW IN BROWSER</a></td></tr>
+                <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:18px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h1></td></tr>
+                <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">${newsletterSubj.toUpperCase()}</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
+                <tr><td style="padding:20px 10px; font-size:10px; line-height:2.2; letter-spacing:0.12em; color:#A3A3A3; text-align:center;">${formattedLines}</td></tr>
+                <tr>
+                  <td align="center" style="padding-top:20px;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#111111; border:1px solid #1A1A1A; padding:30px 20px; text-align:center;">
+                      <tr><td style="font-size:8px; color:#666; tracking:0.25em; padding-bottom:5px;">PRIVATE ATELIER DIRECTIVE</td></tr>
+                      <tr><td style="font-size:13px; color:#FFFFFF; font-weight:bold; tracking:0.3em; padding-bottom:20px;">COMPLIMENTARY DROPS ACTIVE</td></tr>
+                      <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">ENTER STOREFRONT</a></td></tr>
+                    </table>
+                  </td>
+                </tr>
+                ${productGridHtml}
+                <tr><td align="center" style="padding-top:60px; border-top:1px solid #1A1A1A; margin-top:50px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.25em;">S. SIKAMÒRE COLLECTIVES © 2026<br/><br/><a href="#" style="color:#525252; text-decoration:underline;">UNSUBSCRIBE</a></p></td></tr>
               </table>
             </td></tr>
           </table>
         </body></html>
       `;
-      
-      // 1. Log the campaign to the Supabase Database Archive
-      const { error } = await supabase.from('campaigns').insert([{ 
-        subject: newsletterSubj.toUpperCase(), 
-        message: newsletterMsg, 
-        recipient_count: subscribers.length, 
-        html_payload: customHTMLTemplate 
-      }]);
+
+      const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
       if (error) throw error;
 
-      // 2. ACTUAL EMAIL DISPATCH: Loop through subscribers and fire the Resend API
       for (const sub of subscribers) {
         if (sub.email) {
           await fetch('/api/send', {
@@ -416,7 +501,7 @@ const handleSendBrandedNewsletter = async (e) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: sub.email,
-              fromEmail: 'hello@ssikamore.com', // Sent from your official domain
+              fromEmail: 'hello@ssikamore.com', 
               fromName: 'S. SIKAMÒRE',
               subject: newsletterSubj.toUpperCase(),
               html: customHTMLTemplate
@@ -426,14 +511,8 @@ const handleSendBrandedNewsletter = async (e) => {
       }
 
       showToast(`DISPATCH SUCCESS! EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setNewsletterSubj(''); 
-      setNewsletterMsg('');
-      
-    } catch (err) { 
-      showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); 
-    } finally { 
-      setSendingNewsletter(false); 
-    }
+      setNewsletterSubj(''); setNewsletterMsg('');
+    } catch (err) { showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); } finally { setSendingNewsletter(false); }
   };
 
   const handleAdminTyping = (e) => {
@@ -502,7 +581,6 @@ const handleSendBrandedNewsletter = async (e) => {
         {/* --- TAB 1: INVENTORY MANAGEMENT --- */}
         {activeTab === 'inventory' && (
           <div className="animate-fade-in space-y-6">
-            {/* INVENTORY SUB-NAV */}
             <div className="flex border-b border-zinc-200 pb-2">
               <button onClick={() => { setInventoryMode('manage'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'manage' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
                 Manage Live
@@ -512,11 +590,9 @@ const handleSendBrandedNewsletter = async (e) => {
               </button>
             </div>
 
-            {/* MODE: MANAGE LIVE INVENTORY */}
             {inventoryMode === 'manage' && (
               <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200">
                 {editingProduct ? (
-                  // --- EDIT EXISTING PRODUCT ---
                   <div>
                     <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
                       <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Edit Product: {editingProduct.name}</h2>
@@ -580,7 +656,6 @@ const handleSendBrandedNewsletter = async (e) => {
                     </form>
                   </div>
                 ) : (
-                  // --- LIST LIVE PRODUCTS ---
                   <div>
                     <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
                       <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Live Collection ({liveProducts.length})</h2>
@@ -614,7 +689,6 @@ const handleSendBrandedNewsletter = async (e) => {
               </div>
             )}
 
-            {/* MODE: DEPLOY NEW PRODUCTS */}
             {inventoryMode === 'deploy' && (
               <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200">
                 <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
@@ -675,8 +749,8 @@ const handleSendBrandedNewsletter = async (e) => {
                     </div>
                   ))}
 
-                  <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
-                    {loading ? 'DEPLOYING TO STORE...' : `PUBLISH ${productsList.length} ITEM(S)`}
+                  <button type="submit" disabled={disabled} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
+                    {disabled ? 'DEPLOYING TO STORE...' : `PUBLISH ${productsList.length} ITEM(S)`}
                   </button>
                 </form>
               </div>
