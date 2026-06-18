@@ -57,10 +57,10 @@ export default function ContactPage() {
             <p className="text-zinc-400 text-xs tracking-widest leading-loose font-light">The S. SIKAMÒRE atelier operates with a dedication to absolute client discretion and service. For private inquiries, bespoke styling requests, or assistance with your current curation, our dedicated team is at your disposal.</p>
           </div>
           
-          <div className="space-y-6 text-[10px] tracking-widest uppercase text-zinc-500">
-             <div><span className="text-white block mb-1">General Inquiries</span>contact@sikamoreofficial.com</div>
-             <div><span className="text-white block mb-1">Press & Editorial</span>press@sikamoreofficial.com</div>
-             <div><span className="text-white block mb-1">Client Services</span>+234 (0) 123 456 7890</div>
+       <div className="space-y-6 text-[10px] tracking-widest uppercase text-zinc-500">
+             <div><span className="text-white block mb-1">General Inquiries</span>hello@ssikamore.com</div>
+             <div><span className="text-white block mb-1">Logistics & Shipping</span>shipping@ssikamore.com</div>
+             <div><span className="text-white block mb-1">Client Services</span>support@ssikamore.com</div>
              <div><span className="text-white block mb-1">Atelier Hours</span>Mon – Fri | 10:00 AM – 6:00 PM (WAT)</div>
           </div>
         </div>
