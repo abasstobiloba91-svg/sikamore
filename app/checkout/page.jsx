@@ -234,9 +234,9 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4.5 text-[9px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm">
-            {isProcessing ? 'PROCESSING SECURE ESCROW...' : `CONFIRM ACQUISITION • ${formatPriceValue(totalAmount)}`}
-          </button>
+        <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
+  {isProcessing ? 'PROCESSING SECURE ESCROW...' : `CONFIRM ACQUISITION • ${formatPriceValue(totalAmount)}`}
+</button>
         </form>
 
         {/* RIGHT COLUMN: MANIFEST SUMMARY */}
