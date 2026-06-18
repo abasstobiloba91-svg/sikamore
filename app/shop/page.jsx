@@ -220,7 +220,7 @@ export default function ShopCatalog() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-24 relative">
+    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
       {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
@@ -456,7 +456,6 @@ export default function ShopCatalog() {
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
                 Continue Shopping
               </button>
-              {/* TRIGGER CHECKOUT FLOW */}
               <button onClick={triggerCheckoutFlow} className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold">
                 Proceed to Payment
               </button>
@@ -498,7 +497,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z-10">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z-10 pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
         ) : (
@@ -606,6 +605,44 @@ export default function ShopCatalog() {
           </div>
         </div>
       )}
+
+      {/* FOOTER */}
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: contact@sikamoreofficial.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );
