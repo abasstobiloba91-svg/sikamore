@@ -378,8 +378,7 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-  // ====================== SUPPORT & NEWSLETTER ====================== //
-  const handleSendBrandedNewsletter = async (e) => {
+const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
     setSendingNewsletter(true);
@@ -399,11 +398,42 @@ export default function AdminDashboard() {
           </table>
         </body></html>
       `;
-      const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
+      
+      // 1. Log the campaign to the Supabase Database Archive
+      const { error } = await supabase.from('campaigns').insert([{ 
+        subject: newsletterSubj.toUpperCase(), 
+        message: newsletterMsg, 
+        recipient_count: subscribers.length, 
+        html_payload: customHTMLTemplate 
+      }]);
       if (error) throw error;
+
+      // 2. ACTUAL EMAIL DISPATCH: Loop through subscribers and fire the Resend API
+      for (const sub of subscribers) {
+        if (sub.email) {
+          await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: sub.email,
+              fromEmail: 'hello@ssikamore.com', // Sent from your official domain
+              fromName: 'S. SIKAMÒRE',
+              subject: newsletterSubj.toUpperCase(),
+              html: customHTMLTemplate
+            })
+          }).catch(err => console.error(`Failed to send to ${sub.email}:`, err));
+        }
+      }
+
       showToast(`DISPATCH SUCCESS! EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
-      setNewsletterSubj(''); setNewsletterMsg('');
-    } catch (err) { showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); } finally { setSendingNewsletter(false); }
+      setNewsletterSubj(''); 
+      setNewsletterMsg('');
+      
+    } catch (err) { 
+      showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); 
+    } finally { 
+      setSendingNewsletter(false); 
+    }
   };
 
   const handleAdminTyping = (e) => {
