@@ -17,8 +17,8 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
   
-  // NEW INVENTORY STATES
-  const [inventoryMode, setInventoryMode] = useState('manage'); // 'manage' | 'deploy'
+  // INVENTORY STATES
+  const [inventoryMode, setInventoryMode] = useState('manage'); 
   const [liveProducts, setLiveProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editFile, setEditFile] = useState(null);
@@ -62,39 +62,45 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // STABILIZED DIAGNOSTIC DATA LOADER: Isolated blocks stop table exceptions from breaking layout states
   useEffect(() => {
     if (!isAuthenticated) return;
 
     async function loadMasterData() {
       try {
-        const [
-          { data: ordersData },
-          { data: subRes },
-          { data: campRes },
-          { data: ticketsData },
-          { data: vendorsData },
-          { data: analyticsRes },
-          { data: productsData }
-        ] = await Promise.all([
-          supabase.from('orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('subscribers').select('*').order('created_at', { ascending: false }),
-          supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
-          supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
-          supabase.from('vendors').select('*').order('name', { ascending: true }),
-          supabase.from('page_analytics').select('*').order('created_at', { ascending: false }),
-          supabase.from('products').select('*').order('created_at', { ascending: false })
-        ]);
+        const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+        if (oData) setOrders(oData);
+      } catch(e){}
 
-        if (ordersData) setOrders(ordersData);
-        if (subRes) setSubscribers(subRes);
-        if (campRes) setCampaigns(campRes);
-        if (ticketsData) setTickets(ticketsData);
-        if (vendorsData) setVendors(vendorsData);
-        if (analyticsRes) setAnalyticsData(analyticsRes);
-        if (productsData) setLiveProducts(productsData);
-      } catch (err) {
-        console.error("Master database alignment exception: ", err);
-      }
+      try {
+        const { data: sData } = await supabase.from('subscribers').select('*').order('created_at', { ascending: false });
+        if (sData) setSubscribers(sData);
+      } catch(e){}
+
+      try {
+        const { data: cData } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+        if (cData) setCampaigns(cData);
+      } catch(e){}
+
+      try {
+        const { data: tData } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
+        if (tData) setTickets(tData);
+      } catch(e){}
+
+      try {
+        const { data: vData } = await supabase.from('vendors').select('*').order('name', { ascending: true });
+        if (vData) setVendors(vData);
+      } catch(e){}
+
+      try {
+        const { data: aData } = await supabase.from('page_analytics').select('*').order('created_at', { ascending: false });
+        if (aData) setAnalyticsData(aData);
+      } catch(e){}
+
+      try {
+        const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        if (pData) setLiveProducts(pData);
+      } catch(e){}
     }
     loadMasterData();
   }, [isAuthenticated]);
@@ -245,7 +251,6 @@ export default function AdminDashboard() {
     } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setDisabled(false); }
   };
 
-  // ====================== INVENTORY: MANAGE LIVE ====================== //
   const handleDeleteProduct = async (id) => {
     if (!window.confirm("ARE YOU SURE YOU WANT TO DELETE THIS ITEM? THIS CANNOT BE UNDONE.")) return;
     try {
@@ -343,17 +348,16 @@ export default function AdminDashboard() {
             statusMessage = 'Our logistics ledger logs this parcel as successfully delivered. We hope you enjoy your new piece.';
           }
 
-          // ADAPTING STRUCTURAL BLUEPRINT OF IMAGE_3.PNG INTO SIKAMORE LUXURY MONOCHROME
           const clientHtmlTemplate = `
             <!DOCTYPE html><html><head><meta charset="utf-8"></head>
             <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
                 <tr><td align="center">
                   <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
-                    <tr><td align="center" style="padding-bottom:30px; border-b:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h2></td></tr>
+                    <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h2></td></tr>
                     <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; height:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
                     <tr><td style="font-size:10px; color:#A3A3A3; text-align:center; padding-bottom:30px; tracking:0.1em; line-height:2.0;">${statusMessage}</td></tr>
-                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; margin-bottom:20px;"><span style="font-size:8px; color:#A3A3A3; block; margin-bottom:5px;">ORDER TRACKING STAMP</span><br/><span style="font-size:10px; color:#FFFFFF; font-family:monospace;">#${orderId.toUpperCase()}</span></td></tr>
+                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; margin-bottom:20px;"><span style="font-size:8px; color:#A3A3A3; display:block; margin-bottom:5px;">ORDER TRACKING STAMP</span><span style="font-size:10px; color:#FFFFFF; font-family:monospace;">#${orderId.toUpperCase()}</span></td></tr>
                     <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
                     <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>AGGREGATE TOTAL</td><td align="right" style="font-family:monospace;">₦${orderData.total_amount?.toLocaleString()}</td></tr></table></td></tr>
                     <tr><td align="center" style="padding-top:50px; border-top:1px solid #1A1A1A; margin-top:40px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.2em;">S. SIKAMÒRE COLLECTIVES © 2026</p></td></tr>
@@ -384,9 +388,9 @@ export default function AdminDashboard() {
                 <tr><td align="center">
                   <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
                     <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">ATELIER DISPATCH</h2></td></tr>
-                    <tr><td style="font-size:11px; color:#FFFFFF; padding:30px 0 10px 0; font-weight:bold; text-align:center;">PARCEL HANDED OVER TO COURIER PIPELINE</td></tr>
+                    <tr><td style="font-size:11px; color:#FFFFFF; padding:35px 0 10px 0; font-weight:bold; tracking:0.2em; text-align:center;">PARCEL HANDED OVER TO COURIER PIPELINE</td></tr>
                     <tr><td style="font-size:9px; color:#A3A3A3; padding-bottom:20px; text-align:center;">ORDER REF: #${orderId.toUpperCase()}</td></tr>
-                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; font-size:10px; color:#FFFFFF;"><span style="color:#525252; font-size:8px; block; margin-bottom:5px;">DELIVERY DESTINATION ITINERARY</span><br/>${orderData.shipping_address || 'N/A'}</td></tr>
+                    <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; font-size:10px; color:#FFFFFF;"><span style="color:#525252; font-size:8px; display:block; margin-bottom:5px;">DELIVERY DESTINATION ITINERARY</span>${orderData.shipping_address || 'N/A'}</td></tr>
                     <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
                   </table>
                 </td></tr>
@@ -419,16 +423,20 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-  // ====================== NEWSLETTER WITH IMAGE_3 BLUEPRINT ====================== //
+  // ====================== NEWSLETTER DISPATCH CENTER (CONCURRENT BLUEPRINT FROM IMAGE_3.PNG) ====================== //
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
+    
+    // Safety Fallback check to avoid crashing if data failed to populate
+    if (subscribers.length === 0) {
+      return showToast("DISPATCH DENIED: ACTIVE REGISTRY SIZE IS 0 PROFILES.");
+    }
+
     setSendingNewsletter(true);
 
     try {
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
-      
-      // GENERATING DUAL-COLUMN GRIDS DYNAMICALLY FROM RECENT PRODUCTS TO MATCH IMAGE_3.PNG BLUEPRINT
       const gridProducts = liveProducts.slice(0, 2);
       let productGridHtml = '';
       
@@ -437,11 +445,11 @@ export default function AdminDashboard() {
           <tr>
             <td>
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top:40px; border-top:1px solid #1A1A1A; padding-top:40px;">
-                <tr><td colspan="2" style="font-size:11px; color:#FFFFFF; tracking:0.25em; padding-bottom:20px; font-weight:bold;">OUR LATEST CURATIONS</td></tr>
+                <tr><td colspan="3" style="font-size:11px; color:#FFFFFF; tracking:0.25em; padding-bottom:20px; font-weight:bold;">OUR LATEST CURATIONS</td></tr>
                 <tr>
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[0].image}" width="100%" style="display:block; object-cover:fit;" /></td></tr>
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[0].image}" width="100%" style="display:block;" /></td></tr>
                       <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[0].name.toUpperCase()}</td></tr>
                       <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[0].price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
@@ -450,7 +458,7 @@ export default function AdminDashboard() {
                   <td width="4%"></td>
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[1].image}" width="100%" style="display:block; object-cover:fit;" /></td></tr>
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[1].image}" width="100%" style="display:block;" /></td></tr>
                       <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[1].name.toUpperCase()}</td></tr>
                       <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[1].price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
@@ -463,7 +471,6 @@ export default function AdminDashboard() {
         `;
       }
 
-      // FULL MONOCHROME TRANSFORMATION INSPIRED BY IMAGE_3.PNG
       const customHTMLTemplate = `
         <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
@@ -479,7 +486,7 @@ export default function AdminDashboard() {
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#111111; border:1px solid #1A1A1A; padding:30px 20px; text-align:center;">
                       <tr><td style="font-size:8px; color:#666; tracking:0.25em; padding-bottom:5px;">PRIVATE ATELIER DIRECTIVE</td></tr>
                       <tr><td style="font-size:13px; color:#FFFFFF; font-weight:bold; tracking:0.3em; padding-bottom:20px;">COMPLIMENTARY DROPS ACTIVE</td></tr>
-                      <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">ENTER STOREFRONT</a></td></tr>
+                      <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ENTER STOREFRONT</a></td></tr>
                     </table>
                   </td>
                 </tr>
@@ -494,9 +501,11 @@ export default function AdminDashboard() {
       const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
       if (error) throw error;
 
-      for (const sub of subscribers) {
-        if (sub.email) {
-          await fetch('/api/send', {
+      // UPGRADED CONCURRENT BROADCAST MECHANISM: Shoots all emails in parallel so it never encounters execution locks
+      await Promise.all(
+        subscribers.map(async (sub) => {
+          if (!sub.email) return;
+          return fetch('/api/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -506,9 +515,9 @@ export default function AdminDashboard() {
               subject: newsletterSubj.toUpperCase(),
               html: customHTMLTemplate
             })
-          }).catch(err => console.error(`Failed to send to ${sub.email}:`, err));
-        }
-      }
+          }).catch(err => console.error(`Error pipeline connection for ${sub.email}:`, err));
+        })
+      );
 
       showToast(`DISPATCH SUCCESS! EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
       setNewsletterSubj(''); setNewsletterMsg('');
@@ -833,7 +842,7 @@ export default function AdminDashboard() {
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
                     <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
                   </div>
-                  <button type="submit" disabled={sendingNewsletter || subscribers.length === 0} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
+                  <button type="submit" disabled={sendingNewsletter} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
                   </button>
                 </form>
