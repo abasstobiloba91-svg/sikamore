@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req) {
   try {
-    const { to, subject, html } = await req.json();
-    
-    // REVERTED TO SANDBOX FOR GUARANTEED DELIVERY WITHOUT DNS VERIFICATION
-    const senderEmail = 'onboarding@resend.dev';
+    // We now securely accept a dynamic "fromEmail" variable from the frontend
+    const { to, subject, html, fromEmail = 'hello@ssikamore.com', fromName = 'S. SIKAMÒRE' } = await req.json();
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -14,7 +12,7 @@ export async function POST(req) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: `S. SIKAMORE <${senderEmail}>`,
+        from: `${fromName} <${fromEmail}>`,
         to: [to],
         subject: subject,
         html: html
