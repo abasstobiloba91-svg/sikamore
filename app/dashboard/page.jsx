@@ -109,8 +109,6 @@ export default function ClientDashboard() {
     const orderSync = supabase.channel('realtime_orders_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_email=eq.${userProfile.email}` }, (payload) => {
         setOrders((prev) => prev.map(o => o.id === payload.new.id ? payload.new : o));
-        
-        // FIX: Wrapped ID in String() to prevent crash on number IDs
         showToast(`UPDATE: ORDER #${String(payload.new.id).slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
       }).subscribe();
 
@@ -153,14 +151,18 @@ export default function ClientDashboard() {
     e.preventDefault();
     setCreatingTicket(true);
     try {
-      const { data, error } = await supabase.from('support_tickets').insert([{
-        name: userProfile.name.toUpperCase(), 
-        email: userProfile.email, 
-        subject: newTicketSubject.toUpperCase(), 
-        message: newTicketMessage, 
-        status: 'unread', 
-        chat_history: [{ sender: 'user', text: newTicketMessage, timestamp: new Date().toISOString() }]
-      }]).select();
+      // FIX: Passing a single object and using .single() ensures we don't get trapped in an Array
+      const { data, error } = await supabase.from('support_tickets')
+        .insert({
+          name: userProfile.name.toUpperCase(), 
+          email: userProfile.email, 
+          subject: newTicketSubject.toUpperCase(), 
+          message: newTicketMessage, 
+          status: 'unread', 
+          chat_history: [{ sender: 'user', text: newTicketMessage, timestamp: new Date().toISOString() }]
+        })
+        .select()
+        .single();
       
       if (error) throw error;
       
@@ -169,7 +171,8 @@ export default function ClientDashboard() {
       setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
       
-      if (data && data.length > 0) setActiveChat(data); 
+      // Instantly open the newly created chat 
+      if (data) setActiveChat(data); 
       
     } catch (err) { 
       showToast(`ERROR: ${err.message.toUpperCase()}`); 
@@ -180,13 +183,37 @@ export default function ClientDashboard() {
 
   const handleClientReply = async (e) => {
     e.preventDefault();
+    if (!activeChat || !activeChat.id) return;
+    
     setSendingReply(true);
     try {
-      const updatedHistory = [...(activeChat.chat_history || []), { sender: 'user', text: replyText, timestamp: new Date().toISOString() }];
-      const { error } = await supabase.from('support_tickets').update({ chat_history: updatedHistory, status: 'unread' }).eq('id', activeChat.id);
+      // Safely parse the chat history in case it's stringified or empty
+      let currentHistory = [];
+      if (Array.isArray(activeChat.chat_history)) {
+        currentHistory = activeChat.chat_history;
+      } else if (typeof activeChat.chat_history === 'string') {
+        try { currentHistory = JSON.parse(activeChat.chat_history); } catch(e) {}
+      }
+
+      // If somehow empty, push the original message to the start
+      if (currentHistory.length === 0 && activeChat.message) {
+        currentHistory = [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
+      }
+
+      const updatedHistory = [...currentHistory, { sender: 'user', text: replyText, timestamp: new Date().toISOString() }];
+      
+      const { data, error } = await supabase.from('support_tickets')
+        .update({ chat_history: updatedHistory, status: 'unread' })
+        .eq('id', activeChat.id)
+        .select()
+        .single();
+        
       if (error) throw error;
+      
       if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'user', isTyping: false } });
       setReplyText('');
+      
+      if (data) setActiveChat(data);
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
     } finally { setSendingReply(false); }
@@ -208,6 +235,18 @@ export default function ClientDashboard() {
     await supabase.auth.signOut();
     localStorage.removeItem('sikamore_user_profile');
     window.location.href='/';
+  };
+
+  // Helper to safely render chat history without crashing
+  const getSafeChatHistory = () => {
+    if (!activeChat) return [];
+    if (Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0) {
+      return activeChat.chat_history;
+    }
+    if (typeof activeChat.chat_history === 'string') {
+      try { return JSON.parse(activeChat.chat_history); } catch (e) { return []; }
+    }
+    return [{ sender: 'user', text: activeChat.message || 'Ticket Opened', timestamp: activeChat.created_at || new Date().toISOString() }];
   };
 
   if (!userProfile) return null;
@@ -239,7 +278,6 @@ export default function ClientDashboard() {
                 <div key={order.id} className="bg-white text-black border border-zinc-200 shadow-sm hover:shadow-md transition-shadow p-6 sm:p-8 flex flex-col gap-6">
                   <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
                     <div>
-                      {/* FIX: Wrapped order ID in String() */}
                       <p className="text-[9px] tracking-widest text-zinc-500 uppercase font-mono">ORDER REF: #{String(order.id).slice(0,8).toUpperCase()}</p>
                       <span className="text-[10px] text-zinc-400 block mt-1">{new Date(order.created_at).toLocaleDateString()}</span>
                     </div>
@@ -376,7 +414,7 @@ export default function ClientDashboard() {
                   tickets.map((ticket) => (
                     <button key={ticket.id} onClick={() => setActiveChat(ticket)} className={`p-5 text-left border-b border-zinc-800 hover:bg-[#161616] transition-colors flex flex-col gap-1 ${activeChat?.id === ticket.id ? 'bg-[#161616] border-l-2 border-l-white' : ''}`}>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium uppercase tracking-wider truncate max-w-[80%]">{ticket.subject}</span>
+                        <span className="text-xs font-medium uppercase tracking-wider truncate max-w-[80%]">{ticket.subject || 'UNTITLED'}</span>
                         {ticket.status === 'replied' && <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>}
                       </div>
                       <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Status: {ticket.status}</p>
@@ -391,9 +429,8 @@ export default function ClientDashboard() {
                 <>
                   <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A] flex justify-between items-center shrink-0">
                     <div>
-                      <h3 className="text-xs uppercase tracking-widest text-white font-medium truncate max-w-[200px] sm:max-w-md">{activeChat.subject}</h3>
-                      {/* FIX: Wrapped activeChat ID in String() */}
-                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{String(activeChat.id).slice(0,8).toUpperCase()}</p>
+                      <h3 className="text-xs uppercase tracking-widest text-white font-medium truncate max-w-[200px] sm:max-w-md">{activeChat.subject || 'UNTITLED'}</h3>
+                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{activeChat.id?.slice ? activeChat.id.slice(0,8).toUpperCase() : 'PENDING'}</p>
                     </div>
                     <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-4 py-2 hover:bg-zinc-800 text-zinc-300 transition-colors rounded-sm">
                       &larr; Back
@@ -401,7 +438,7 @@ export default function ClientDashboard() {
                   </div>
 
                   <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#0D0D0D]">
-                    {(activeChat.chat_history?.length > 0 ? activeChat.chat_history : [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }]).map((msg, idx) => (
+                    {getSafeChatHistory().map((msg, idx) => (
                       <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                         <span className="text-[8px] tracking-[0.2em] text-zinc-600 uppercase mb-1">{msg.sender === 'user' ? 'You' : 'Sikamore Support'}</span>
                         <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border ${msg.sender === 'user' ? 'bg-[#161616] border-zinc-800 text-zinc-300' : 'bg-white border-white text-black font-medium'}`}>{msg.text}</div>
@@ -424,7 +461,7 @@ export default function ClientDashboard() {
                       placeholder="Type your message..." 
                       className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide placeholder-zinc-600" 
                     />
-                    <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">
+                    <button type="submit" disabled={sendingReply || !replyText.trim() || !activeChat.id} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">
                       {sendingReply ? 'SENDING...' : 'DISPATCH'}
                     </button>
                   </form>
