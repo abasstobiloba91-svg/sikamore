@@ -68,7 +68,7 @@ export function AppProvider({ children }) {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
+    setTimeout(() => setToastMessage(''), 4500);
   };
 
   return (
@@ -81,9 +81,16 @@ export function AppProvider({ children }) {
       hasUnreadSupport, setHasUnreadSupport
     }}>
       {children}
+      
+      {/* MODERN EDITORIAL NOTIFICATION CANVAS */}
       {toastMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[99999999] bg-white text-black px-6 py-3.5 text-[10px] tracking-[0.25em] uppercase font-bold shadow-2xl border border-zinc-200 transition-all duration-300 ease-out text-center whitespace-nowrap min-w-[280px]">
-          {toastMessage}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100000000] w-[90%] sm:max-w-md bg-white text-black px-5 py-4 rounded-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-neutral-200/80 text-center transition-all duration-300 ease-out animate-fade-in whitespace-normal break-words">
+          <div className="flex flex-col items-center justify-center gap-1.5">
+            <span className="text-[7.5px] text-neutral-400 tracking-[0.35em] font-light uppercase select-none font-mono">— System Dispatch —</span>
+            <p className="text-[10px] sm:text-[11px] leading-relaxed text-neutral-900 font-medium tracking-[0.15em] uppercase">
+              {toastMessage}
+            </p>
+          </div>
         </div>
       )}
     </AppContext.Provider>
