@@ -33,9 +33,9 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
 
-  // GUEST WISHLIST AUTH MODAL STATES
-  const [showWishlistAuthModal, setShowWishlistAuthModal] = useState(false);
-  const [pendingWishlistProduct, setPendingWishlistProduct] = useState(null);
+  // GUEST AUTH MODAL STATES (For Cart & Wishlist)
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // { type: 'cart' | 'wishlist', product: object }
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -64,12 +64,9 @@ export default function ShopCatalog() {
   const hasUnreadSupport = appContext.hasUnreadSupport || false;
   const showToast = appContext.showToast || ((msg) => console.log(msg));
 
+  // Quick View States
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
-
-  const [inlineAddId, setInlineAddId] = useState(null);
-  const [inlineSize, setInlineSize] = useState('M');
-  const [inlineQty, setInlineQty] = useState(1);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -138,32 +135,39 @@ export default function ShopCatalog() {
     try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) {}
   };
 
-  const handleInlineAdd = (e, product) => {
+  // NEW: Streamlined Add To Cart Logic
+  const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart(product, inlineQty, inlineSize);
-    setTimeout(() => setIsCartOpen(true), 10);
-    setInlineAddId(null);
-    setInlineQty(1);
-    setInlineSize('M');
+    
+    const localUser = localStorage.getItem('sikamore_user_profile');
+    if (userSession || localUser) {
+      // User is logged in. Add to cart instantly, DO NOT open drawer.
+      addToCart(product, 1, 'M'); // Defaulting to 1 quantity, Size M for instant add.
+      showToast('Added to your bag.');
+    } else {
+      // User is not logged in. Pop up the Auth Modal.
+      setPendingAction({ type: 'cart', product });
+      setShowAuthModal(true);
+    }
   };
 
   const handleWishlistClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
-    const localUser = localStorage.getItem('sikamore_user_profile');
     
+    const localUser = localStorage.getItem('sikamore_user_profile');
     if (userSession || localUser) {
       toggleWishlist(product);
       const isCurrentlyInWishlist = wishlist.some(w => w.id === product.id);
       showToast(isCurrentlyInWishlist ? 'Removed from your wishlist.' : 'Added to your beautifully curated wishlist.');
     } else {
-      setPendingWishlistProduct(product);
-      setShowWishlistAuthModal(true);
+      setPendingAction({ type: 'wishlist', product });
+      setShowAuthModal(true);
     }
   };
 
-  const handleGuestWishlistAuth = async (e) => {
+  const handleGuestAuth = async (e) => {
     e.preventDefault();
     if (!authEmail || !authPassword) return;
     setIsAuthenticating(true);
@@ -190,13 +194,21 @@ export default function ShopCatalog() {
           name: 'VALUED CLIENT'
         }));
 
-        if (pendingWishlistProduct) {
-          toggleWishlist(pendingWishlistProduct);
+        // Execute the pending action after successful login
+        if (pendingAction) {
+          if (pendingAction.type === 'wishlist') {
+            toggleWishlist(pendingAction.product);
+            showToast('Welcome! Your piece is safely stored in your wishlist.');
+          } else if (pendingAction.type === 'cart') {
+            addToCart(pendingAction.product, 1, 'M');
+            showToast('Welcome! Item added to your bag.');
+          }
         }
-        setShowWishlistAuthModal(false);
-        showToast('Welcome! Your piece is safely stored in your wishlist.');
+        
+        setShowAuthModal(false);
         setAuthEmail('');
         setAuthPassword('');
+        setPendingAction(null);
       }
     } catch (err) {
       showToast(`Oops, there was an issue: ${err.message}`);
@@ -267,6 +279,7 @@ export default function ShopCatalog() {
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
+            {/* ONLY THIS CART BUTTON OPENS THE DRAWER */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -330,22 +343,24 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* FIXED Z-INDEX: GUEST WISHLIST AUTHENTICATION MODAL */}
-      {showWishlistAuthModal && (
+      {/* FIXED Z-INDEX: GUEST AUTHENTICATION MODAL */}
+      {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
           <div className="bg-white text-black max-w-sm w-full p-8 shadow-2xl relative">
-            <button onClick={() => setShowWishlistAuthModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-black">
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-black">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="text-center mb-6">
-              <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif mb-2">Welcome to Your Wishlist</h2>
-              <p className="text-[10px] tracking-widest uppercase text-zinc-500 leading-relaxed">Create or connect your profile to save your favorite pieces for later.</p>
+              <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif mb-2">Account Required</h2>
+              <p className="text-[10px] tracking-widest uppercase text-zinc-500 leading-relaxed">
+                Create or connect your profile to {pendingAction?.type === 'wishlist' ? 'save your favorite pieces' : 'add items to your bag'}.
+              </p>
             </div>
-            <form onSubmit={handleGuestWishlistAuth} className="space-y-4">
+            <form onSubmit={handleGuestAuth} className="space-y-4">
               <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="EMAIL ADDRESS" required className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base uppercase tracking-widest" />
               <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder="PASSWORD" required className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base uppercase tracking-widest" />
               <button type="submit" disabled={isAuthenticating} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.25em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50 mt-2">
-                {isAuthenticating ? 'CONNECTING...' : 'SAVE MY WISHLIST'}
+                {isAuthenticating ? 'CONNECTING...' : 'LOGIN OR CREATE ACCOUNT'}
               </button>
             </form>
           </div>
@@ -390,7 +405,21 @@ export default function ShopCatalog() {
                       <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
                     </div>
                   </div>
-                  <button onClick={() => { addToCart(quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
+                  
+                  {/* Inside Quick View - Standard Add to Cart doesn't open drawer, just updates header */}
+                  <button onClick={(e) => { 
+                      const localUser = localStorage.getItem('sikamore_user_profile');
+                      if (userSession || localUser) {
+                        addToCart(quickViewProduct, qty, selectedSize); 
+                        setQuickViewProduct(null);
+                        showToast('Added to your bag.');
+                      } else {
+                        setPendingAction({ type: 'cart', product: quickViewProduct });
+                        setShowAuthModal(true);
+                      }
+                    }} 
+                    className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
+                  >
                     Add to Bag • ₦{(quickViewProduct.price * qty).toLocaleString()}
                   </button>
                 </div>
@@ -452,7 +481,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* --- FULL-SCREEN DYNAMIC SEARCH MODAL WITH LIVE HOVERS --- */}
+      {/* --- FULL-SCREEN DYNAMIC SEARCH MODAL --- */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 999999 }}>
           
@@ -507,7 +536,7 @@ export default function ShopCatalog() {
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                           
                           <div 
-                            className="absolute inset-0 z-0 cursor-pointer"
+                            className="absolute inset-0 z-10 cursor-pointer"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -521,14 +550,10 @@ export default function ShopCatalog() {
                             {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" />}
                           </div>
 
-                          {/* WISHLIST BUTTON (TOP RIGHT) */}
+                          {/* WISHLIST BUTTON */}
                           <button 
                             type="button"
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              handleWishlistClick(e, product); 
-                            }} 
+                            onClick={(e) => handleWishlistClick(e, product)} 
                             className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                           >
                             <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
@@ -536,56 +561,33 @@ export default function ShopCatalog() {
                             </svg>
                           </button>
 
-                          {/* INLINE SIZES/QTY OVERLAY */}
-                          <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
-                            <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
-                            <div className="flex gap-1.5 mb-4">
-                              {['S', 'M', 'L'].map(s => (
-                                <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
-                              ))}
-                            </div>
-                            <div className="flex items-center border border-zinc-200 mb-4 w-full max-w-[100px]">
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">-</button>
-                              <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
-                            </div>
-                            <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
+                          {/* FIXED STACKED ACTION BUTTONS */}
+                          <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
+                            <button 
+                              type="button"
+                              onClick={(e) => handleCartClick(e, product)}
+                              disabled={product.is_sold_out}
+                              className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Add to Cart
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                e.stopPropagation(); 
+                                setIsSearchOpen(false); 
+                                setSearchQuery(''); 
+                                openQuickView(product); 
+                              }}
+                              className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
+                            >
+                              View Product
+                            </button>
                           </div>
 
-                          {/* STACKED ACTION BUTTONS (BOTTOM CENTER) */}
-                          {inlineAddId !== product.id && (
-                            <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-20 pointer-events-none">
-                              <button 
-                                type="button"
-                                onClick={(e) => { 
-                                  e.preventDefault(); 
-                                  e.stopPropagation(); 
-                                  if (!product.is_sold_out) setInlineAddId(product.id); 
-                                }}
-                                disabled={product.is_sold_out}
-                                className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all ${product.is_sold_out ? 'opacity-50' : ''}`}
-                              >
-                                Add to Cart
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={(e) => { 
-                                  e.preventDefault(); 
-                                  e.stopPropagation(); 
-                                  setIsSearchOpen(false); 
-                                  setSearchQuery(''); 
-                                  openQuickView(product); 
-                                }}
-                                className="pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all"
-                              >
-                                View Product
-                              </button>
-                            </div>
-                          )}
-
                           {product.is_sold_out && (
-                            <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
+                            <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
                           )}
                         </div>
                         
@@ -603,7 +605,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER */}
+      {/* SLIDING MINI BAG CAROUSEL DRAWER - ONLY OPENS ON CART ICON CLICK */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -704,18 +706,14 @@ export default function ShopCatalog() {
                   <div key={product.id} className="flex gap-4 sm:gap-6 bg-white p-3 border border-zinc-100 items-center relative group">
                     <div className="w-28 sm:w-36 aspect-[3/4] shrink-0 overflow-hidden relative bg-zinc-50 rounded-sm border border-zinc-100">
                       
-                      <div className="absolute inset-0 z-0 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}>
+                      <div className="absolute inset-0 z-10 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}>
                         {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover" />}
                       </div>
 
-                      {/* WISHLIST BUTTON (TOP RIGHT) */}
+                      {/* WISHLIST BUTTON */}
                       <button 
                         type="button"
-                        onClick={(e) => { 
-                          e.preventDefault(); 
-                          e.stopPropagation(); 
-                          handleWishlistClick(e, product); 
-                        }} 
+                        onClick={(e) => handleWishlistClick(e, product)} 
                         className="absolute top-2 right-2 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                       >
                         <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
@@ -724,7 +722,7 @@ export default function ShopCatalog() {
                       </button>
 
                       {product.is_sold_out && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none z-10"><span className="text-[7px] tracking-widest text-zinc-300 uppercase bg-black/80 px-2 py-1 rounded-sm">Sold Out</span></div>
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none z-20"><span className="text-[7px] tracking-widest text-zinc-300 uppercase bg-black/80 px-2 py-1 rounded-sm">Sold Out</span></div>
                       )}
                     </div>
                     
@@ -733,27 +731,8 @@ export default function ShopCatalog() {
                       <p className="text-[11px] sm:text-[12px] font-normal tracking-wider text-zinc-500">₦{Number(product.price).toLocaleString()}</p>
                       
                       <div className="flex items-center gap-2 pt-1">
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} disabled={product.is_sold_out} className="px-4 py-2 border border-zinc-200 bg-white hover:bg-black hover:text-white text-black transition-colors duration-300 rounded-sm disabled:opacity-30 tracking-[0.2em] text-[8px] sm:text-[9px] uppercase font-medium whitespace-nowrap">Add To Bag</button>
+                        <button onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className="px-4 py-2 border border-zinc-200 bg-white hover:bg-black hover:text-white text-black transition-colors duration-300 rounded-sm disabled:opacity-30 tracking-[0.2em] text-[8px] sm:text-[9px] uppercase font-medium whitespace-nowrap">Add To Bag</button>
                       </div>
-
-                      {inlineAddId === product.id && (
-                        <div className="absolute inset-0 bg-white border border-zinc-200 p-4 z-40 text-black rounded-sm flex flex-col justify-center animate-fade-in pointer-events-auto">
-                           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-2 right-2 text-zinc-400 hover:text-black">✕</button>
-                           <div className="flex gap-2 mb-3">
-                              {['S', 'M', 'L'].map(s => (
-                                <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
-                              ))}
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <div className="flex items-center border border-zinc-200 w-[80px]">
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 hover:bg-zinc-50">-</button>
-                                <span className="flex-1 text-center text-[10px]">{inlineQty}</span>
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 hover:bg-zinc-50">+</button>
-                              </div>
-                              <button onClick={(e) => handleInlineAdd(e, product)} className="bg-black text-white px-4 py-2 text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium">Add to Bag</button>
-                           </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -766,7 +745,7 @@ export default function ShopCatalog() {
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
                     <div 
-                      className="absolute inset-0 z-0 cursor-pointer"
+                      className="absolute inset-0 z-10 cursor-pointer"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -776,14 +755,10 @@ export default function ShopCatalog() {
                       {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" />}
                     </div>
                     
-                    {/* WISHLIST BUTTON (TOP RIGHT) */}
+                    {/* WISHLIST BUTTON */}
                     <button 
                       type="button"
-                      onClick={(e) => { 
-                        e.preventDefault(); 
-                        e.stopPropagation(); 
-                        handleWishlistClick(e, product); 
-                      }} 
+                      onClick={(e) => handleWishlistClick(e, product)} 
                       className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                     >
                       <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
@@ -791,55 +766,32 @@ export default function ShopCatalog() {
                       </svg>
                     </button>
 
-                    {/* INLINE SIZES/QTY OVERLAY */}
-                    <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
-                      <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
-                      <div className="flex gap-1.5 mb-4">
-                        {['S', 'M', 'L'].map(s => (
-                          <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
-                        ))}
-                      </div>
-                      <div className="flex items-center border border-zinc-200 mb-4 w-full max-w-[100px]">
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">-</button>
-                        <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
-                      </div>
-                      <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
+                    {/* FIXED STACKED ACTION BUTTONS */}
+                    <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
+                      <button 
+                        type="button"
+                        onClick={(e) => handleCartClick(e, product)}
+                        disabled={product.is_sold_out}
+                        className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Add to Cart
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          openQuickView(product); 
+                        }}
+                        className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
+                      >
+                        View Product
+                      </button>
                     </div>
-
-                    {/* STACKED ACTION BUTTONS (BOTTOM CENTER) */}
-                    {inlineAddId !== product.id && (
-                      <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-20 pointer-events-none">
-                        <button 
-                          type="button"
-                          onClick={(e) => { 
-                            e.preventDefault(); 
-                            e.stopPropagation(); 
-                            if (!product.is_sold_out) setInlineAddId(product.id); 
-                          }}
-                          disabled={product.is_sold_out}
-                          className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all ${product.is_sold_out ? 'opacity-50' : ''}`}
-                        >
-                          Add to Cart
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={(e) => { 
-                            e.preventDefault(); 
-                            e.stopPropagation(); 
-                            openQuickView(product); 
-                          }}
-                          className="pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all"
-                        >
-                          View Product
-                        </button>
-                      </div>
-                    )}
 
                     {/* SOLD OUT LAYER */}
                     {product.is_sold_out && (
-                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
+                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
                     )}
                   </div>
 
