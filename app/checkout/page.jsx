@@ -38,13 +38,6 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // Soft fallback check to reroute user empty checkout interactions
-  useEffect(() => {
-    if (cart.length === 0 && !isSuccess) {
-      showToast("YOUR SHOPPING BAG IS VACANT.");
-    }
-  }, [cart, isSuccess, showToast]);
-
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFee = deliveryInfo ? deliveryInfo.fee : 0;
   const totalAmount = cartSubtotal + shippingFee;
@@ -62,7 +55,7 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // 1. Log Transaction Into Supabase Orders Table (Letting Supabase generate the strict UUID automatically)
+      // Let Supabase auto-generate the strict UUID to prevent schema validation crashes
       const { data: orderData, error: dbError } = await supabase.from('orders').insert([
         {
           customer_name: customerName.toUpperCase(),
@@ -81,7 +74,7 @@ export default function CheckoutPage() {
       const fullOrderId = orderData.id;
       const orderRefStamp = fullOrderId.slice(0, 8).toUpperCase();
 
-      // 2. Format Items HTML string for email loops
+      // Format Items HTML string for email loops
       const orderItemsHtml = cart.map(i => `
         <tr>
           <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #E5E5E5; text-transform: uppercase;">${i.name.toUpperCase()} (${i.size}) x${i.quantity}</td>
@@ -89,7 +82,7 @@ export default function CheckoutPage() {
         </tr>
       `).join('');
 
-      // 3. Build Monochrome Luxury HTML Email Template
+      // Build Monochrome Luxury HTML Email Template
       const buildEmailPayload = (statusHeader, statusMessage, isManagementLink = false) => `
         <!DOCTYPE html><html><head><meta charset="utf-8"></head>
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
@@ -123,7 +116,7 @@ export default function CheckoutPage() {
         </body></html>
       `;
 
-      // 4. Concurrent Dispatch: Trigger emails simultaneously to prevent gateway lag
+      // Concurrent Dispatch: Trigger emails simultaneously to prevent gateway lag
       await Promise.all([
         // Internal Team Notification
         fetch('/api/send', {
@@ -151,7 +144,7 @@ export default function CheckoutPage() {
         })
       ]).catch(e => console.error("Parallel pipeline delay handler:", e));
 
-      // 5. Clean Workspace Environment States
+      // Clean Workspace Environment States
       localStorage.removeItem('sikamore_delivery');
       setGeneratedOrderId(orderRefStamp);
       setIsSuccess(true);
