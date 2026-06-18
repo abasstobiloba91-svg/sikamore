@@ -183,14 +183,15 @@ export default function ShopCatalog() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
-  // FIXED: MICRO-TIMEOUT PREVENTS REACT FROM LOCKING UP THE IOS MAIN THREAD ON TOUCH
-const openQuickView = (product) => {
+  // FIXED: Removed setTimeout. Button now opens the modal instantly.
+  const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
     setQuickViewProduct(product);
   };
+
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -225,6 +226,7 @@ const openQuickView = (product) => {
     }
   };
 
+  // 100% FREE OPEN-SOURCE DISTANCE & ROUTING MATRIX CALCULATOR (OSM / OSRM)
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER A DELIVERY ADDRESS.");
     
@@ -235,6 +237,7 @@ const openQuickView = (product) => {
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
+      // 1. Gated Rule Layer: Immediate Flat-Rate Exclusion Outside Nigeria
       if (detectedCountryCode !== 'NG') {
         const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
@@ -252,6 +255,7 @@ const openQuickView = (product) => {
 
       showToast("SCANNING HIGHWAY NETWORKS...");
 
+      // 2. OpenStreetMap Free Nominatim Geocoding Request
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
@@ -264,6 +268,7 @@ const openQuickView = (product) => {
       const destLat = parseFloat(geoData.lat);
       const placeName = geoData.display_name;
 
+      // 3. Open-Source Routing Machine (OSRM) Free Traffic & Distance Lookup
       const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
       const routeRes = await fetch(routeUrl);
       const routeData = await routeRes.json();
@@ -275,9 +280,10 @@ const openQuickView = (product) => {
       const distanceKm = routeData.routes.distance / 1000; 
       const durationMins = routeData.routes.duration / 60; 
 
+      // 4. Logistics Cost Calibration (Change base/minute scales to match your business metrics)
       const BASE_FARE = 2500; 
       const PRICE_PER_KM = 180; 
-      const PRICE_PER_MINUTE = 60; 
+      const PRICE_PER_MINUTE = 60; // Estimates transit time expenses
       
       finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
 
@@ -377,11 +383,11 @@ const openQuickView = (product) => {
         </div>
       </header>
 
-      {/* SINGLE-STAGE NEWSLETTER POPUP MODAL - MEMORY SAFE */}
+      {/* SINGLE-STAGE NEWSLETTER POPUP MODAL */}
       {showNewsletter && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
-            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white p-1.5 rounded-full shadow-md transition-colors">
+            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             
@@ -419,7 +425,7 @@ const openQuickView = (product) => {
         </div>
       )}
 
-      {/* DETAILED PRODUCT OVERLAY MODAL - SAFARI CRASH PROOF */}
+      {/* DETAILED PRODUCT OVERLAY MODAL - FIXED MOBILE CRASHES */}
       {quickViewProduct && (
         <div className="fixed inset-0 z- bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -430,10 +436,13 @@ const openQuickView = (product) => {
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 h-[400px] md:h-auto relative">
+                {/* FIXED: decoding="async" prevents high-res image decoding from crashing mobile GPU */}
                 {quickViewProduct.image && (
                   <img 
                     src={quickViewProduct.image} 
                     alt="Preview" 
+                    decoding="async"
+                    loading="lazy"
                     onError={(e) => { e.currentTarget.style.opacity = 0; }}
                     className="absolute inset-0 w-full h-full object-cover" 
                   /> 
@@ -756,16 +765,15 @@ const openQuickView = (product) => {
         )}
       </main>
 
-      {/* FIXED: HIGH-RESPONSIVE COMPACT PILL FOR NARROW MOBILE SCREENS */}
+      {/* FIXED: AGGRESSIVELY CONDENSED TEXT FOR FLAWLESS MOBILE PILL */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
-          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 pr-1.5 sm:pr-2 border border-zinc-800">
-            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
-              <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
+          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
+            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[9px] sm:text-[10px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
+              <span>{cartItemCount} <span className="hidden sm:inline">ITEM{cartItemCount !== 1 && 'S'}</span></span>
               <span className="text-zinc-600">|</span>
               <span>{formatPrice(cartSubtotal)}</span>
             </div>
-            {/* ONLY THIS BUTTON TRIGGERS THE DRAWER */}
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors shrink-0 ml-2">
               View Bag
             </button>
