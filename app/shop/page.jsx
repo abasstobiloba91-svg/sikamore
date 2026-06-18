@@ -183,7 +183,6 @@ export default function ShopCatalog() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
-  // FIXED: Standard touch screen open initialization
   const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
@@ -228,7 +227,7 @@ export default function ShopCatalog() {
 
   // 100% FREE OPEN-SOURCE DISTANCE & ROUTING MATRIX CALCULATOR (OSM / OSRM)
   const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER A DELIVERY ADDRESS.");
+    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
     
     setIsCalculating(true);
     
@@ -260,8 +259,9 @@ export default function ShopCatalog() {
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
       
+      // FIXED: Personalized explicit landmark/bus stop prompt if the geocoding canvas yields zero matches
       if (!geoData || geoData.length === 0) {
-        throw new Error("Location layout not detected on local grid.");
+        throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
       }
 
       const destLon = parseFloat(geoData[0].lon);
@@ -274,7 +274,7 @@ export default function ShopCatalog() {
       const routeData = await routeRes.json();
 
       if (!routeData.routes || routeData.routes.length === 0) {
-        throw new Error("No navigable roadways found to this location.");
+        throw new Error("No navigable roadways found to this destination.");
       }
 
       const distanceKm = routeData.routes[0].distance / 1000; 
@@ -301,7 +301,7 @@ export default function ShopCatalog() {
       showToast(`Route Calculated: ${Math.round(distanceKm)}km layout validated.`);
 
     } catch (err) {
-      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR CITY OR REGION CLEANLY.");
+      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
       setDeliveryFee(0);
       setDeliveryZone('');
     } finally {
@@ -425,9 +425,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* DETAILED PRODUCT OVERLAY MODAL - PROOFED AGAINST INVISIBILITY & COLLAPSE */}
+      {/* DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-[9999999] bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in text-black">
+        <div className="fixed inset-0 z-[9999999] bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
             
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
@@ -435,7 +435,6 @@ export default function ShopCatalog() {
             </button>
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
-              {/* FIXED: Enforced structured ratio parameters so the canvas framework never collapses to 0 height */}
               <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative">
                 {quickViewProduct.image && (
                   <img 
@@ -613,9 +612,17 @@ export default function ShopCatalog() {
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             <div className="mb-6 border-b border-zinc-800 pb-5">
-              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Real-Time Route Expenses (OSM Network)</label>
+              
+              {/* FIXED: Placeholder explicit instructions to match InDrive landmarks lookup */}
+              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
               <div className="flex gap-2">
-                <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="ENTER FULL DESTINATION ADDRESS..." className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-700 transition-colors" />
+                <input 
+                  type="text" 
+                  value={deliveryAddress} 
+                  onChange={(e) => setDeliveryAddress(e.target.value)} 
+                  placeholder="ENTER NEAREST BUS STOP OR LANDMARK..." 
+                  className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" 
+                />
                 <button onClick={calculateLiveDelivery} disabled={isCalculating} className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50">{isCalculating ? 'WAIT...' : 'CALCULATE'}</button>
               </div>
             </div>
@@ -640,7 +647,7 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
 
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -654,7 +661,7 @@ export default function ShopCatalog() {
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" style={{ zIndex: 999998 }} onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsMenuOpen(false)}></div>}
 
       <section className="bg-white border-b border-zinc-200 relative" style={{ zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
@@ -764,11 +771,11 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FIXED: AGGRESSIVELY CONDENSED TEXT FOR FLAWLESS MOBILE PILL */}
+      {/* FIXED: HIGH-RESPONSIVE COMPACT PILL FOR NARROW MOBILE SCREENS */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
-            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[9px] sm:text-[10px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
+            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
               <span className="text-zinc-600">|</span>
               <span>{formatPrice(cartSubtotal)}</span>
