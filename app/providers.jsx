@@ -82,7 +82,7 @@ export function AppProvider({ children }) {
     }}>
       {children}
       {toastMessage && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z- bg-[#0A0A0A] text-white px-6 py-3 text-[10px] tracking-[0.2em] uppercase font-medium shadow-2xl border border-zinc-800 animate-fade-in-up whitespace-nowrap">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[99999999] bg-white text-black px-6 py-3.5 text-[10px] tracking-[0.25em] uppercase font-bold shadow-2xl border border-zinc-200 transition-all duration-300 ease-out text-center whitespace-nowrap min-w-[280px]">
           {toastMessage}
         </div>
       )}
