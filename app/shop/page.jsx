@@ -39,6 +39,12 @@ export default function ShopCatalog() {
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
+  // REAL-TIME DISPATCH CALCULATOR STATE
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [deliveryZone, setDeliveryZone] = useState('');
+
   const [tickerIndex, setTickerIndex] = useState(0);
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -119,6 +125,7 @@ export default function ShopCatalog() {
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
+  const grandTotal = cartSubtotal + deliveryFee;
 
   const openQuickView = async (product) => {
     setQty(1);
@@ -133,11 +140,8 @@ export default function ShopCatalog() {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
-    
-    // Force drawer closed in case your global provider auto-opens it
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50);
-
     showToast('Added to your bag.');
   };
 
@@ -171,6 +175,53 @@ export default function ShopCatalog() {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
 
+  // AUTOMATED REAL-TIME DISPATCH CALCULATOR FUNCTION
+  const calculateLiveDelivery = async () => {
+    if (!deliveryAddress.trim()) return showToast("Please enter a destination address first.");
+    
+    setIsCalculating(true);
+    
+    try {
+      // In production, this fetch connects to your Next.js API route 
+      // which securely calls the Google Maps Distance Matrix API.
+      // e.g., const res = await fetch(`/api/calculate-dispatch?destination=${deliveryAddress}`);
+      // const data = await res.json();
+      
+      // Simulating the API response delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Simulated Smart Zonal Logic
+      const lowerAddress = deliveryAddress.toLowerCase();
+      let fee = 10000; // Default Nationwide Rate
+      let zone = "Nationwide Dispatch";
+
+      if (lowerAddress.includes('lagos')) {
+        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('vi') || lowerAddress.includes('victoria island')) {
+          fee = 3000;
+          zone = "Lagos (Island Zone)";
+        } else {
+          fee = 4500;
+          zone = "Lagos (Mainland Zone)";
+        }
+      } else if (lowerAddress.includes('abuja')) {
+        fee = 8000;
+        zone = "Abuja FCT";
+      } else if (lowerAddress.includes('port harcourt') || lowerAddress.includes('rivers')) {
+        fee = 8500;
+        zone = "Rivers State";
+      }
+
+      setDeliveryFee(fee);
+      setDeliveryZone(zone);
+      showToast(`Calculated: ${zone}`);
+      
+    } catch (err) {
+      showToast("Error calculating dispatch. Please try again.");
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   const productTabs = [
     { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
     { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
@@ -199,7 +250,6 @@ export default function ShopCatalog() {
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
-            {/* MOVED SEARCH ICON TO THE LEFT */}
             <button onClick={() => setIsSearchOpen(true)} className="hover:text-zinc-500 transition-colors p-1">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </button>
@@ -223,7 +273,6 @@ export default function ShopCatalog() {
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
-            {/* ONLY THIS BUTTON OPENS THE CART DRAWER */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -252,7 +301,6 @@ export default function ShopCatalog() {
                   Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.
                 </p>
                 <form onSubmit={handlePopupSubscription} className="space-y-4">
-                  {/* TEXT-BASE PREVENTS IOS ZOOM ON MOBILE */}
                   <input 
                     type="email" 
                     value={subscriberEmail}
@@ -312,11 +360,6 @@ export default function ShopCatalog() {
                   
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
-                      
-                      // Prevent auto-open drawer
-                      setIsCartOpen(false);
-                      setTimeout(() => setIsCartOpen(false), 50);
-
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -327,7 +370,7 @@ export default function ShopCatalog() {
                 </div>
               </div>
 
-              {/* 4-TAB LUXURY EXPANDABLE ACCORDION (FULLY IMPLEMENTED) */}
+              {/* 4-TAB LUXURY EXPANDABLE ACCORDION */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
                 {productTabs.map((tab) => (
                   <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
@@ -367,7 +410,7 @@ export default function ShopCatalog() {
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full outline-none text-base sm:text-2xl text-black uppercase tracking-widest bg-transparent placeholder-zinc-300 font-light"
+                className="w-full outline-none text-base md:text-2xl text-black uppercase tracking-widest bg-transparent placeholder-zinc-300 font-light"
                 placeholder="WHAT ARE YOU LOOKING FOR TODAY?..."
               />
               {searchQuery && (
@@ -470,8 +513,8 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
+      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH AUTOMATED DISPATCH */}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -506,12 +549,53 @@ export default function ShopCatalog() {
             ))
           )}
         </div>
+        
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
-            <div className="flex justify-between mb-6 text-xs uppercase tracking-widest">
-              <span className="text-zinc-500">Subtotal:</span>
-              <span className="font-medium text-white">₦{cartSubtotal.toLocaleString()}</span>
+            
+            {/* AUTOMATED REAL-TIME DISPATCH CALCULATOR */}
+            <div className="mb-6 border-b border-zinc-800 pb-5">
+              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">
+                Calculate Dispatch Rate
+              </label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="ENTER FULL DESTINATION ADDRESS" 
+                  className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-700 transition-colors"
+                />
+                <button 
+                  onClick={calculateLiveDelivery} 
+                  disabled={isCalculating}
+                  className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50"
+                >
+                  {isCalculating ? 'WAIT...' : 'CALCULATE'}
+                </button>
+              </div>
             </div>
+
+            {/* ORDER SUMMARY */}
+            <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
+              <div className="flex justify-between text-zinc-500">
+                <span>Subtotal:</span>
+                <span>₦{cartSubtotal.toLocaleString()}</span>
+              </div>
+              
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]">
+                  <span>Dispatch ({deliveryZone}):</span>
+                  <span>₦{deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]">
+                <span>Total:</span>
+                <span>₦{grandTotal.toLocaleString()}</span>
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
                 Keep Shopping
@@ -592,7 +676,7 @@ export default function ShopCatalog() {
                       </svg>
                     </button>
 
-                    {/* DESKTOP HOVER OVERLAY BUTTONS (Hidden on mobile) */}
+                    {/* DESKTOP HOVER OVERLAY BUTTONS */}
                     <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
                       <button 
                         type="button"
@@ -620,7 +704,7 @@ export default function ShopCatalog() {
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                     <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
                     
-                    {/* MOBILE STATIC BUTTONS (Hidden on Desktop, properly placed underneath the product text) */}
+                    {/* MOBILE STATIC BUTTONS */}
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
                       <button 
                         type="button"
