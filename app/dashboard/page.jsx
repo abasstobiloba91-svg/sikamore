@@ -37,7 +37,6 @@ export default function Dashboard() {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState('');
 
-  // SECURE AUTHENTICATION BRIDGE LOAD
   useEffect(() => {
     async function fetchSecureSession() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -61,7 +60,6 @@ export default function Dashboard() {
     fetchSecureSession();
   }, []);
 
-  // SMART URL ROUTING
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -91,11 +89,9 @@ export default function Dashboard() {
     loadClientData();
   }, [userProfile, activeTab]);
 
-  // SUPABASE REAL-TIME WEBSOCKETS HUB 
   useEffect(() => {
     if (!userProfile) return;
     
-    // Channel 1: Support Tickets
     const messageSync = supabase.channel('realtime_support_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `email=eq.${userProfile.email}` }, (payload) => {
         setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
@@ -105,7 +101,6 @@ export default function Dashboard() {
         setTickets((prev) => [payload.new, ...prev]);
       }).subscribe();
 
-    // Channel 2: Live Order Tracking 
     const orderSync = supabase.channel('realtime_orders_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_email=eq.${userProfile.email}` }, (payload) => {
         setOrders((prev) => prev.map(o => o.id === payload.new.id ? payload.new : o));
@@ -165,7 +160,36 @@ export default function Dashboard() {
       
       if (error) throw error;
       
-      // EMAIL TRIGGER: ADMIN ALERT FOR NEW TICKET
+      // EMAIL TRIGGER: ADMIN ALERT ADAPTING THE INSET CARD BLUEPRINT OF IMAGE_3.PNG
+      const ticketHtmlPayload = `
+        <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+        <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
+            <tr><td align="center">
+              <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:45px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:15px; margin:0; color:#FFFFFF;">CONCIERGE ROUTING BAR</h2></td></tr>
+                <tr><td style="font-size:11px; color:#FFFFFF; padding:35px 0 10px 0; font-weight:bold; tracking:0.2em; text-align:center;">NEW SUPPORT CONVERSATION INITIALIZED</td></tr>
+                <tr><td style="font-size:9px; color:#525252; text-align:center; padding-bottom:30px; font-family:monospace;">TICKET MATCH ID: #${String(data.id).toUpperCase()}</td></tr>
+                
+                <tr>
+                  <td style="padding:24px; background-color:#111111; border:1px solid #1A1A1A; color:#E5E5E5; font-size:10px;">
+                    <span style="color:#525252; font-size:8px; font-weight:bold; tracking:0.2em; display:block; margin-bottom:8px;">CLIENT DETAILS</span>
+                    <strong>NAME:</strong> ${userProfile.name}<br/>
+                    <strong>EMAIL:</strong> ${userProfile.email}<br/>
+                    <strong>SUBJECT:</strong> ${newTicketSubject.toUpperCase()}
+                  </td>
+                </tr>
+                
+                <tr><td style="font-size:9px; color:#525252; tracking:0.2em; padding:30px 0 10px 0; font-weight:bold;">CLIENT FILE CONTEXT</td></tr>
+                <tr><td style="padding:24px; bg-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace; lowercase">${newTicketMessage}</td></tr>
+                
+                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">OPEN ATELIER INBOX</a></td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
+      `;
+
       fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,20 +198,7 @@ export default function Dashboard() {
           fromEmail: 'support@ssikamore.com',
           fromName: 'S. SIKAMÒRE CONCIERGE',
           subject: `SIKAMORE ALERT: NEW TICKET FROM ${userProfile.name.toUpperCase()}`,
-          html: `
-            <div style="font-family: sans-serif; padding: 20px;">
-              <h2 style="text-transform: uppercase; letter-spacing: 2px;">New Support File Logged</h2>
-              <p><strong>CLIENT:</strong> ${userProfile.name} (${userProfile.email})</p>
-              <p><strong>SUBJECT:</strong> ${newTicketSubject.toUpperCase()}</p>
-              <p><strong>TICKET ID:</strong> #${String(data.id).slice(0,8).toUpperCase()}</p>
-              <br/>
-              <p style="padding: 15px; background-color: #f4f4f5; border-left: 4px solid #000;">
-                ${newTicketMessage}
-              </p>
-              <br/>
-              <p><a href="https://ssikamore.com/admin" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Open Admin Console</a></p>
-            </div>
-          `
+          html: ticketHtmlPayload
         })
       }).catch(err => console.error("Email error:", err));
       
@@ -197,7 +208,6 @@ export default function Dashboard() {
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
       
       if (data) setActiveChat(data); 
-      
     } catch (err) { 
       showToast(`ERROR: ${err.message.toUpperCase()}`); 
     } finally { 
@@ -232,7 +242,34 @@ export default function Dashboard() {
         
       if (error) throw error;
       
-      // EMAIL TRIGGER: ADMIN ALERT FOR TICKET REPLY
+      // EMAIL TRIGGER: ADMIN ALERT FOR TICKET REPLY (IMAGE_3 INSET THEME)
+      const replyHtmlPayload = `
+        <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+        <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
+            <tr><td align="center">
+              <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:45px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:15px; margin:0; color:#FFFFFF;">CONCIERGE ROUTING BAR</h2></td></tr>
+                <tr><td style="font-size:11px; color:#FFFFFF; padding:35px 0 10px 0; font-weight:bold; tracking:0.2em; text-align:center;">CLIENT DISPATCHED NEW INBOX TRANSMISSION</td></tr>
+                <tr><td style="font-size:9px; color:#525252; text-align:center; padding-bottom:30px; font-family:monospace;">TICKET CONSOLE REF: #${String(activeChat.id).toUpperCase()}</td></tr>
+                
+                <tr>
+                  <td style="padding:20px; background-color:#111111; border:1px solid #1A1A1A; color:#E5E5E5; font-size:10px;">
+                    <span style="color:#525252; font-size:8px; font-weight:bold; tracking:0.2em; display:block; margin-bottom:5px;">SENDER ACCOUNT</span>
+                    ${userProfile.name} (${userProfile.email})
+                  </td>
+                </tr>
+                
+                <tr><td style="font-size:9px; color:#525252; tracking:0.2em; padding:30px 0 10px 0; font-weight:bold;">NEW INBOUND PHRASE</td></tr>
+                <tr><td style="padding:24px; bg-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0; font-family:monospace; lowercase">${replyText}</td></tr>
+                
+                <tr><td align="center" style="padding-top:40px;"><a href="https://ssikamore.com/admin" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block; rounded-sm">OPEN ATELIER INBOX</a></td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
+      `;
+
       fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -241,29 +278,16 @@ export default function Dashboard() {
           fromEmail: 'support@ssikamore.com',
           fromName: 'S. SIKAMÒRE CONCIERGE',
           subject: `SIKAMORE ALERT: REPLY FROM ${userProfile.name.toUpperCase()} (TICKET #${String(activeChat.id).slice(0,8).toUpperCase()})`,
-          html: `
-            <div style="font-family: sans-serif; padding: 20px;">
-              <h2 style="text-transform: uppercase; letter-spacing: 2px;">Client Replied to Ticket</h2>
-              <p><strong>CLIENT:</strong> ${userProfile.name} (${userProfile.email})</p>
-              <p><strong>TICKET ID:</strong> #${String(activeChat.id).slice(0,8).toUpperCase()}</p>
-              <br/>
-              <p style="padding: 15px; background-color: #f4f4f5; border-left: 4px solid #000;">
-                ${replyText}
-              </p>
-              <br/>
-              <p><a href="https://ssikamore.com/admin" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Open Admin Console</a></p>
-            </div>
-          `
+          html: replyHtmlPayload
         })
       }).catch(err => console.error("Email error:", err));
 
       if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'user', isTyping: false } });
       setReplyText('');
-      
       if (data) setActiveChat(data);
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } finally { setSendingReply(false); }
+    } loyal { setSendingReply(false); }
   };
 
   const handleSaveAddress = async () => {
@@ -521,7 +545,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- MODAL DIALOG LAYER: CREATE NEW TICKET TANK --- */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-[#0A0A0A] border border-zinc-800 text-white max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
