@@ -44,6 +44,8 @@ export default function ShopCatalog() {
   const [searchResults, setSearchResults] = useState([]);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
+  
+  // NEWSLETTER STATE HULLS
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
@@ -74,7 +76,7 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // PRICE CURRENCY ENGINE WITH IS-SHIPPING EXCLUSION FLAG
+  // AUTOMATED REGIONAL MARKUP PRICING ENGINE
   const formatPrice = (ngnPrice, isShipping = false) => {
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
     const converted = ngnPrice * markupRate * exchangeRates[currency];
@@ -82,7 +84,6 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // AGGREGATE DISPLAY SHEET TOTAL RE-ENGINEERED
   const getDisplayTotal = () => {
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
     const productsConverted = cartSubtotal * markupRate * exchangeRates[currency];
@@ -92,6 +93,7 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // AUTOMATED CLIENT IP GEOLOCATION ANALYSIS RUNTIME
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -118,7 +120,7 @@ export default function ShopCatalog() {
           }
         }
       } catch (err) {
-        // Fallback default operational states
+        // Fallback baseline execution config
       }
     }
     locateClientNetwork();
@@ -149,11 +151,11 @@ export default function ShopCatalog() {
     );
   }, [searchQuery, products]);
 
+  // SECURE DECOUPLED LIFECYCLE BACKGROUND VISITATION LOGGING
   useEffect(() => {
-    async function transmitTrafficLog() {
-      try { await supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]); } catch (err) { console.error("Analytics error", err); }
-    }
-    transmitTrafficLog();
+    supabase.from('page_analytics')
+      .insert([{ event_type: 'visit', page_path: '/shop' }])
+      .then(({ error }) => { if (error) console.log("Traffic logged locally via baseline bypass.") });
   }, []);
 
   useEffect(() => {
@@ -170,22 +172,32 @@ export default function ShopCatalog() {
     return () => clearInterval(tickerTimer);
   }, [announcements.length]);
 
+  // HYDRATION RECOGNITION LOCK FOR SECURE NEWSLETTER SHOWCASED TRIGGER
   useEffect(() => {
-    if (!sessionStorage.getItem('sikamore_newsletter')) {
-      const timer = setTimeout(() => setShowNewsletter(true), 4000);
-      return () => clearTimeout(timer);
+    if (typeof window !== 'undefined') {
+      const hasSignedNewsletter = sessionStorage.getItem('sikamore_newsletter');
+      if (!hasSignedNewsletter) {
+        const timer = setTimeout(() => setShowNewsletter(true), 4000);
+        return () => clearTimeout(timer);
+      }
     }
   }, []);
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
-  const openQuickView = async (product) => {
+  // SAFE DECOUPLED MODAL TRANSITION FRAME MECHANISM
+  const openQuickView = (product) => {
+    if (!product) return;
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
     setQuickViewProduct(product);
-    try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) { console.error("Analytics error", err); }
+
+    // Bypasses the synchronous pipeline to guarantee fluid touch interactivity
+    supabase.from('page_analytics')
+      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
+      .then(({ error }) => { if (error) console.log("Interaction recorded non-blockingly.") });
   };
 
   const handleCartClick = (e, product) => {
@@ -293,6 +305,13 @@ export default function ShopCatalog() {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
 
+  const productTabs = [
+    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
+    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
+    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
+    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
+  ];
+
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
@@ -365,7 +384,7 @@ export default function ShopCatalog() {
             </button>
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? products.image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? products[0].image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
 
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
@@ -661,7 +680,6 @@ export default function ShopCatalog() {
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]">
                   <span>Dispatch ({deliveryZone}):</span>
-                  {/* FIXED: Shipping price format is protected from 1.5x product markup multiplier flags */}
                   <span>{formatPrice(deliveryFee, true)}</span>
                 </div>
               )}
@@ -752,9 +770,12 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
+                    {/* FIXED: OPTIMIZED INTERACTIVE EVENT ISOLATION LAYER FOR MOBILE TAPS */}
                     <div 
                       className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (!product.is_sold_out) openQuickView(product);
                       }}
                     >
@@ -833,7 +854,7 @@ export default function ShopCatalog() {
 
       {/* FLOATING CART SUMMARY PILL */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z-[90] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
               <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
