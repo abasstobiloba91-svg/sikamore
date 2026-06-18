@@ -326,6 +326,7 @@ export default function AdminDashboard() {
       if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
         const itemsHtml = orderData.items.map(i => `<tr><td style="padding:8px 0; border-bottom:1px solid #E5E7EB;">${i.name} (${i.size}) x${i.quantity}</td><td style="padding:8px 0; border-bottom:1px solid #E5E7EB; text-align:right;">₦${(i.price * i.quantity).toLocaleString()}</td></tr>`).join('');
         
+        // 1. ALERTING THE CLIENT
         if (orderData.customer_email) {
           let statusMessage = '';
           if (currentStatus === 'shipped') {
@@ -334,13 +335,37 @@ export default function AdminDashboard() {
             statusMessage = `<p style="font-size:14px; margin-bottom:20px; color:#000; font-weight:bold;">STATUS: DELIVERED</p><p style="font-size:12px; border-left:3px solid #000; padding-left:10px; margin-bottom:30px;">Your S. Sikamòre piece has arrived. We hope you enjoy your new acquisition.</p>`;
           }
           const htmlTemplate = `<div style="font-family:sans-serif; background:#FFF; color:#000; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6; border: 1px solid #E5E7EB;"><h1 style="font-size:18px; letter-spacing:0.3em; margin-bottom:30px;">S. SIKAMÒRE CONCIERGE</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p>${statusMessage}<table style="width:100%; font-size:10px; margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></div>`;
-          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: orderData.customer_email, subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, html: htmlTemplate }) });
+          
+          await fetch('/api/send', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+              to: orderData.customer_email, 
+              fromEmail: 'shipping@ssikamore.com',
+              fromName: 'S. SIKAMÒRE LOGISTICS',
+              subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, 
+              html: htmlTemplate 
+            }) 
+          });
         }
 
+        // 2. ALERTING THE WAREHOUSE/SHIPPING TEAM
         if (currentStatus === 'shipped') {
           const vendorHtml = `<div style="font-family:sans-serif; background:#FFFFFF; color:#000; border: 1px solid #E5E7EB; padding:40px; text-transform:uppercase; letter-spacing:0.1em; line-height:1.6;"><h1 style="font-size:18px; letter-spacing:0.3em; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom:30px;">ATELIER DISPATCH ALERT</h1><p style="font-size:12px; color:#666;">ORDER REFERENCE: #${orderId.slice(0,8).toUpperCase()}</p><p style="font-size:14px; margin-bottom:20px; font-weight:bold;">A PIECE FROM YOUR COLLECTION HAS BEEN LOGGED FOR DISPATCH.</p><p style="font-size:12px; padding-left:10px; border-left: 2px solid #000;">DESTINATION: ${orderData.shipping_address || 'N/A'}</p><table style="width:100%; font-size:10px; margin-top:30px; border-collapse:collapse;">${itemsHtml}</table></div>`;
-          await fetch('/api/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'comms@arclightsfoundation.com', subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, html: vendorHtml }) });
-          showToast('CLIENT & VENDOR AUTOMATICALLY NOTIFIED VIA EMAIL.');
+          
+          await fetch('/api/send', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+              to: 'shipping@ssikamore.com', 
+              fromEmail: 'shipping@ssikamore.com',
+              fromName: 'S. SIKAMÒRE AUTOMATION',
+              subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, 
+              html: vendorHtml 
+            }) 
+          });
+          
+          showToast('CLIENT & TEAM AUTOMATICALLY NOTIFIED VIA EMAIL.');
         } else {
           showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
         }
