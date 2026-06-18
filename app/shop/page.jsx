@@ -824,39 +824,49 @@ export default function ShopCatalog() {
                       <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                     </div>
 
-                    {/* 5. BAG BUTTON (BOTTOM CENTER) */}
-                    {inlineAddId !== product.id && (
-                      <div className="absolute inset-x-0 bottom-4 md:bottom-6 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
-                        <button 
-                          type="button"
-                          onClick={(e) => { 
-                            e.preventDefault(); 
-                            e.stopPropagation(); 
-                            if (!product.is_sold_out) setInlineAddId(product.id); 
-                          }}
-                          className={`flex items-center justify-center bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-14 rounded-sm border border-zinc-100 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
-                        >
-                          <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
-                        </button>
-                      </div>
-                    )}
+  {/* 5. BAG BUTTON (BOTTOM CENTER) */}
+                  {inlineAddId !== product.id && (
+                    <div className="absolute inset-x-0 bottom-4 md:bottom-6 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
+                      <button 
+                        type="button"
+                        onPointerDown={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+                          if (!product.is_sold_out) setInlineAddId(product.id); 
+                        }}
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                        }}
+                        className={`flex items-center justify-center bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-14 rounded-sm border border-zinc-100 hover:bg-zinc-50 active:bg-zinc-100 active:scale-95 transition-all text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
+                      >
+                        <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+                      </button>
+                    </div>
+                  )}
 
-                    {/* 6. SOLD OUT LAYER (Z-10) */}
-                    {product.is_sold_out && (
-                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 mt-3 text-center pb-1 px-1 bg-white">
-                    <h3 className="text-[8px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-500 truncate">{product.name}</h3>
-                    <p className="text-[9px] sm:text-[11px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
-                  </div>
+                  {/* 6. SOLD OUT LAYER (Z-10) */}
+                  {product.is_sold_out && (
+                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
+
+                {/* PRODUCT INFO */}
+                <div className="flex flex-col gap-0.5 mt-3 text-center pb-1 px-1 bg-white">
+                  <h3 className="text-[8px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-500 truncate">{product.name}</h3>
+                  <p className="text-[9px] sm:text-[11px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    )}
+    </div>
+  </div>
+  )}
+</main>
 
       <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
