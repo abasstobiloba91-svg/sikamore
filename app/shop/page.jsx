@@ -57,8 +57,9 @@ export default function ShopCatalog() {
   const [deliveryZone, setDeliveryZone] = useState('');
   const [tickerIndex, setTickerIndex] = useState(0);
 
-  // GOOGLE MAPS AUTOCOMPLETE REFERENCE HOOK
+  // GOOGLE MAPS SECURE REFERENCE HOOKS
   const autocompleteInputRef = useRef(null);
+  const autocompleteInitialized = useRef(false);
 
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -98,63 +99,57 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // SECURE ONE-TIME GOOGLE MAPS SCRIPT INJECTOR
+  // FIXED & MEMORY-SAFE GOOGLE MAPS INJECTOR
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !isCartOpen) return;
 
-    const scriptId = 'google-maps-script';
-    
+    const initializeGoogleAutocomplete = () => {
+      if (!autocompleteInputRef.current || !window.google || autocompleteInitialized.current) return;
+
+      const autocomplete = new window.google.maps.places.Autocomplete(autocompleteInputRef.current, {
+        types: ['geocode', 'establishment'],
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.address_components) return;
+
+        let countryCode = 'NG';
+        let fullFormattedAddress = place.formatted_address || '';
+
+        for (const component of place.address_components) {
+          if (component.types.includes('country')) {
+            countryCode = component.short_name;
+            break;
+          }
+        }
+
+        if (countryCode !== detectedCountryCode) {
+          showToast("LOCATION NOT FOUND.");
+          setDeliveryAddress('');
+          setDeliveryFee(0);
+          setDeliveryZone('');
+          return;
+        }
+        setDeliveryAddress(fullFormattedAddress);
+      });
+      
+      autocompleteInitialized.current = true;
+    };
+
     if (window.google) {
-      if (isCartOpen) initializeGoogleAutocomplete();
-      return;
-    }
-
-    if (!document.getElementById(scriptId)) {
+      initializeGoogleAutocomplete();
+    } else if (!document.getElementById('google-maps-script')) {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
       const script = document.createElement('script');
-      script.id = scriptId;
+      script.id = 'google-maps-script';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        if (isCartOpen) initializeGoogleAutocomplete();
-      };
+      script.onload = initializeGoogleAutocomplete;
       document.head.appendChild(script);
     }
-  }, [isCartOpen]); 
-
-  const initializeGoogleAutocomplete = () => {
-    if (!autocompleteInputRef.current || !window.google) return;
-
-    const autocomplete = new window.google.maps.places.Autocomplete(autocompleteInputRef.current, {
-      types: ['geocode', 'establishment'],
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.address_components) return;
-
-      let countryCode = 'NG';
-      let fullFormattedAddress = place.formatted_address || '';
-
-      for (const component of place.address_components) {
-        if (component.types.includes('country')) {
-          countryCode = component.short_name;
-          break;
-        }
-      }
-
-      if (countryCode !== detectedCountryCode) {
-        showToast("LOCATION NOT FOUND.");
-        setDeliveryAddress('');
-        setDeliveryFee(0);
-        setDeliveryZone('');
-        return;
-      }
-
-      setDeliveryAddress(fullFormattedAddress);
-    });
-  };
+  }, [isCartOpen, detectedCountryCode, showToast]); 
 
   // SMART AUTO-DETECT GEOLOCATION ENGINE
   useEffect(() => {
@@ -216,14 +211,7 @@ export default function ShopCatalog() {
 
   // SECURE ANALYTICS DISPATCH
   useEffect(() => {
-    const logVisit = async () => {
-      try {
-        await supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]);
-      } catch (e) {
-        // Suppress errors to prevent UI blockage
-      }
-    };
-    logVisit();
+    supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -260,15 +248,13 @@ export default function ShopCatalog() {
     setOpenAccordion('description');
     setQuickViewProduct(product);
 
-    const logClick = async () => {
-      try {
-        await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]);
-      } catch (e) {}
-    };
-    logClick();
+    // Fire and forget analytics to prevent blocking UI
+    supabase.from('page_analytics')
+      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
+      .then(() => {}).catch(() => {});
   };
 
-  // FIXED: ADD ITEM TO CART WITHOUT OPENING DRAWER
+  // FIXED: SILENTLY ADD ITEM TO CART WITHOUT OPENING DRAWER
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -427,9 +413,9 @@ export default function ShopCatalog() {
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
               <img 
-                src={products.length > 0 ? products.image : ''} 
+                src={products.length > 0 ? products[0].image : ''} 
                 alt="Join the Community" 
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
                 className="w-full h-full object-cover" 
               />
             </div>
@@ -461,7 +447,7 @@ export default function ShopCatalog() {
 
       {/* DETAILED PRODUCT OVERLAY MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-sm" style={{ zIndex: 9999999 }}>
+        <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm" style={{ zIndex: 9999999 }}>
           <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
             <div className="bg-white text-black w-full max-w-3xl flex flex-col relative border border-zinc-200 rounded-sm mt-4 sm:mt-10 mb-12 shadow-2xl">
               <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black transition-colors bg-white/80 p-1.5 rounded-full border border-zinc-100 shadow-sm">
@@ -470,11 +456,12 @@ export default function ShopCatalog() {
               
               <div className="flex flex-col md:flex-row">
                 <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
+                  {/* FIXED: Crash-Proof Mobile Fallback Image */}
                   {quickViewProduct.image && (
                     <img 
                       src={quickViewProduct.image} 
                       alt="Preview" 
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                      onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
                       className="w-full h-full object-cover" 
                     /> 
                   )}
@@ -505,7 +492,7 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   
-                  {/* FIXED: ADD TO CART SILENTLY FROM QUICK VIEW */}
+                  {/* FIXED: ADD TO BAG SILENTLY FROM QUICK VIEW, DO NOT OPEN DRAWER */}
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
                       setQuickViewProduct(null);
@@ -609,7 +596,7 @@ export default function ShopCatalog() {
                                 src={product.image} 
                                 alt={product.name} 
                                 loading="lazy"
-                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                                onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
                                 className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                               />
                             )}
@@ -687,7 +674,7 @@ export default function ShopCatalog() {
                     <img 
                       src={item.image} 
                       alt={item.name} 
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                      onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
                       className="w-full h-full object-cover" 
                     />
                   )}
@@ -838,19 +825,22 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
+                    {/* FIXED: ANTI-CRASH EVENT ISOLATION LAYER FOR TOUCH SCREENS */}
                     <div 
-                      className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
+                      className="absolute inset-0 z-10 cursor-pointer"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         if (!product.is_sold_out) openQuickView(product);
                       }}
                     >
+                      {/* FIXED: SAFE BASE64 FALLBACK TO PREVENT INFINITE LOOP MOBILE CRASHES */}
                       {product.image && (
                         <img 
                           src={product.image} 
                           alt={product.name} 
                           loading="lazy"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                          onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
                           className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                         />
                       )}
@@ -918,20 +908,21 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL - PERSISTENT VISIBILITY */}
+      {/* FIXED: FLOATING CART SUMMARY PILL - PERSISTENTLY VISIBLE & ELEVATED */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
-          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
+        <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
+          <div className="bg-black rounded-full flex items-center justify-between p-2 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
-              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
+              <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
                 Products Added - {cartItemCount}
               </span>
               <span className="text-zinc-500 hidden sm:inline">|</span>
-              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
+              <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
                 Total - {formatPrice(cartSubtotal)}
               </span>
             </div>
-            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
+            {/* THIS BUTTON ALONE TRIGGERS THE DRAWER NOW */}
+            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
               View Bag
             </button>
           </div>
@@ -949,7 +940,7 @@ export default function ShopCatalog() {
           <div className="flex flex-col gap-3">
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
             <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
-            <p className="text-[9px] text-zinc-600 pt-1">Email: contact@sikamoreofficial.com</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: contact@ssikamore.com</p>
           </div>
           <div className="flex flex-col gap-2.5 text-[10px]">
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
