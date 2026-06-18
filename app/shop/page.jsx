@@ -68,6 +68,10 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
+  const [inlineAddId, setInlineAddId] = useState(null);
+  const [inlineSize, setInlineSize] = useState('M');
+  const [inlineQty, setInlineQty] = useState(1);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -135,7 +139,18 @@ export default function ShopCatalog() {
     try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) {}
   };
 
-  // NEW: Streamlined Add To Cart Logic
+  // INLINE ADD TO CART (For Modal/Overlay - No Drawer)
+  const handleInlineAdd = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(product, inlineQty, inlineSize);
+    setInlineAddId(null);
+    setInlineQty(1);
+    setInlineSize('M');
+    showToast('Added to your bag.');
+  };
+
+  // GRID ADD TO CART LOGIC (No Drawer)
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -152,6 +167,7 @@ export default function ShopCatalog() {
     }
   };
 
+  // WISHLIST LOGIC
   const handleWishlistClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -235,7 +251,7 @@ export default function ShopCatalog() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-24">
+    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-24 relative">
       
       {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
@@ -279,7 +295,7 @@ export default function ShopCatalog() {
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
-            {/* ONLY THIS CART BUTTON OPENS THE DRAWER */}
+            {/* HEADER CART ICON - OPENS DRAWER ONLY WHEN CLICKED */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -550,7 +566,7 @@ export default function ShopCatalog() {
                             {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" />}
                           </div>
 
-                          {/* WISHLIST BUTTON */}
+                          {/* WISHLIST BUTTON (TOP RIGHT) */}
                           <button 
                             type="button"
                             onClick={(e) => handleWishlistClick(e, product)} 
@@ -561,30 +577,49 @@ export default function ShopCatalog() {
                             </svg>
                           </button>
 
-                          {/* FIXED STACKED ACTION BUTTONS */}
-                          <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
-                            <button 
-                              type="button"
-                              onClick={(e) => handleCartClick(e, product)}
-                              disabled={product.is_sold_out}
-                              className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              Add to Cart
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={(e) => { 
-                                e.preventDefault(); 
-                                e.stopPropagation(); 
-                                setIsSearchOpen(false); 
-                                setSearchQuery(''); 
-                                openQuickView(product); 
-                              }}
-                              className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
-                            >
-                              View Product
-                            </button>
+                          {/* INLINE SIZES/QTY OVERLAY */}
+                          <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
+                            <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
+                            <div className="flex gap-1.5 mb-4">
+                              {['S', 'M', 'L'].map(s => (
+                                <button key={s} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineSize(s); }} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${inlineSize === s ? 'bg-black text-white border-black' : 'border-zinc-200 hover:border-black'}`}>{s}</button>
+                              ))}
+                            </div>
+                            <div className="flex items-center border border-zinc-200 mb-4 w-full max-w-[100px]">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(Math.max(1, inlineQty - 1)); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">-</button>
+                              <span className="flex-1 text-center text-[9px]">{inlineQty}</span>
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineQty(inlineQty + 1); }} className="flex-1 py-1 text-[10px] hover:bg-zinc-100">+</button>
+                            </div>
+                            <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                           </div>
+
+                          {/* STACKED ACTION BUTTONS (BOTTOM CENTER) */}
+                          {inlineAddId !== product.id && (
+                            <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
+                              <button 
+                                type="button"
+                                onClick={(e) => handleCartClick(e, product)}
+                                disabled={product.is_sold_out}
+                                className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                Add to Cart
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={(e) => { 
+                                  e.preventDefault(); 
+                                  e.stopPropagation(); 
+                                  setIsSearchOpen(false); 
+                                  setSearchQuery(''); 
+                                  openQuickView(product); 
+                                }}
+                                className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
+                              >
+                                View Product
+                              </button>
+                            </div>
+                          )}
 
                           {product.is_sold_out && (
                             <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
@@ -604,61 +639,6 @@ export default function ShopCatalog() {
           </div>
         </div>
       )}
-
-      {/* SLIDING MINI BAG CAROUSEL DRAWER - ONLY OPENS ON CART ICON CLICK */}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
-        <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
-          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let&apos;s find you something beautiful.</div>
-          ) : (
-            cart.map((item, idx) => (
-              <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
-                <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
-                </div>
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h3 className="text-[10px] tracking-widest uppercase font-medium">{item.name}</h3>
-                    <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">₦{item.price.toLocaleString()}</span>
-                    <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
-                      <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
-                      <span className="text-zinc-800">|</span>
-                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        {cart.length > 0 && (
-          <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
-            <div className="flex justify-between mb-6 text-xs uppercase tracking-widest">
-              <span className="text-zinc-500">Subtotal:</span>
-              <span className="font-medium text-white">₦{cartSubtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
-                Keep Shopping
-              </button>
-              <Link href="/checkout" onClick={() => setIsCartOpen(false)} className="flex-1 bg-white text-black text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors">
-                Checkout
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
 
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -710,7 +690,7 @@ export default function ShopCatalog() {
                         {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover" />}
                       </div>
 
-                      {/* WISHLIST BUTTON */}
+                      {/* WISHLIST BUTTON (TOP RIGHT) */}
                       <button 
                         type="button"
                         onClick={(e) => handleWishlistClick(e, product)} 
@@ -755,7 +735,7 @@ export default function ShopCatalog() {
                       {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" />}
                     </div>
                     
-                    {/* WISHLIST BUTTON */}
+                    {/* WISHLIST BUTTON (TOP RIGHT) */}
                     <button 
                       type="button"
                       onClick={(e) => handleWishlistClick(e, product)} 
@@ -805,6 +785,26 @@ export default function ShopCatalog() {
           </div>
         )}
       </main>
+
+      {/* FLOATING CART SUMMARY PILL (STICKY BOTTOM) */}
+      {cartItemCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z-[90] pointer-events-auto animate-fade-in shadow-2xl">
+          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
+            <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
+              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
+                Products Added - {cartItemCount}
+              </span>
+              <span className="text-zinc-500 hidden sm:inline">|</span>
+              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
+                Total - ₦{cartSubtotal.toLocaleString()}
+              </span>
+            </div>
+            <Link href="/checkout" className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
+              Checkout
+            </Link>
+          </div>
+        </div>
+      )}
 
       <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
