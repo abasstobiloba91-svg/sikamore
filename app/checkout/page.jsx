@@ -64,7 +64,7 @@ export default function CheckoutPage() {
     try {
       const orderRefStamp = `SKM-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // 1. Log Transaction Into Supabase Orders Table
+      // 1. Log Transaction Into Supabase Orders Table (Fixed missing column discrepancy)
       const { error: dbError } = await supabase.from('orders').insert([
         {
           id: orderRefStamp,
@@ -76,7 +76,6 @@ export default function CheckoutPage() {
           subtotal_amount: cartSubtotal,
           shipping_fee: shippingFee,
           total_amount: totalAmount,
-          currency: deliveryInfo?.currency || 'NGN',
           status: 'pending'
         }
       ]);
@@ -91,7 +90,7 @@ export default function CheckoutPage() {
         </tr>
       `).join('');
 
-      // 3. Build Monochrome Luxury HTML Email Template (Image_3.png Layout Profile)
+      // 3. Build Monochrome Luxury HTML Email Template
       const buildEmailPayload = (statusHeader, statusMessage, isManagementLink = false) => `
         <!DOCTYPE html><html><head><meta charset="utf-8"></head>
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
@@ -234,9 +233,10 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-        <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
-  {isProcessing ? 'PROCESSING SECURE ESCROW...' : `CONFIRM ACQUISITION • ${formatPriceValue(totalAmount)}`}
-</button>
+          {/* FIXED PAD HEIGHT SIZING STANDARD */}
+          <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
+            {isProcessing ? 'PROCESSING SECURE ESCROW...' : `CONFIRM ACQUISITION • ${formatPriceValue(totalAmount)}`}
+          </button>
         </form>
 
         {/* RIGHT COLUMN: MANIFEST SUMMARY */}
