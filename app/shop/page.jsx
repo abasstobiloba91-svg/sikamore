@@ -61,7 +61,7 @@ export default function ShopCatalog() {
   const [tickerIndex, setTickerIndex] = useState(0);
 
   const announcements = [
-    "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
+    "jOIN OUR CIRCLE TO RECEIVE AMAZING UPDATES",
     "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
     "BEAUTIFULLY CRAFTED SILHOUETTES • DESIGNED FOR YOU",
   ];
@@ -402,7 +402,7 @@ export default function ShopCatalog() {
 
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
-                <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">Join Our Community</h2>
+                <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">Join Our Circle</h2>
                 <p className="text-[10px] tracking-widest text-zinc-500 uppercase leading-relaxed mb-8">
                   Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.
                 </p>
