@@ -17,6 +17,13 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
   
+  // NEW INVENTORY STATES
+  const [inventoryMode, setInventoryMode] = useState('manage'); // 'manage' | 'deploy'
+  const [liveProducts, setLiveProducts] = useState([]);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editFile, setEditFile] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
   ]);
@@ -66,14 +73,16 @@ export default function AdminDashboard() {
           { data: campRes },
           { data: ticketsData },
           { data: vendorsData },
-          { data: analyticsRes }
+          { data: analyticsRes },
+          { data: productsData }
         ] = await Promise.all([
           supabase.from('orders').select('*').order('created_at', { ascending: false }),
           supabase.from('subscribers').select('*').order('created_at', { ascending: false }),
           supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
           supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
           supabase.from('vendors').select('*').order('name', { ascending: true }),
-          supabase.from('page_analytics').select('*').order('created_at', { ascending: false })
+          supabase.from('page_analytics').select('*').order('created_at', { ascending: false }),
+          supabase.from('products').select('*').order('created_at', { ascending: false }) // Fetch live products
         ]);
 
         if (ordersData) setOrders(ordersData);
@@ -82,6 +91,7 @@ export default function AdminDashboard() {
         if (ticketsData) setTickets(ticketsData);
         if (vendorsData) setVendors(vendorsData);
         if (analyticsRes) setAnalyticsData(analyticsRes);
+        if (productsData) setLiveProducts(productsData);
       } catch (err) {
         console.error("Master database alignment exception: ", err);
       }
@@ -106,6 +116,11 @@ export default function AdminDashboard() {
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'page_analytics' }, (payload) => {
         setAnalyticsData(prev => [payload.new, ...prev]);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        if (payload.eventType === 'INSERT') setLiveProducts(prev => [payload.new, ...prev]);
+        if (payload.eventType === 'UPDATE') setLiveProducts(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+        if (payload.eventType === 'DELETE') setLiveProducts(prev => prev.filter(p => p.id !== payload.old.id));
       })
       .subscribe();
 
@@ -168,6 +183,7 @@ export default function AdminDashboard() {
     showToast('PORTAL LOCKED.');
   };
 
+  // ====================== INVENTORY: DEPLOY NEW ====================== //
   const addProductRow = () => {
     setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
   };
@@ -225,9 +241,78 @@ export default function AdminDashboard() {
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
       setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
+      setInventoryMode('manage'); // Switch back to manage to view the new products
     } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setLoading(false); }
   };
 
+  // ====================== INVENTORY: MANAGE LIVE ====================== //
+  const handleDeleteProduct = async (id) => {
+    if (!window.confirm("ARE YOU SURE YOU WANT TO DELETE THIS ITEM? THIS CANNOT BE UNDONE.")) return;
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      showToast("ITEM DELETED SUCCESSFULLY.");
+    } catch (err) {
+      showToast(`DELETE ERROR: ${err.message.toUpperCase()}`);
+    }
+  };
+
+  const startEditingProduct = (product) => {
+    setEditingProduct({ ...product });
+    setEditFile(null);
+  };
+
+  const handleEditImageChange = (e) => {
+    const file = e.target.files;
+    if (file) {
+      setEditFile(file);
+    }
+  };
+
+  const submitEditProduct = async (e) => {
+    e.preventDefault();
+    setIsUpdating(true);
+
+    try {
+      let imageUrl = editingProduct.image;
+
+      if (editFile) {
+        const fileExt = editFile.name.split('.').pop().toLowerCase();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const safeContentType = editFile.type || `image/jpeg`;
+
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, editFile, { cacheControl: '3600', upsert: false, contentType: safeContentType });
+        if (uploadError) throw new Error(uploadError.message);
+        
+        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        imageUrl = data.publicUrl;
+      }
+
+      const { error: dbError } = await supabase.from('products').update({
+        name: editingProduct.name.toUpperCase(),
+        price: parseFloat(editingProduct.price),
+        stock_quantity: parseInt(editingProduct.stock_quantity),
+        description: editingProduct.description || null,
+        additional_information: editingProduct.additional_information || null,
+        store_policies: editingProduct.store_policies || null,
+        inquiries: editingProduct.inquiries || null,
+        image: imageUrl,
+        is_sold_out: parseInt(editingProduct.stock_quantity) <= 0
+      }).eq('id', editingProduct.id);
+
+      if (dbError) throw new Error(dbError.message);
+
+      showToast("PRODUCT UPDATED SUCCESSFULLY.");
+      setEditingProduct(null);
+      setEditFile(null);
+    } catch (error) {
+      showToast(`UPDATE ERROR: ${error.message.toUpperCase()}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // ====================== ORDERS ====================== //
   const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
@@ -268,6 +353,7 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
+  // ====================== SUPPORT & NEWSLETTER ====================== //
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
@@ -358,71 +444,188 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- TAB 1: PRODUCT DEPLOYMENT INVENTORY --- */}
+        {/* --- TAB 1: INVENTORY MANAGEMENT --- */}
         {activeTab === 'inventory' && (
-          <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200 animate-fade-in">
-            <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
-              <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Product Deployment</h2>
-              <button onClick={addProductRow} className="text-[9px] bg-zinc-100 hover:bg-zinc-200 text-black px-4 py-2 uppercase tracking-widest transition-colors">+ Add Row</button>
-            </div>
-            
-            <form onSubmit={handleBulkSubmit} className="flex flex-col gap-10">
-              {productsList.map((product, index) => (
-                <div key={product.id} className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
-                  {productsList.length > 1 && (
-                    <button type="button" onClick={() => removeProductRow(product.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 text-xs">✕</button>
-                  )}
-                  <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                      <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
-                      <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 85000" />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
-                      <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 15" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
-                    <div>
-                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
-                      <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info (Optional)</label>
-                      <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
-                      <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
-                      <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
-                      {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-400 uppercase tracking-widest text-center">Img</span>}
-                    </div>
-                    <div className="flex-1">
-                      <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
-                {loading ? 'DEPLOYING TO STORE...' : `PUBLISH ${productsList.length} ITEM(S)`}
+          <div className="animate-fade-in space-y-6">
+            {/* INVENTORY SUB-NAV */}
+            <div className="flex border-b border-zinc-200 pb-2">
+              <button onClick={() => { setInventoryMode('manage'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'manage' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
+                Manage Live
               </button>
-            </form>
+              <button onClick={() => { setInventoryMode('deploy'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'deploy' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
+                Deploy New
+              </button>
+            </div>
+
+            {/* MODE: MANAGE LIVE INVENTORY */}
+            {inventoryMode === 'manage' && (
+              <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200">
+                {editingProduct ? (
+                  // --- EDIT EXISTING PRODUCT ---
+                  <div>
+                    <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
+                      <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Edit Product: {editingProduct.name}</h2>
+                      <button onClick={() => setEditingProduct(null)} className="text-[9px] text-zinc-500 hover:text-black uppercase tracking-widest transition-colors">← Cancel Edit</button>
+                    </div>
+                    
+                    <form onSubmit={submitEditProduct} className="flex flex-col gap-10">
+                      <div className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                          <div>
+                            <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
+                            <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
+                            <input type="number" value={editingProduct.price} onChange={(e)=>setEditingProduct({...editingProduct, price: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
+                            <input type="number" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
+                          <div>
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description</label>
+                            <textarea value={editingProduct.description || ''} onChange={(e)=>setEditingProduct({...editingProduct, description: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info</label>
+                            <textarea value={editingProduct.additional_information || ''} onChange={(e)=>setEditingProduct({...editingProduct, additional_information: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies</label>
+                            <textarea value={editingProduct.store_policies || ''} onChange={(e)=>setEditingProduct({...editingProduct, store_policies: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries</label>
+                            <textarea value={editingProduct.inquiries || ''} onChange={(e)=>setEditingProduct({...editingProduct, inquiries: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                          <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
+                            {editFile ? (
+                              <img src={URL.createObjectURL(editFile)} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                              <img src={editingProduct.image} alt="Current" className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Image (Optional)</label>
+                            <input type="file" accept="image/*" onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button type="submit" disabled={isUpdating} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
+                        {isUpdating ? 'SAVING CHANGES...' : 'COMMIT EDITS'}
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  // --- LIST LIVE PRODUCTS ---
+                  <div>
+                    <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
+                      <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Live Collection ({liveProducts.length})</h2>
+                    </div>
+                    {liveProducts.length === 0 ? (
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center py-10">No live products found in the database.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {liveProducts.map(product => (
+                          <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
+                            <div className="flex gap-4 mb-4">
+                              <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
+                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                              </div>
+                              <div>
+                                <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
+                                <p className="text-[9px] text-zinc-500 font-mono mt-1">₦{product.price.toLocaleString()}</p>
+                                <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Stock: {product.stock_quantity}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 border-t border-zinc-200 pt-3">
+                              <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
+                              <button onClick={() => handleDeleteProduct(product.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MODE: DEPLOY NEW PRODUCTS */}
+            {inventoryMode === 'deploy' && (
+              <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200">
+                <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
+                  <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Product Deployment</h2>
+                  <button onClick={addProductRow} className="text-[9px] bg-zinc-100 hover:bg-zinc-200 text-black px-4 py-2 uppercase tracking-widest transition-colors">+ Add Row</button>
+                </div>
+                
+                <form onSubmit={handleBulkSubmit} className="flex flex-col gap-10">
+                  {productsList.map((product, index) => (
+                    <div key={product.id} className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
+                      {productsList.length > 1 && (
+                        <button type="button" onClick={() => removeProductRow(product.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 text-xs">✕</button>
+                      )}
+                      <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                          <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
+                          <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
+                          <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 85000" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
+                          <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 15" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
+                        <div>
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
+                          <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info (Optional)</label>
+                          <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
+                          <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
+                          <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6">
+                        <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
+                          {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-400 uppercase tracking-widest text-center">Img</span>}
+                        </div>
+                        <div className="flex-1">
+                          <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 text-[10px] tracking-[0.3em] uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 rounded-sm">
+                    {loading ? 'DEPLOYING TO STORE...' : `PUBLISH ${productsList.length} ITEM(S)`}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
 
