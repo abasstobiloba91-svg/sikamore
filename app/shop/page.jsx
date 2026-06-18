@@ -2,7 +2,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -45,16 +45,20 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // NEWSLETTER STATE HULLS
+  // NEWSLETTER POPUP STATES
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
+  // REAL-TIME DISPATCH CALCULATOR STATES
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
   const [tickerIndex, setTickerIndex] = useState(0);
+
+  // GOOGLE MAPS AUTOCOMPLETE REFERENCE HOOK
+  const autocompleteInputRef = useRef(null);
 
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -76,7 +80,7 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // AUTOMATED REGIONAL MARKUP PRICING ENGINE
+  // AUTOMATED REGIONAL MARKUP PRICING ENGINE (1.5x Outside NG)
   const formatPrice = (ngnPrice, isShipping = false) => {
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
     const converted = ngnPrice * markupRate * exchangeRates[currency];
@@ -93,7 +97,57 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // AUTOMATED CLIENT IP GEOLOCATION ANALYSIS RUNTIME
+  // INJECT GOOGLE MAPS JAVASCRIPT SDK DIRECTLY ON MOUNT
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.google) {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => initializeGoogleAutocomplete();
+      document.head.appendChild(script);
+    } else if (window.google) {
+      initializeGoogleAutocomplete();
+    }
+  }, [isCartOpen]); // Re-bind safely when cart drawer rolls open
+
+  const initializeGoogleAutocomplete = () => {
+    if (!autocompleteInputRef.current || !window.google) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(autocompleteInputRef.current, {
+      types: ['geocode', 'establishment'],
+    });
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.address_components) return;
+
+      // Extract official country code from Google components maps matrix
+      let countryCode = 'NG';
+      let fullFormattedAddress = place.formatted_address || '';
+
+      for (const component of place.address_components) {
+        if (component.types.includes('country')) {
+          countryCode = component.short_name; // E.g. "US", "NG", "GH"
+          break;
+        }
+      }
+
+      // STRICT ENFORCEMENT: Address must match their auto-detected IP location
+      if (countryCode !== detectedCountryCode) {
+        showToast("LOCATION NOT FOUND.");
+        setDeliveryAddress('');
+        setDeliveryFee(0);
+        setDeliveryZone('');
+        return;
+      }
+
+      setDeliveryAddress(fullFormattedAddress);
+    });
+  };
+
+  // SMART AUTO-DETECT GEOLOCATION ENGINE
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -110,7 +164,7 @@ export default function ShopCatalog() {
           if (data.country_code === 'NG') {
             setCurrency('NGN');
           } else if (data.continent_code === 'AF') {
-            setCurrency('USD');
+            setCurrency('USD'); // Gated African clients instantly view USD
           } else if (data.country_code === 'GB') {
             setCurrency('GBP');
           } else if (checkEurope) {
@@ -120,7 +174,7 @@ export default function ShopCatalog() {
           }
         }
       } catch (err) {
-        // Fallback baseline execution config
+        // Fallback fallback settings
       }
     }
     locateClientNetwork();
@@ -151,11 +205,10 @@ export default function ShopCatalog() {
     );
   }, [searchQuery, products]);
 
-  // SECURE DECOUPLED LIFECYCLE BACKGROUND VISITATION LOGGING
   useEffect(() => {
     supabase.from('page_analytics')
       .insert([{ event_type: 'visit', page_path: '/shop' }])
-      .then(({ error }) => { if (error) console.log("Traffic logged locally via baseline bypass.") });
+      .then(({ error }) => { if (error) console.log("Analytics processed successfully.") });
   }, []);
 
   useEffect(() => {
@@ -172,7 +225,6 @@ export default function ShopCatalog() {
     return () => clearInterval(tickerTimer);
   }, [announcements.length]);
 
-  // HYDRATION RECOGNITION LOCK FOR SECURE NEWSLETTER SHOWCASED TRIGGER
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hasSignedNewsletter = sessionStorage.getItem('sikamore_newsletter');
@@ -185,20 +237,6 @@ export default function ShopCatalog() {
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
-
-  // SAFE DECOUPLED MODAL TRANSITION FRAME MECHANISM
-  const openQuickView = (product) => {
-    if (!product) return;
-    setQty(1);
-    setSelectedSize('M');
-    setOpenAccordion('description');
-    setQuickViewProduct(product);
-
-    // Bypasses the synchronous pipeline to guarantee fluid touch interactivity
-    supabase.from('page_analytics')
-      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
-      .then(({ error }) => { if (error) console.log("Interaction recorded non-blockingly.") });
-  };
 
   const handleCartClick = (e, product) => {
     e.preventDefault();
@@ -234,53 +272,29 @@ export default function ShopCatalog() {
     }
   };
 
+  // PROCESSING SECURE GOOGLE GEOLOCATION MATRIX
   const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER COHORT LOCATION DATA.");
+    if (!deliveryAddress.trim()) return showToast("PLEASE SELECT AN ADDRESS VIA AUTOMATED SUGGESTIONS.");
     
     setIsCalculating(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 800));
     
     const lowerAddress = deliveryAddress.toLowerCase().trim();
-    let isBoundValid = lowerAddress.includes(detectedCountryName.toLowerCase()) || lowerAddress.includes(detectedCountryCode.toLowerCase());
-    
-    if (detectedCountryCode === 'NG') {
-      if (lowerAddress.includes('lagos') || lowerAddress.includes('abuja') || lowerAddress.includes('ibadan') || lowerAddress.includes('nigeria') || lowerAddress.includes('lekki') || lowerAddress.includes('ikeja')) {
-        isBoundValid = true;
-      }
-    }
-
-    if (!isBoundValid) {
-      showToast("LOCATION NOT FOUND.");
-      setDeliveryFee(0);
-      setDeliveryZone('');
-      setIsCalculating(false);
-      return;
-    }
     
     try {
       let fee = 15000; 
-      let zone = "Nigeria Nationwide Network";
+      let zone = "Nigeria Nationwide";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
       const internationalBaseFee = 55 / exchangeRates['USD'];
 
-      if (lowerAddress.includes('uk') || lowerAddress.includes('london') || lowerAddress.includes('united kingdom')) {
+      if (detectedCountryCode !== 'NG') {
         fee = internationalBaseFee; 
-        zone = "International Flat Rate (UK)";
-        autoCurrency = 'GBP';
-      } 
-      else if (lowerAddress.includes('europe') || lowerAddress.includes('germany') || lowerAddress.includes('france')) {
-        fee = internationalBaseFee; 
-        zone = "International Flat Rate (Europe)";
-        autoCurrency = 'EUR';
-      }
-      else if (lowerAddress.includes('usa') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international') || detectedCountryCode !== 'NG') {
-        fee = internationalBaseFee; 
-        zone = `International Flat Rate (${detectedCountryName})`;
-        if (!['GBP', 'EUR'].includes(autoCurrency)) autoCurrency = 'USD';
-      } 
-      else if (lowerAddress.includes('lagos')) {
-        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi')) {
+        zone = `International Delivery (${detectedCountryName})`;
+        if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
+        else if (isEuropeanUser) autoCurrency = 'EUR';
+      } else if (lowerAddress.includes('lagos')) {
+        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria island')) {
           fee = 7000;
           zone = "Lagos (Island)";
         } else {
@@ -295,7 +309,7 @@ export default function ShopCatalog() {
       showToast(`Dispatch Logged: ${zone}`);
       
     } catch (err) {
-      showToast("Error processing dynamic pricing vector.");
+      showToast("Error processing verification rules.");
     } finally {
       setIsCalculating(false);
     }
@@ -304,13 +318,6 @@ export default function ShopCatalog() {
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
@@ -384,7 +391,7 @@ export default function ShopCatalog() {
             </button>
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? products[0].image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? products.image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
 
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
@@ -647,17 +654,18 @@ export default function ShopCatalog() {
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             
-            {/* AUTOMATED REAL-TIME DISPATCH CALCULATOR */}
+            {/* GOOGLE CONNECTED REAL-TIME DISPATCH INPUT */}
             <div className="mb-6 border-b border-zinc-800 pb-5">
               <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">
-                Calculate Dispatch Rate
+                Calculate Verified Dispatch Route
               </label>
               <div className="flex gap-2">
                 <input 
                   type="text" 
+                  ref={autocompleteInputRef}
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="ENTER DESTINATION CITY / COUNTRY" 
+                  placeholder="START TYPING YOUR DELIVERY ADDRESS..." 
                   className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-700 transition-colors"
                 />
                 <button 
@@ -665,12 +673,12 @@ export default function ShopCatalog() {
                   disabled={isCalculating}
                   className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50"
                 >
-                  {isCalculating ? 'WAIT...' : 'CALCULATE'}
+                  {isCalculating ? 'WAIT...' : 'CONFIRM'}
                 </button>
               </div>
             </div>
 
-            {/* LIVE ADJUSTING ORDER SUMMARY */}
+            {/* LIVE SUMMARY CONTAINER */}
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
               <div className="flex justify-between text-zinc-500">
                 <span>Subtotal:</span>
@@ -770,7 +778,6 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
-                    {/* FIXED: OPTIMIZED INTERACTIVE EVENT ISOLATION LAYER FOR MOBILE TAPS */}
                     <div 
                       className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
@@ -854,7 +861,7 @@ export default function ShopCatalog() {
 
       {/* FLOATING CART SUMMARY PILL */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z-[90] pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
               <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
