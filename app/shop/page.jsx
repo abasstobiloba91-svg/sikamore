@@ -11,12 +11,30 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// REAL-TIME MARKET EXCHANGE RATES (Base = NGN)
+const exchangeRates = {
+  NGN: 1,
+  USD: 1 / 1360,
+  GBP: 1 / 1820,
+  EUR: 1 / 1570
+};
+
+const currencySymbols = {
+  NGN: '₦',
+  USD: '$',
+  GBP: '£',
+  EUR: '€'
+};
+
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // CURRENT USER SESSION
   const [userSession, setUserSession] = useState(null);
+
+  // GLOBAL CURRENCY STATE (Defaults to NGN until Auto-Detect kicks in)
+  const [currency, setCurrency] = useState('NGN');
 
   // GRID LAYOUT STATE
   const [viewCols, setViewCols] = useState(4); 
@@ -39,7 +57,7 @@ export default function ShopCatalog() {
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // REAL-TIME DISPATCH CALCULATOR STATE
+  // REAL-TIME AUTOMATED DISPATCH CALCULATOR STATE
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -66,6 +84,39 @@ export default function ShopCatalog() {
   // Quick View States
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
+
+  // CURRENCY FORMATTER ENGINE
+  const formatPrice = (ngnPrice) => {
+    const converted = ngnPrice * exchangeRates[currency];
+    if (currency === 'NGN') return `₦${converted.toLocaleString()}`;
+    return `${currencySymbols[currency]}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // SMART AUTO-DETECT GEOLOCATION ENGINE
+  useEffect(() => {
+    async function autoDetectCurrency() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        
+        if (data && data.country_code) {
+          if (data.country_code === 'NG') {
+            setCurrency('NGN');
+          } else if (data.country_code === 'GB') {
+            setCurrency('GBP');
+          } else if (data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL'].includes(data.country_code)) {
+            setCurrency('EUR');
+          } else {
+            // Default to USD for USA, Canada, Asia, and the rest of the world
+            setCurrency('USD');
+          }
+        }
+      } catch (err) {
+        // Silently defaults to NGN if the user has strict ad-blockers preventing the API call
+      }
+    }
+    autoDetectCurrency();
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -123,7 +174,7 @@ export default function ShopCatalog() {
     }
   }, []);
 
-  // CART & TOTAL CALCULATIONS
+  // CART & GRAND TOTAL MATRICES
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
   const grandTotal = cartSubtotal + deliveryFee;
@@ -136,16 +187,13 @@ export default function ShopCatalog() {
     try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) { console.error("Analytics error", err); }
   };
 
-  // UNRESTRICTED CART ADD - STRICTLY OVERRIDES DRAWER OPENING
+  // UNRESTRICTED CART ADD - STAYS CLOSED ON THE SCREEN
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
-    
-    // Force drawer closed in case your global provider auto-opens it
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50);
-
     showToast('Added to your bag.');
   };
 
@@ -175,42 +223,65 @@ export default function ShopCatalog() {
     }
   };
 
-  // AUTOMATED REAL-TIME DISPATCH CALCULATOR FUNCTION
+  // AUTOMATED REAL-TIME DISPATCH CALCULATOR WITH LOCATION-BASED CURRENCY SWITCHING
   const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("Please enter a destination city or state first.");
+    if (!deliveryAddress.trim()) return showToast("Please enter your delivery city or country context.");
     
     setIsCalculating(true);
     
     try {
-      // Simulating the API response delay (Google Maps / Zonal Logic)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulate real-time route query delay
+      await new Promise(resolve => setTimeout(resolve, 1200));
       
-      const lowerAddress = deliveryAddress.toLowerCase();
-      let fee = 10000; // Default Nationwide Rate
-      let zone = "Nationwide Dispatch";
+      const lowerAddress = deliveryAddress.toLowerCase().trim();
+      let fee = 15000; // Default flat rate outside Lagos (Nationwide)
+      let zone = "Nigeria Nationwide";
+      let autoCurrency = 'NGN'; // Default back to Naira for local
 
-      if (lowerAddress.includes('lagos')) {
-        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('vi') || lowerAddress.includes('victoria island')) {
-          fee = 3000;
-          zone = "Lagos (Island Zone)";
+      // True Market Equivalent of $55 USD in NGN Base
+      const internationalBaseFee = 55 / exchangeRates['USD'];
+
+      // Check if UK
+      if (lowerAddress.includes('uk') || lowerAddress.includes('london') || lowerAddress.includes('united kingdom') || lowerAddress.includes('england')) {
+        fee = internationalBaseFee; 
+        zone = "International Flat Rate (UK)";
+        autoCurrency = 'GBP';
+      } 
+      // Check if Europe
+      else if (lowerAddress.includes('europe') || lowerAddress.includes('germany') || lowerAddress.includes('france') || lowerAddress.includes('italy') || lowerAddress.includes('spain') || lowerAddress.includes('ireland')) {
+        fee = internationalBaseFee; 
+        zone = "International Flat Rate (Europe)";
+        autoCurrency = 'EUR';
+      }
+      // Check if USA/Canada/General International
+      else if (lowerAddress.includes('usa') || lowerAddress.includes('states') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international') || lowerAddress.includes('outside nigeria') || lowerAddress.includes('ghana')) {
+        fee = internationalBaseFee; 
+        zone = "International Flat Rate";
+        autoCurrency = 'USD';
+      } 
+      // Check for Lagos contexts
+      else if (lowerAddress.includes('lagos')) {
+        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('vi') || lowerAddress.includes('victoria island') || lowerAddress.includes('ajah')) {
+          fee = 7000;
+          zone = "Lagos (Island)";
         } else {
-          fee = 4500;
-          zone = "Lagos (Mainland Zone)";
+          fee = 5000;
+          zone = "Lagos (Mainland)";
         }
-      } else if (lowerAddress.includes('abuja')) {
-        fee = 8000;
-        zone = "Abuja FCT";
-      } else if (lowerAddress.includes('port harcourt') || lowerAddress.includes('rivers')) {
-        fee = 8500;
-        zone = "Rivers State";
       }
 
       setDeliveryFee(fee);
       setDeliveryZone(zone);
-      showToast(`Dispatch Updated: ${zone}`);
+      
+      // Auto-switch the store currency if they manually type an international address
+      if (autoCurrency !== currency) {
+        setCurrency(autoCurrency);
+      }
+      
+      showToast(`Dispatch Matrix Logged: ${zone}`);
       
     } catch (err) {
-      showToast("Error calculating dispatch. Please try again.");
+      showToast("Error processing real-time rate tracking.");
     } finally {
       setIsCalculating(false);
     }
@@ -248,7 +319,6 @@ export default function ShopCatalog() {
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
-            {/* MOVED SEARCH ICON TO THE LEFT */}
             <button onClick={() => setIsSearchOpen(true)} className="hover:text-zinc-500 transition-colors p-1">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </button>
@@ -260,6 +330,19 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
+            
+            {/* MANUAL CURRENCY SELECTOR */}
+            <select 
+              value={currency} 
+              onChange={(e) => setCurrency(e.target.value)} 
+              className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block"
+            >
+              <option value="NGN">NGN ₦</option>
+              <option value="USD">USD $</option>
+              <option value="GBP">GBP £</option>
+              <option value="EUR">EUR €</option>
+            </select>
+
             <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -340,7 +423,7 @@ export default function ShopCatalog() {
                       <svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                     </button>
                   </div>
-                  <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">₦{quickViewProduct.price.toLocaleString()}</p>
+                  <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
                   
                   <div className="mb-5">
                     <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
@@ -371,7 +454,7 @@ export default function ShopCatalog() {
                     }} 
                     className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
                   >
-                    Add to Bag • ₦{(quickViewProduct.price * qty).toLocaleString()}
+                    Add to Bag • {formatPrice(quickViewProduct.price * qty)}
                   </button>
                 </div>
               </div>
@@ -507,7 +590,7 @@ export default function ShopCatalog() {
                         
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
                           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
+                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                         </div>
                       </div>
                     );
@@ -519,7 +602,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH AUTOMATED DISPATCH */}
+      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH CUSTOM AUTOMATED DISPATCH */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -543,7 +626,7 @@ export default function ShopCatalog() {
                     <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">₦{item.price.toLocaleString()}</span>
+                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">{formatPrice(item.price)}</span>
                     <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
                       <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
                       <span className="text-zinc-800">|</span>
@@ -569,7 +652,7 @@ export default function ShopCatalog() {
                   type="text" 
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="ENTER DESTINATION CITY/STATE" 
+                  placeholder="ENTER DESTINATION CITY / COUNTRY" 
                   className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-700 transition-colors"
                 />
                 <button 
@@ -582,34 +665,33 @@ export default function ShopCatalog() {
               </div>
             </div>
 
-            {/* ORDER SUMMARY */}
+            {/* LIVE ADJUSTING ORDER SUMMARY */}
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
               <div className="flex justify-between text-zinc-500">
                 <span>Subtotal:</span>
-                <span>₦{cartSubtotal.toLocaleString()}</span>
+                <span>{formatPrice(cartSubtotal)}</span>
               </div>
               
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]">
                   <span>Dispatch ({deliveryZone}):</span>
-                  <span>₦{deliveryFee.toLocaleString()}</span>
+                  <span>{formatPrice(deliveryFee)}</span>
                 </div>
               )}
               
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]">
                 <span>Total:</span>
-                <span>₦{grandTotal.toLocaleString()}</span>
+                <span>{formatPrice(grandTotal)}</span>
               </div>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
-                Keep Shopping
+                Continue Shopping
               </button>
-              {/* GOES DIRECTLY TO CHECKOUT PAGE & PASSES DELIVERY INFO */}
               <button 
                 onClick={() => {
-                  localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress }));
+                  localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency }));
                   window.location.href = '/checkout';
                 }} 
                 className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold"
@@ -714,7 +796,7 @@ export default function ShopCatalog() {
 
                   <div className="flex flex-col gap-1 mt-4 text-left px-1">
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                    <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
+                    <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                     
                     {/* MOBILE STATIC BUTTONS */}
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
@@ -752,7 +834,7 @@ export default function ShopCatalog() {
               </span>
               <span className="text-zinc-500 hidden sm:inline">|</span>
               <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
-                Total - ₦{cartSubtotal.toLocaleString()}
+                Total - {formatPrice(cartSubtotal)}
               </span>
             </div>
             {/* ONLY OPENS DRAWER TO REVIEW BAG */}
