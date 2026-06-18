@@ -528,29 +528,30 @@ export default function ShopCatalog() {
                             <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                           </div>
 
-                      {/* BULLETPROOF MOBILE HOVER BUTTONS */}
+                  {/* DOM-SAFE MOBILE HOVER FIX */}
 {inlineAddId !== product.id && (
   <div className="absolute inset-x-0 bottom-6 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-30 pointer-events-none">
     <div className="flex bg-white shadow-xl pointer-events-auto h-12 w-32 rounded-sm overflow-hidden border border-zinc-100 relative z-40">
       
-      {/* BAG BUTTON */}
-      <button 
-        type="button"
+      {/* BAG ACTION (Div instead of Button) */}
+      <div 
+        role="button"
+        tabIndex={0}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(product.id); }} 
-        disabled={product.is_sold_out} 
-        className="w-1/2 flex items-center justify-center hover:bg-zinc-50 transition-colors border-r border-zinc-200 text-black disabled:opacity-30 relative"
+        className={`w-1/2 flex items-center justify-center hover:bg-zinc-50 transition-colors border-r border-zinc-200 text-black cursor-pointer ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
       >
         <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
-      </button>
+      </div>
 
-      {/* EYE BUTTON */}
-      <button 
-        type="button"
+      {/* EYE ACTION (Div instead of Button) */}
+      <div 
+        role="button"
+        tabIndex={0}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} 
-        className="w-1/2 flex items-center justify-center hover:bg-zinc-50 transition-colors text-black relative"
+        className="w-1/2 flex items-center justify-center hover:bg-zinc-50 transition-colors text-black cursor-pointer"
       >
         <svg className="w-[20px] h-[20px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-      </button>
+      </div>
       
     </div>
   </div>
