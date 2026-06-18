@@ -25,8 +25,9 @@ const currencySymbols = {
   EUR: '€'
 };
 
-// YOUR ATELIER'S EXACT LONGITUDE & LATITUDE (Default: Victoria Island, Lagos)
-const ATELIER_COORDS = "3.4215,6.4281"; 
+// ATELIER'S COORDINATES FOR DRIVING MATRIX (Longitude, Latitude)
+const ATELIER_LONG = 3.4215;
+const ATELIER_LAT = 6.4281;
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
@@ -52,7 +53,7 @@ export default function ShopCatalog() {
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // REAL-TIME MAPBOX CALCULATOR STATES
+  // OPENSTREETMAP CALCULATOR STATES
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -228,21 +229,20 @@ export default function ShopCatalog() {
     }
   };
 
-  // DYNAMIC MAPBOX ROUTING & TRAFFIC CALCULATOR
+  // 100% FREE OPEN-SOURCE DISTANCE & ROUTING MATRIX CALCULATOR (OSM / OSRM)
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER A DELIVERY ADDRESS.");
     
     setIsCalculating(true);
     
     try {
-      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
       let finalFee = 0;
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
-      // 1. Handle International Users Directly (Bypass Mapbox distance)
+      // 1. Gated Rule Layer: Immediate Flat-Rate Exclusion Outside Nigeria
       if (detectedCountryCode !== 'NG') {
-        const internationalBaseFee = 55 / exchangeRates['USD']; // $55
+        const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
         zoneLabel = `International Delivery (${detectedCountryName})`;
         if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
@@ -256,56 +256,55 @@ export default function ShopCatalog() {
         return;
       }
 
-      // 2. Handle Nigerian Users (Calculate exact distance & traffic)
-      if (!mapboxToken) throw new Error("Mapbox Token Missing");
+      showToast("SCANNING HIGHWAY NETWORKS...");
 
-      showToast("SCANNING SATELLITE ROUTES...");
-
-      // Step A: Convert Address to Coordinates
-      const geoRes = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(deliveryAddress)}.json?access_token=${mapboxToken}&country=ng`);
+      // 2. OpenStreetMap Free Nominatim Geocoding Request
+      const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
+      const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
       
-      if (!geoData.features || geoData.features.length === 0) {
-        throw new Error("Location not recognized by satellite.");
+      if (!geoData || geoData.length === 0) {
+        throw new Error("Location layout not detected on local grid.");
       }
 
-      const destCoords = geoData.features.center; // [longitude, latitude]
-      const placeName = geoData.features.place_name;
+      const destLon = parseFloat(geoData[0].lon);
+      const destLat = parseFloat(geoData[0].lat);
+      const placeName = geoData[0].display_name;
 
-      // Step B: Route Driving Traffic from Atelier to Destination
-      const routeRes = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${ATELIER_COORDS};${destCoords},${destCoords}?access_token=${mapboxToken}`);
+      // 3. Open-Source Routing Machine (OSRM) Free Traffic & Distance Lookup
+      const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
+      const routeRes = await fetch(routeUrl);
       const routeData = await routeRes.json();
 
       if (!routeData.routes || routeData.routes.length === 0) {
-        throw new Error("No driving route found to this location.");
+        throw new Error("No navigable roadways found to this location.");
       }
 
-      const distanceKm = routeData.routes.distance / 1000; // Convert meters to km
-      const durationMins = routeData.routes.duration / 60; // Convert seconds to mins
+      const distanceKm = routeData.routes[0].distance / 1000; 
+      const durationMins = routeData.routes[0].duration / 60; 
 
-      // Step C: The Pricing Algorithm (Adjust these variables as needed)
-      const BASE_FARE = 2000; // Base pickup fee ₦2,000
-      const PRICE_PER_KM = 150; // ₦150 per kilometer
-      const PRICE_PER_MINUTE = 50; // ₦50 per minute of estimated traffic
+      // 4. Logistics Cost Calibration (Change base/minute scales to match your business metrics)
+      const BASE_FARE = 2500; 
+      const PRICE_PER_KM = 180; 
+      const PRICE_PER_MINUTE = 60; // Estimates transit time expenses
       
       finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
 
-      // Label Formatting
       if (distanceKm < 30) {
-        zoneLabel = `Lagos Local (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
+        zoneLabel = `Lagos Dispatch (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
       } else {
-        zoneLabel = `Inter-State Logistics (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
+        zoneLabel = `Regional Freight Delivery (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
       }
 
-      setDeliveryAddress(placeName); // Auto-format their typed address cleanly
+      setDeliveryAddress(placeName); 
       setDeliveryFee(Math.round(finalFee));
       setDeliveryZone(zoneLabel);
       if (autoCurrency !== currency) setCurrency(autoCurrency);
 
-      showToast(`Route Calculated: ${Math.round(distanceKm)}km confirmed.`);
+      showToast(`Route Calculated: ${Math.round(distanceKm)}km layout validated.`);
 
     } catch (err) {
-      showToast(err.message === "Mapbox Token Missing" ? "SYSTEM ERROR: ROUTING ENGINE OFFLINE" : "LOCATION NOT FOUND. TRY ADDING YOUR CITY OR STATE.");
+      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR CITY OR REGION CLEANLY.");
       setDeliveryFee(0);
       setDeliveryZone('');
     } finally {
@@ -316,13 +315,6 @@ export default function ShopCatalog() {
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
@@ -397,7 +389,7 @@ export default function ShopCatalog() {
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
               <img 
-                src={products.length > 0 ? products.image : ''} 
+                src={products.length > 0 ? products[0].image : ''} 
                 alt="Join the Community" 
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                 className="w-full h-full object-cover" 
@@ -477,8 +469,6 @@ export default function ShopCatalog() {
                   
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
-                      setIsCartOpen(false); 
-                      setTimeout(() => setIsCartOpen(false), 50); 
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -638,7 +628,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH MAPBOX ROUTING API */}
+      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH AUTOMATED ZERO-COST DISPATCH */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -685,10 +675,10 @@ export default function ShopCatalog() {
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             
-            {/* MAPBOX DYNAMIC DISTANCE INPUT */}
+            {/* 100% FREE OPEN-SOURCE ROUTING INPUT */}
             <div className="mb-6 border-b border-zinc-800 pb-5">
               <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">
-                Calculate Dynamic Routing Fee
+                Calculate Real-Time Route Expenses (OSM Network)
               </label>
               <div className="flex gap-2">
                 <input 
@@ -735,7 +725,7 @@ export default function ShopCatalog() {
               <button 
                 onClick={() => {
                   if (deliveryFee <= 0 || !deliveryAddress.trim()) {
-                    showToast("PLEASE CALCULATE ROUTING FEE TO PROCEED.");
+                    showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED.");
                     return;
                   }
                   localStorage.setItem('sikamore_delivery', JSON.stringify({ 
@@ -755,7 +745,7 @@ export default function ShopCatalog() {
                     : 'bg-white text-black hover:bg-zinc-300'
                 }`}
               >
-                {deliveryFee <= 0 ? 'CALCULATE ROUTE' : 'Proceed to Payment'}
+                {deliveryFee <= 0 ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}
               </button>
             </div>
           </div>
@@ -890,7 +880,7 @@ export default function ShopCatalog() {
 
       {/* FLOATING CART SUMMARY PILL - PERSISTENT VISIBILITY */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-2 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
               <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
