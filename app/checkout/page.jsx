@@ -45,8 +45,9 @@ export default function CheckoutPage() {
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [deliveryData, setDeliveryData] = useState(null);
   const [currency, setCurrency] = useState('NGN');
+  const [isHydrated, setIsHydrated] = useState(false); // Hydration Guard
 
-  // INJECT NATIVE PAYSTACK SDK WITH LIVE EVENT LISTENERS
+  // INJECT SECURE PAYSTACK INLINE SDK
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!window.PaystackPop) {
@@ -61,11 +62,15 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  // HYDRATION LIFECYCLE MANAGEMENT
   useEffect(() => {
-    if (cart.length === 0) {
-      router.push('/shop');
-      return;
-    }
+    // Give context states room to settle before routing judgements
+    const timeout = setTimeout(() => {
+      setIsHydrated(true);
+      if (!cart || cart.length === 0) {
+        router.push('/shop');
+      }
+    }, 800);
 
     if (typeof window !== 'undefined') {
       const storedDelivery = localStorage.getItem('sikamore_delivery');
@@ -89,6 +94,8 @@ export default function CheckoutPage() {
       }
     }
     checkActiveSession();
+
+    return () => clearTimeout(timeout);
   }, [cart, router]);
 
   const formatPrice = (ngnPrice) => {
@@ -157,12 +164,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
     if (!isScriptLoaded || !window.PaystackPop) {
-      return showToast('SECURE PAYMENT CONNECTION INITIALIZING... PLEASE CLICK AGAIN IN A MOMENT.');
+      return showToast('SECURE CONNECTION CONFIGURING... PLEASE TRY AGAIN IN A MOMENT.');
     }
 
     setIsProcessing(true);
 
-    // SILENT AUTHENTICATION PROFILE HANDSHAKE (NON-BLOCKING GUEST CHECKOUT FALLBACK)
     try {
       if (password.trim().length >= 6) {
         if (accountStatus === 'new') {
@@ -176,13 +182,11 @@ export default function CheckoutPage() {
         }
       }
     } catch (err) {
-      // Absorb silent auth profiles updates to prevent losing paying clients
-      console.log('Guest transition bypassed profile creation step safely.');
+      console.log('Guest fallback engaged.');
     }
 
-    // TRIGGER LIVE PAYSTACK POP WINDOW INSTANTLY
     try {
-      showToast('LAUNCHING SECURE PAYMENT CONNECTION...');
+      showToast('LAUNCHING SECURE PAYMENT COHORT...');
       const paystack = new window.PaystackPop();
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
@@ -203,7 +207,13 @@ export default function CheckoutPage() {
     }
   };
 
-  if (cart.length === 0) return null;
+  if (!isHydrated || cart.length === 0) {
+    return (
+      <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans uppercase tracking-[0.3em] text-[9px]">
+        Synchronizing Secured Atelier Pipeline...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5F4] text-black font-sans antialiased text-[11px]">
@@ -211,7 +221,6 @@ export default function CheckoutPage() {
         <Link href="/" className="text-xl font-normal tracking-[0.4em] uppercase font-serif text-black hover:text-zinc-600 transition-colors">S. SIKAMÒRE</Link>
       </header>
 
-      {/* WRAPPED ENTIRE COHORT GRID INSIDE A TRUE SUBMIT FORM LAYER */}
       <form onSubmit={handleCheckoutProcess} className="max-w-6xl mx-auto px-4 sm:px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
         
         <div className="lg:col-span-7 space-y-10">
@@ -223,7 +232,7 @@ export default function CheckoutPage() {
               
               {accountStatus === 'exists' && (
                 <div className="animate-fade-in space-y-3 bg-zinc-50 p-4 border border-zinc-200">
-                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Profile detected. Enter your password or leave blank to clear as guest.</p>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Profile detected. Enter password or leave blank for guest checkout.</p>
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="ENTER PASSWORD (OPTIONAL)" className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base md:text-xs uppercase tracking-widest pr-12 rounded-none placeholder-zinc-300" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black">
@@ -236,7 +245,7 @@ export default function CheckoutPage() {
 
               {accountStatus === 'new' && (
                 <div className="animate-fade-in space-y-3 bg-zinc-50 p-4 border border-zinc-200">
-                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Create a password to save a dashboard account, or leave blank to bypass.</p>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Create a password to save an account context, or leave blank to skip.</p>
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="CREATE PASSWORD (OPTIONAL)" className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base md:text-xs uppercase tracking-widest pr-12 rounded-none placeholder-zinc-300" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black">
@@ -261,7 +270,6 @@ export default function CheckoutPage() {
           </section>
         </div>
 
-        {/* ORDER SUMMARY SHEET */}
         <div className="lg:col-span-5 relative">
           <div className="bg-white border border-zinc-200 p-8 shadow-sm sticky top-32 rounded-none">
             <h2 className="text-sm tracking-[0.2em] uppercase font-medium mb-6 border-b border-zinc-200 pb-3">Order Outline</h2>
@@ -284,12 +292,9 @@ export default function CheckoutPage() {
             <div className="flex justify-between items-center border-t border-zinc-900 pt-6 mb-8 text-sm tracking-widest uppercase font-semibold text-black">
               <span>Total Remittance</span><span className="font-serif font-normal text-base">{formatPrice(orderTotal)}</span>
             </div>
-            
-            {/* TYPE SUBMIT TO TRIGGER NATIVE BROWSERS VALIDATIONS */}
             <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-5 text-[11px] tracking-[0.25em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-40 rounded-none shadow-sm">
-              {isProcessing ? 'AUTHORIZING GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : 'PROCEED TO PAYMENT'}
+              {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : 'PROCEED TO PAYMENT'}
             </button>
-            
             <div className="mt-6 flex items-center justify-center gap-3 opacity-40">
               <span className="border border-zinc-300 px-2 py-1 rounded text-[8px] font-bold tracking-widest">PAYSTACK</span>
               <span className="border border-zinc-300 px-2 py-1 rounded text-[8px] font-bold tracking-widest">VISA</span>
