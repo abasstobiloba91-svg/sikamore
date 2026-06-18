@@ -184,16 +184,13 @@ export default function ShopCatalog() {
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
   // FIXED: MICRO-TIMEOUT PREVENTS REACT FROM LOCKING UP THE IOS MAIN THREAD ON TOUCH
-  const openQuickView = (product) => {
+const openQuickView = (product) => {
     if (!product) return;
-    setTimeout(() => {
-      setQty(1);
-      setSelectedSize('M');
-      setOpenAccordion('description');
-      setQuickViewProduct(product);
-    }, 10);
+    setQty(1);
+    setSelectedSize('M');
+    setOpenAccordion('description');
+    setQuickViewProduct(product);
   };
-
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
