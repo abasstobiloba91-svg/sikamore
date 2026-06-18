@@ -2,7 +2,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -183,7 +183,7 @@ export default function ShopCatalog() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
-  // FIXED: Removed setTimeout. Button now opens the modal instantly.
+  // FIXED: Standard touch screen open initialization
   const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
@@ -264,9 +264,9 @@ export default function ShopCatalog() {
         throw new Error("Location layout not detected on local grid.");
       }
 
-      const destLon = parseFloat(geoData.lon);
-      const destLat = parseFloat(geoData.lat);
-      const placeName = geoData.display_name;
+      const destLon = parseFloat(geoData[0].lon);
+      const destLat = parseFloat(geoData[0].lat);
+      const placeName = geoData[0].display_name;
 
       // 3. Open-Source Routing Machine (OSRM) Free Traffic & Distance Lookup
       const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
@@ -277,8 +277,8 @@ export default function ShopCatalog() {
         throw new Error("No navigable roadways found to this location.");
       }
 
-      const distanceKm = routeData.routes.distance / 1000; 
-      const durationMins = routeData.routes.duration / 60; 
+      const distanceKm = routeData.routes[0].distance / 1000; 
+      const durationMins = routeData.routes[0].duration / 60; 
 
       // 4. Logistics Cost Calibration (Change base/minute scales to match your business metrics)
       const BASE_FARE = 2500; 
@@ -393,9 +393,9 @@ export default function ShopCatalog() {
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
               <img 
-                src={products.length > 0 ? products.image : ''} 
+                src={products.length > 0 ? products[0].image : ''} 
                 alt="Join the Community" 
-                onError={(e) => { e.currentTarget.style.opacity = 0; }}
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                 className="w-full h-full object-cover" 
               />
             </div>
@@ -425,9 +425,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* DETAILED PRODUCT OVERLAY MODAL - FIXED MOBILE CRASHES */}
+      {/* DETAILED PRODUCT OVERLAY MODAL - PROOFED AGAINST INVISIBILITY & COLLAPSE */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z- bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 z-[9999999] bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in text-black">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
             
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
@@ -435,8 +435,8 @@ export default function ShopCatalog() {
             </button>
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
-              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 h-[400px] md:h-auto relative">
-                {/* FIXED: decoding="async" prevents high-res image decoding from crashing mobile GPU */}
+              {/* FIXED: Enforced structured ratio parameters so the canvas framework never collapses to 0 height */}
+              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative">
                 {quickViewProduct.image && (
                   <img 
                     src={quickViewProduct.image} 
@@ -448,9 +448,9 @@ export default function ShopCatalog() {
                   /> 
                 )}
               </div>
-              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center">
+              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
-                  <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4">{quickViewProduct.name}</h2>
+                  <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
                   <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10">
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                   </button>
@@ -469,7 +469,7 @@ export default function ShopCatalog() {
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex items-center border border-zinc-200 bg-white">
                     <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">-</button>
-                    <span className="w-8 text-center text-xs font-mono">{qty}</span>
+                    <span className="w-8 text-center text-xs font-mono text-black">{qty}</span>
                     <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
                   </div>
                 </div>
@@ -489,7 +489,7 @@ export default function ShopCatalog() {
                 <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
                   {productTabs.map((tab) => (
                     <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
-                      <button onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
                         <span>{tab.title}</span>
                         <span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
                       </button>
@@ -640,7 +640,7 @@ export default function ShopCatalog() {
           </div>
         )}
       </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
 
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -654,7 +654,7 @@ export default function ShopCatalog() {
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsMenuOpen(false)}></div>}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" style={{ zIndex: 999998 }} onClick={() => setIsMenuOpen(false)}></div>}
 
       <section className="bg-white border-b border-zinc-200 relative" style={{ zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
@@ -688,7 +688,6 @@ export default function ShopCatalog() {
                   <div 
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
                     onClick={(e) => {
-                      e.preventDefault();
                       e.stopPropagation();
                       if (!product.is_sold_out) openQuickView(product);
                     }}
@@ -698,14 +697,14 @@ export default function ShopCatalog() {
                         src={product.image} 
                         alt={product.name} 
                         loading="lazy"
-                        onError={(e) => { e.currentTarget.style.opacity = 0; }}
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                         className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                       />
                     )}
                     
                     <button 
                       type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleWishlistClick(e, product); }} 
+                      onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} 
                       className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                     >
                       <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
@@ -724,7 +723,7 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
                         className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
                       >
                         View Product
@@ -751,7 +750,7 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
                         className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors"
                       >
                         View Product
@@ -767,10 +766,10 @@ export default function ShopCatalog() {
 
       {/* FIXED: AGGRESSIVELY CONDENSED TEXT FOR FLAWLESS MOBILE PILL */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[9px] sm:text-[10px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
-              <span>{cartItemCount} <span className="hidden sm:inline">ITEM{cartItemCount !== 1 && 'S'}</span></span>
+              <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
               <span className="text-zinc-600">|</span>
               <span>{formatPrice(cartSubtotal)}</span>
             </div>
