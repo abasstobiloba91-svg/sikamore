@@ -111,7 +111,7 @@ export default function ShopCatalog() {
           }
         }
       } catch (err) {
-        // Fallback default
+        // Silently catch exceptions
       }
     }
     autoDetectCurrency();
@@ -472,7 +472,7 @@ export default function ShopCatalog() {
 
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
             <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
               <input
                 type="text"
                 autoFocus
@@ -669,17 +669,25 @@ export default function ShopCatalog() {
                 Continue Shopping
               </button>
               
-              {/* FIXED LINK COMPONENT TO PREVENT ROUTE CRASHES */}
-              <Link 
-                href="/checkout"
+              {/* HARD GATE CHECKOUT INTERCEPTOR LOGIC TRIGGER */}
+              <button 
                 onClick={() => {
+                  if (deliveryFee <= 0 || !deliveryAddress.trim()) {
+                    showToast("PLEASE CALCULATE SHIPPING DESTINATION TO PROCEED.");
+                    return;
+                  }
                   localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency }));
                   setIsCartOpen(false);
+                  window.location.href = '/checkout';
                 }}
-                className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold"
+                className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${
+                  deliveryFee <= 0 
+                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
+                    : 'bg-white text-black hover:bg-zinc-300'
+                }`}
               >
-                Proceed to Payment
-              </Link>
+                {deliveryFee <= 0 ? 'CALCULATE DELIVERY' : 'Proceed to Payment'}
+              </button>
             </div>
           </div>
         )}
@@ -748,7 +756,7 @@ export default function ShopCatalog() {
                       className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                     >
                       <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 upgrade 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                       </svg>
                     </button>
 
