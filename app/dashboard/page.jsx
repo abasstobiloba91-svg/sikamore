@@ -147,23 +147,29 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateTicket = async (e) => {
-    e.preventDefault();
-    setCreatingTicket(true);
-    try {
-      const { data, error } = await supabase.from('support_tickets')
-        .insert({
-          name: userProfile.name.toUpperCase(), 
-          email: userProfile.email, 
-          subject: newTicketSubject.toUpperCase(), 
-          message: newTicketMessage, 
-          status: 'unread', 
-          chat_history: [{ sender: 'user', text: newTicketMessage, timestamp: new Date().toISOString() }]
+ // EMAIL TRIGGER: ADMIN ALERT FOR NEW TICKET 
+      fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'support@ssikamore.com', // Sent TO your support team
+          fromEmail: 'support@ssikamore.com', // Sent FROM your domain to bypass spam filters
+          fromName: 'S. SIKAMÒRE CONCIERGE',
+          subject: `SIKAMORE ALERT: NEW TICKET FROM ${userProfile.name.toUpperCase()}`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px;">
+              <h2 style="text-transform: uppercase; letter-spacing: 2px;">New Support File Logged</h2>
+              <p><strong>CLIENT:</strong> ${userProfile.name} (${userProfile.email})</p>
+              <p><strong>SUBJECT:</strong> ${newTicketSubject.toUpperCase()}</p>
+              <p><strong>TICKET ID:</strong> #${String(data.id).slice(0,8).toUpperCase()}</p>
+              <br/>
+              <p style="padding: 15px; background-color: #f4f4f5; border-left: 4px solid #000;">
+                ${newTicketMessage}
+              </p>
+            </div>
+          `
         })
-        .select()
-        .single();
-      
-      if (error) throw error;
+      }).catch(err => console.error("Email error:", err));
       
       // EMAIL TRIGGER: ADMIN ALERT FOR NEW TICKET (HITS /api/send)
       fetch('/api/send', {
