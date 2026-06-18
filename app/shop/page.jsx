@@ -529,32 +529,33 @@ export default function ShopCatalog() {
                           </div>
 
                   {/* DOM-SAFE MOBILE HOVER FIX */}
-{/* STRICT GRID-BASED SLEEK BUTTONS */}
+{/* BULLETPROOF CLIENT DEMO BUTTONS */}
 {inlineAddId !== product.id && (
   <div className="absolute inset-x-0 bottom-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z- pointer-events-none">
     
-    {/* CHANGED TO GRID: This builds an invisible wall ensuring exactly 50/50 split */}
-    <div className="grid grid-cols-2 bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-9 w-24 rounded-sm border border-zinc-100 relative z- overflow-hidden">
+    {/* CHANGED TO GRID: Exactly 50/50 split, h-11 (44px) to satisfy mobile touch rules */}
+    <div className="grid grid-cols-2 bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-28 rounded-sm border border-zinc-100 relative z- overflow-hidden">
       
       {/* BAG ACTION */}
       <button 
         type="button"
-        onClick={(e) => { 
+        onPointerDown={(e) => { 
           e.preventDefault(); 
           e.stopPropagation(); 
           // Stops mobile from checking other layers
           if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
           if (!product.is_sold_out) setInlineAddId(product.id); 
         }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         className={`flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors border-r border-zinc-200 text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
       >
-        <svg className="w-[16px] h-[16px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+        <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
       </button>
 
       {/* EYE ACTION */}
       <button 
         type="button"
-        onClick={(e) => { 
+        onPointerDown={(e) => { 
           e.preventDefault(); 
           e.stopPropagation(); 
           if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
@@ -562,9 +563,10 @@ export default function ShopCatalog() {
           setSearchQuery(''); 
           openQuickView(product); 
         }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         className="flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black"
       >
-        <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <svg className="w-[20px] h-[20px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       </button>
       
     </div>
@@ -624,7 +626,6 @@ export default function ShopCatalog() {
             ))
           )}
         </div>
-
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             <div className="flex justify-between mb-6 text-xs uppercase tracking-widest">
