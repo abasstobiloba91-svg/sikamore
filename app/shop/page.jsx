@@ -80,8 +80,9 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // AUTOMATED REGIONAL MARKUP PRICING ENGINE (1.5x Outside NG)
+  // AUTOMATED REGIONAL MARKUP PRICING ENGINE
   const formatPrice = (ngnPrice, isShipping = false) => {
+    if (!ngnPrice) return '';
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
     const converted = ngnPrice * markupRate * exchangeRates[currency];
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
@@ -97,18 +98,28 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // INJECT GOOGLE MAPS JAVASCRIPT SDK DIRECTLY ON MOUNT
+  // FIXED: SECURE ONE-TIME GOOGLE MAPS SCRIPT INJECTOR
   useEffect(() => {
-    if (typeof window !== 'undefined' && !window.google) {
+    if (typeof window === 'undefined') return;
+
+    const scriptId = 'google-maps-script';
+    
+    if (window.google) {
+      if (isCartOpen) initializeGoogleAutocomplete();
+      return;
+    }
+
+    if (!document.getElementById(scriptId)) {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
       const script = document.createElement('script');
+      script.id = scriptId;
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       script.async = true;
       script.defer = true;
-      script.onload = () => initializeGoogleAutocomplete();
+      script.onload = () => {
+        if (isCartOpen) initializeGoogleAutocomplete();
+      };
       document.head.appendChild(script);
-    } else if (window.google) {
-      initializeGoogleAutocomplete();
     }
   }, [isCartOpen]); 
 
@@ -172,7 +183,7 @@ export default function ShopCatalog() {
           }
         }
       } catch (err) {
-        // Fallback fallback settings
+        // Fallback default operational states
       }
     }
     locateClientNetwork();
@@ -203,10 +214,16 @@ export default function ShopCatalog() {
     );
   }, [searchQuery, products]);
 
+  // SECURE ANALYTICS DISPATCH
   useEffect(() => {
-    supabase.from('page_analytics')
-      .insert([{ event_type: 'visit', page_path: '/shop' }])
-      .catch(() => console.log("Analytics initialization captured safely."));
+    const logVisit = async () => {
+      try {
+        await supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]);
+      } catch (e) {
+        // Suppress errors to prevent UI blockage
+      }
+    };
+    logVisit();
   }, []);
 
   useEffect(() => {
@@ -236,7 +253,6 @@ export default function ShopCatalog() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
-  // SAFE MULTI-PLATFORM VIEW INITIATOR WITH CRASH GUARDS
   const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
@@ -244,10 +260,12 @@ export default function ShopCatalog() {
     setOpenAccordion('description');
     setQuickViewProduct(product);
 
-    // Asynchronous isolation block protects state execution from network dropping
-    supabase.from('page_analytics')
-      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
-      .catch((err) => console.log("Network metrics write bypassed safely."));
+    const logClick = async () => {
+      try {
+        await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]);
+      } catch (e) {}
+    };
+    logClick();
   };
 
   const handleCartClick = (e, product) => {
@@ -330,6 +348,13 @@ export default function ShopCatalog() {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
 
+  const productTabs = [
+    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
+    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
+    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
+    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
+  ];
+
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
@@ -402,7 +427,13 @@ export default function ShopCatalog() {
             </button>
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? products.image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
+              {/* FIXED: Added anti-crash block to popup image */}
+              <img 
+                src={products.length > 0 ? products.image : ''} 
+                alt="Join the Community" 
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                className="w-full h-full object-cover" 
+              />
             </div>
 
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
@@ -441,7 +472,15 @@ export default function ShopCatalog() {
               
               <div className="flex flex-col md:flex-row">
                 <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
-                  {quickViewProduct.image && <img src={quickViewProduct.image} alt="Preview" className="w-full h-full object-cover" /> }
+                  {/* FIXED: Anti-Crash Block */}
+                  {quickViewProduct.image && (
+                    <img 
+                      src={quickViewProduct.image} 
+                      alt="Preview" 
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                      className="w-full h-full object-cover" 
+                    /> 
+                  )}
                 </div>
                 <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center">
                   <div className="flex justify-between items-start mb-1">
@@ -558,7 +597,7 @@ export default function ShopCatalog() {
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                           
                           <div 
-                            className="absolute inset-0 z-10 cursor-pointer"
+                            className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -569,7 +608,16 @@ export default function ShopCatalog() {
                               }
                             }}
                           >
-                            {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" />}
+                            {/* FIXED: Anti-Crash Block */}
+                            {product.image && (
+                              <img 
+                                src={product.image} 
+                                alt={product.name} 
+                                loading="lazy"
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                                className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
+                              />
+                            )}
                           </div>
 
                           <button 
@@ -640,7 +688,15 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+                  {/* FIXED: Anti-Crash Block */}
+                  {item.image && (
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                      className="w-full h-full object-cover" 
+                    />
+                  )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
@@ -796,12 +852,13 @@ export default function ShopCatalog() {
                         if (!product.is_sold_out) openQuickView(product);
                       }}
                     >
+                      {/* FIXED: Anti-Crash Block */}
                       {product.image && (
                         <img 
                           src={product.image} 
                           alt={product.name} 
                           loading="lazy"
-                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"; }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                           className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                         />
                       )}
