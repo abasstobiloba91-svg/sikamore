@@ -855,18 +855,14 @@ export default function ShopCatalog() {
                 {/* PRODUCT INFO */}
                 <div className="flex flex-col gap-0.5 mt-3 text-center pb-1 px-1 bg-white">
                   <h3 className="text-[8px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-500 truncate">{product.name}</h3>
-                  <p className="text-[9px] sm:text-[11px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
+       <p className="text-[9px] sm:text-[11px] tracking-widest text-black font-medium">₦{Number(product.price).toLocaleString()}</p>
                 </div>
               </div>
             );
           })}
         </div>
-    )}
-    </div>
-  </div>
-  )}
-</main>
-
+      )}
+    </main>
       <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
           <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
