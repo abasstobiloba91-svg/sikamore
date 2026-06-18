@@ -861,7 +861,6 @@ export default function ShopCatalog() {
             );
           })}
         </div>
-      </>
     )}
     </div>
   </div>
