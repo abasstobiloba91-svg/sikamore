@@ -91,7 +91,7 @@ export default function ClientDashboard() {
     loadClientData();
   }, [userProfile, activeTab]);
 
-  // SUPABASE REAL-TIME WEBSOCKETS HUB (Now handles BOTH Support and Live Orders)
+  // SUPABASE REAL-TIME WEBSOCKETS HUB 
   useEffect(() => {
     if (!userProfile) return;
     
@@ -105,16 +105,13 @@ export default function ClientDashboard() {
         setTickets((prev) => [payload.new, ...prev]);
       }).subscribe();
 
-// Channel 2: Live Order Tracking 
+    // Channel 2: Live Order Tracking 
     const orderSync = supabase.channel('realtime_orders_client')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_email=eq.${userProfile.email}` }, (payload) => {
-        
-        // 1. Instantly update the React screen
         setOrders((prev) => prev.map(o => o.id === payload.new.id ? payload.new : o));
         
-        // 2. Fire the live notification safely
-        showToast(`UPDATE: ORDER #${payload.new.id.slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
-        
+        // FIX: Wrapped ID in String() to prevent crash on number IDs
+        showToast(`UPDATE: ORDER #${String(payload.new.id).slice(0,8).toUpperCase()} IS NOW ${payload.new.status.toUpperCase()}`);
       }).subscribe();
 
     return () => { 
@@ -172,7 +169,6 @@ export default function ClientDashboard() {
       setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
       
-      // FIX applied here: accessing the first item of the array
       if (data && data.length > 0) setActiveChat(data); 
       
     } catch (err) { 
@@ -243,7 +239,8 @@ export default function ClientDashboard() {
                 <div key={order.id} className="bg-white text-black border border-zinc-200 shadow-sm hover:shadow-md transition-shadow p-6 sm:p-8 flex flex-col gap-6">
                   <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
                     <div>
-                      <p className="text-[9px] tracking-widest text-zinc-500 uppercase font-mono">ORDER REF: #{order.id.slice(0,8).toUpperCase()}</p>
+                      {/* FIX: Wrapped order ID in String() */}
+                      <p className="text-[9px] tracking-widest text-zinc-500 uppercase font-mono">ORDER REF: #{String(order.id).slice(0,8).toUpperCase()}</p>
                       <span className="text-[10px] text-zinc-400 block mt-1">{new Date(order.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="text-right">
@@ -395,7 +392,8 @@ export default function ClientDashboard() {
                   <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A] flex justify-between items-center shrink-0">
                     <div>
                       <h3 className="text-xs uppercase tracking-widest text-white font-medium truncate max-w-[200px] sm:max-w-md">{activeChat.subject}</h3>
-                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{activeChat.id.slice(0,8).toUpperCase()}</p>
+                      {/* FIX: Wrapped activeChat ID in String() */}
+                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{String(activeChat.id).slice(0,8).toUpperCase()}</p>
                     </div>
                     <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-4 py-2 hover:bg-zinc-800 text-zinc-300 transition-colors rounded-sm">
                       &larr; Back
