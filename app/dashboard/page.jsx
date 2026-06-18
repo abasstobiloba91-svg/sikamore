@@ -11,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export default function ClientDashboard() {
+export default function Dashboard() {
   const { showToast, wishlist, toggleWishlist, addToCart } = useApp();
   
   const [activeTab, setActiveTab] = useState('orders'); 
@@ -151,7 +151,6 @@ export default function ClientDashboard() {
     e.preventDefault();
     setCreatingTicket(true);
     try {
-      // FIX: Passing a single object and using .single() ensures we don't get trapped in an Array
       const { data, error } = await supabase.from('support_tickets')
         .insert({
           name: userProfile.name.toUpperCase(), 
@@ -166,12 +165,35 @@ export default function ClientDashboard() {
       
       if (error) throw error;
       
+      // EMAIL TRIGGER: ADMIN ALERT FOR NEW TICKET (HITS /api/send)
+      fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'YOUR_ADMIN_EMAIL@domain.com', // <-- CHANGE THIS TO YOUR ADMIN EMAIL
+          subject: `SIKAMORE ALERT: NEW TICKET FROM ${userProfile.name.toUpperCase()}`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px;">
+              <h2 style="text-transform: uppercase; letter-spacing: 2px;">New Support File Logged</h2>
+              <p><strong>CLIENT:</strong> ${userProfile.name} (${userProfile.email})</p>
+              <p><strong>SUBJECT:</strong> ${newTicketSubject.toUpperCase()}</p>
+              <p><strong>TICKET ID:</strong> #${String(data.id).slice(0,8).toUpperCase()}</p>
+              <br/>
+              <p style="padding: 15px; background-color: #f4f4f5; border-left: 4px solid #000;">
+                ${newTicketMessage}
+              </p>
+              <br/>
+              <p><a href="https://yourwebsite.com/admin" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Open Admin Console</a></p>
+            </div>
+          `
+        })
+      }).catch(err => console.error("Email error:", err));
+      
       setNewTicketSubject(''); 
       setNewTicketMessage(''); 
       setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
       
-      // Instantly open the newly created chat 
       if (data) setActiveChat(data); 
       
     } catch (err) { 
@@ -187,7 +209,6 @@ export default function ClientDashboard() {
     
     setSendingReply(true);
     try {
-      // Safely parse the chat history in case it's stringified or empty
       let currentHistory = [];
       if (Array.isArray(activeChat.chat_history)) {
         currentHistory = activeChat.chat_history;
@@ -195,7 +216,6 @@ export default function ClientDashboard() {
         try { currentHistory = JSON.parse(activeChat.chat_history); } catch(e) {}
       }
 
-      // If somehow empty, push the original message to the start
       if (currentHistory.length === 0 && activeChat.message) {
         currentHistory = [{ sender: 'user', text: activeChat.message, timestamp: activeChat.created_at }];
       }
@@ -210,6 +230,29 @@ export default function ClientDashboard() {
         
       if (error) throw error;
       
+      // EMAIL TRIGGER: ADMIN ALERT FOR TICKET REPLY (HITS /api/send)
+      fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'YOUR_ADMIN_EMAIL@domain.com', // <-- CHANGE THIS TO YOUR ADMIN EMAIL
+          subject: `SIKAMORE ALERT: REPLY FROM ${userProfile.name.toUpperCase()} (TICKET #${String(activeChat.id).slice(0,8).toUpperCase()})`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px;">
+              <h2 style="text-transform: uppercase; letter-spacing: 2px;">Client Replied to Ticket</h2>
+              <p><strong>CLIENT:</strong> ${userProfile.name} (${userProfile.email})</p>
+              <p><strong>TICKET ID:</strong> #${String(activeChat.id).slice(0,8).toUpperCase()}</p>
+              <br/>
+              <p style="padding: 15px; background-color: #f4f4f5; border-left: 4px solid #000;">
+                ${replyText}
+              </p>
+              <br/>
+              <p><a href="https://yourwebsite.com/admin" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Open Admin Console</a></p>
+            </div>
+          `
+        })
+      }).catch(err => console.error("Email error:", err));
+
       if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'user', isTyping: false } });
       setReplyText('');
       
@@ -237,7 +280,6 @@ export default function ClientDashboard() {
     window.location.href='/';
   };
 
-  // Helper to safely render chat history without crashing
   const getSafeChatHistory = () => {
     if (!activeChat) return [];
     if (Array.isArray(activeChat.chat_history) && activeChat.chat_history.length > 0) {
@@ -430,7 +472,7 @@ export default function ClientDashboard() {
                   <div className="p-6 border-b border-zinc-800 bg-[#0A0A0A] flex justify-between items-center shrink-0">
                     <div>
                       <h3 className="text-xs uppercase tracking-widest text-white font-medium truncate max-w-[200px] sm:max-w-md">{activeChat.subject || 'UNTITLED'}</h3>
-                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{activeChat.id?.slice ? activeChat.id.slice(0,8).toUpperCase() : 'PENDING'}</p>
+                      <p className="text-[8px] text-zinc-500 tracking-widest mt-1">ID: #{String(activeChat.id).slice(0,8).toUpperCase()}</p>
                     </div>
                     <button onClick={() => setActiveChat(null)} className="md:hidden text-base md:text-[9px] tracking-widest uppercase border border-zinc-700 px-4 py-2 hover:bg-zinc-800 text-zinc-300 transition-colors rounded-sm">
                       &larr; Back
