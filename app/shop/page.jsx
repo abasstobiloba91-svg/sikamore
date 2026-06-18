@@ -110,7 +110,7 @@ export default function ShopCatalog() {
     } else if (window.google) {
       initializeGoogleAutocomplete();
     }
-  }, [isCartOpen]); // Re-bind safely when cart drawer rolls open
+  }, [isCartOpen]); 
 
   const initializeGoogleAutocomplete = () => {
     if (!autocompleteInputRef.current || !window.google) return;
@@ -123,18 +123,16 @@ export default function ShopCatalog() {
       const place = autocomplete.getPlace();
       if (!place.address_components) return;
 
-      // Extract official country code from Google components maps matrix
       let countryCode = 'NG';
       let fullFormattedAddress = place.formatted_address || '';
 
       for (const component of place.address_components) {
         if (component.types.includes('country')) {
-          countryCode = component.short_name; // E.g. "US", "NG", "GH"
+          countryCode = component.short_name;
           break;
         }
       }
 
-      // STRICT ENFORCEMENT: Address must match their auto-detected IP location
       if (countryCode !== detectedCountryCode) {
         showToast("LOCATION NOT FOUND.");
         setDeliveryAddress('');
@@ -164,7 +162,7 @@ export default function ShopCatalog() {
           if (data.country_code === 'NG') {
             setCurrency('NGN');
           } else if (data.continent_code === 'AF') {
-            setCurrency('USD'); // Gated African clients instantly view USD
+            setCurrency('USD'); 
           } else if (data.country_code === 'GB') {
             setCurrency('GBP');
           } else if (checkEurope) {
@@ -208,7 +206,7 @@ export default function ShopCatalog() {
   useEffect(() => {
     supabase.from('page_analytics')
       .insert([{ event_type: 'visit', page_path: '/shop' }])
-      .then(({ error }) => { if (error) console.log("Analytics processed successfully.") });
+      .catch(() => console.log("Analytics initialization captured safely."));
   }, []);
 
   useEffect(() => {
@@ -237,6 +235,20 @@ export default function ShopCatalog() {
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
+
+  // SAFE MULTI-PLATFORM VIEW INITIATOR WITH CRASH GUARDS
+  const openQuickView = (product) => {
+    if (!product) return;
+    setQty(1);
+    setSelectedSize('M');
+    setOpenAccordion('description');
+    setQuickViewProduct(product);
+
+    // Asynchronous isolation block protects state execution from network dropping
+    supabase.from('page_analytics')
+      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
+      .catch((err) => console.log("Network metrics write bypassed safely."));
+  };
 
   const handleCartClick = (e, product) => {
     e.preventDefault();
@@ -272,7 +284,6 @@ export default function ShopCatalog() {
     }
   };
 
-  // PROCESSING SECURE GOOGLE GEOLOCATION MATRIX
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE SELECT AN ADDRESS VIA AUTOMATED SUGGESTIONS.");
     
@@ -583,7 +594,6 @@ export default function ShopCatalog() {
                             <button 
                               type="button"
                               onClick={(e) => { 
-                                e.preventDefault(); 
                                 e.stopPropagation(); 
                                 setIsSearchOpen(false); 
                                 setSearchQuery(''); 
@@ -778,10 +788,10 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
+                    {/* ENHANCED INTERACTIVE EVENT ISOLATION FOR TOUCH PROTOCOLS */}
                     <div 
                       className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
                         if (!product.is_sold_out) openQuickView(product);
                       }}
@@ -818,7 +828,7 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
                         className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
                       >
                         View Product
@@ -845,7 +855,7 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
                         className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors"
                       >
                         View Product
