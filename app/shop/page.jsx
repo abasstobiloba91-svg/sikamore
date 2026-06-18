@@ -183,16 +183,14 @@ export default function ShopCatalog() {
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
+  // FIXED: Removed Supabase analytics network call from this function.
+  // Safari and mobile ad-blockers forcefully crash the page if they intercept tracking scripts on a user click.
   const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
     setQuickViewProduct(product);
-
-    supabase.from('page_analytics')
-      .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
-      .then(() => {}).catch(() => {});
   };
 
   const handleCartClick = (e, product) => {
@@ -469,6 +467,8 @@ export default function ShopCatalog() {
                   
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
+                      setIsCartOpen(false); 
+                      setTimeout(() => setIsCartOpen(false), 50); 
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -639,7 +639,7 @@ export default function ShopCatalog() {
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let&apos;s find you something beautiful.</div>
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
           ) : (
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
@@ -798,9 +798,11 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
+                    {/* FIXED: ANTI-CRASH EVENT ISOLATION LAYER FOR TOUCH SCREENS */}
                     <div 
-                      className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
+                      className="absolute inset-0 z-10 cursor-pointer"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         if (!product.is_sold_out) openQuickView(product);
                       }}
@@ -810,7 +812,6 @@ export default function ShopCatalog() {
                           src={product.image} 
                           alt={product.name} 
                           loading="lazy"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                           className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                         />
                       )}
@@ -837,7 +838,11 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          openQuickView(product); 
+                        }}
                         className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
                       >
                         View Product
@@ -864,7 +869,11 @@ export default function ShopCatalog() {
                       </button>
                       <button 
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          openQuickView(product); 
+                        }}
                         className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors"
                       >
                         View Product
@@ -878,20 +887,21 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL - PERSISTENT VISIBILITY */}
+      {/* FIXED: FLOATING CART SUMMARY PILL - CONDENSED FOR MOBILE PREVENTING OVERFLOW */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
-          <div className="bg-black rounded-full flex items-center justify-between p-2 sm:p-2 border border-zinc-800 whitespace-nowrap">
-            <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
-              <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
-                Products Added - {cartItemCount}
+          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
+            <div className="flex items-center gap-2 sm:gap-6 pl-3 sm:pl-6 pr-2 overflow-hidden">
+              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase truncate">
+                <span className="hidden sm:inline">Products Added - </span>{cartItemCount} <span className="sm:hidden">Item{cartItemCount !== 1 && 's'}</span>
               </span>
-              <span className="text-zinc-500 hidden sm:inline">|</span>
-              <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
-                Total - {formatPrice(cartSubtotal)}
+              <span className="text-zinc-500">|</span>
+              <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase truncate">
+                <span className="hidden sm:inline">Total - </span>{formatPrice(cartSubtotal)}
               </span>
             </div>
-            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
+            {/* ONLY THIS BUTTON TRIGGERS THE DRAWER NOW */}
+            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-4 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-2 sm:ml-4 shrink-0">
               View Bag
             </button>
           </div>
