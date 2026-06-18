@@ -157,13 +157,29 @@ export default function ClientDashboard() {
     setCreatingTicket(true);
     try {
       const { data, error } = await supabase.from('support_tickets').insert([{
-        name: userProfile.name.toUpperCase(), email: userProfile.email, subject: newTicketSubject.toUpperCase(), message: newTicketMessage, status: 'unread', chat_history: [{ sender: 'user', text: newTicketMessage, timestamp: new Date().toISOString() }]
+        name: userProfile.name.toUpperCase(), 
+        email: userProfile.email, 
+        subject: newTicketSubject.toUpperCase(), 
+        message: newTicketMessage, 
+        status: 'unread', 
+        chat_history: [{ sender: 'user', text: newTicketMessage, timestamp: new Date().toISOString() }]
       }]).select();
+      
       if (error) throw error;
-      setNewTicketSubject(''); setNewTicketMessage(''); setShowCreateModal(false);
+      
+      setNewTicketSubject(''); 
+      setNewTicketMessage(''); 
+      setShowCreateModal(false);
       showToast('SUPPORT FILE RECORDED. DIRECT PORTAL OPEN.');
-      if (data && data) setActiveChat(data);
-    } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setCreatingTicket(false); }
+      
+      // FIX applied here: accessing the first item of the array
+      if (data && data.length > 0) setActiveChat(data); 
+      
+    } catch (err) { 
+      showToast(`ERROR: ${err.message.toUpperCase()}`); 
+    } finally { 
+      setCreatingTicket(false); 
+    }
   };
 
   const handleClientReply = async (e) => {
