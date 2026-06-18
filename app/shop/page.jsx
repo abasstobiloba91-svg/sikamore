@@ -28,46 +28,32 @@ const currencySymbols = {
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // CURRENT USER SESSION
   const [userSession, setUserSession] = useState(null);
-
-  // GLOBAL CURRENCY STATE
   const [currency, setCurrency] = useState('NGN');
 
-  // GEOLOCATION LOCK STATES
+  // GEOLOCATION ENGINE STATES
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
   const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
-  // GRID LAYOUT STATE
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
-
-  // SIDE MENU DRAWER STATE
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // SEARCH OVERLAY STATE
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-
-  // PRODUCT VIEW MODAL
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
-
-  // NEWSLETTER POPUP STATE
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // REAL-TIME AUTOMATED DISPATCH CALCULATOR STATE
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
-
   const [tickerIndex, setTickerIndex] = useState(0);
+
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
     "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
@@ -85,19 +71,27 @@ export default function ShopCatalog() {
   const hasUnreadSupport = appContext.hasUnreadSupport || false;
   const showToast = appContext.showToast || ((msg) => console.log(msg));
 
-  // Quick View States
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // AUTOMATED REGIONAL MARKUP CALCULATOR (1.5x Outside NG)
-  const formatPrice = (ngnPrice) => {
-    const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
+  // PRICE CURRENCY ENGINE WITH IS-SHIPPING EXCLUSION FLAG
+  const formatPrice = (ngnPrice, isShipping = false) => {
+    const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
     const converted = ngnPrice * markupRate * exchangeRates[currency];
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
     return `${currencySymbols[currency]}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // SMART AUTO-DETECT GEOLOCATION ENGINE
+  // AGGREGATE DISPLAY SHEET TOTAL RE-ENGINEERED
+  const getDisplayTotal = () => {
+    const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
+    const productsConverted = cartSubtotal * markupRate * exchangeRates[currency];
+    const shippingConverted = deliveryFee * 1.0 * exchangeRates[currency];
+    const combinedTotal = productsConverted + shippingConverted;
+    if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
+    return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -113,6 +107,8 @@ export default function ShopCatalog() {
 
           if (data.country_code === 'NG') {
             setCurrency('NGN');
+          } else if (data.continent_code === 'AF') {
+            setCurrency('USD');
           } else if (data.country_code === 'GB') {
             setCurrency('GBP');
           } else if (checkEurope) {
@@ -130,13 +126,10 @@ export default function ShopCatalog() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUserSession(session.user);
-      } else {
+      if (session) setUserSession(session.user);
+      else {
         const localUser = localStorage.getItem('sikamore_user_profile');
-        if (localUser) {
-          setUserSession(JSON.parse(localUser)); 
-        }
+        if (localUser) setUserSession(JSON.parse(localUser)); 
       }
     });
   }, []);
@@ -186,7 +179,6 @@ export default function ShopCatalog() {
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
-  const grandTotal = cartSubtotal + deliveryFee;
 
   const openQuickView = async (product) => {
     setQty(1);
@@ -230,7 +222,6 @@ export default function ShopCatalog() {
     }
   };
 
-  // HARD GATED GEOLOCATION DISPATCH VERIFICATION MATRIX
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER COHORT LOCATION DATA.");
     
@@ -238,8 +229,6 @@ export default function ShopCatalog() {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const lowerAddress = deliveryAddress.toLowerCase().trim();
-    
-    // BOUNDARY COMPLIANCE LAYER
     let isBoundValid = lowerAddress.includes(detectedCountryName.toLowerCase()) || lowerAddress.includes(detectedCountryCode.toLowerCase());
     
     if (detectedCountryCode === 'NG') {
@@ -259,7 +248,7 @@ export default function ShopCatalog() {
     try {
       let fee = 15000; 
       let zone = "Nigeria Nationwide Network";
-      let autoCurrency = 'NGN';
+      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
       const internationalBaseFee = 55 / exchangeRates['USD'];
 
@@ -273,10 +262,10 @@ export default function ShopCatalog() {
         zone = "International Flat Rate (Europe)";
         autoCurrency = 'EUR';
       }
-      else if (lowerAddress.includes('usa') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international')) {
+      else if (lowerAddress.includes('usa') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international') || detectedCountryCode !== 'NG') {
         fee = internationalBaseFee; 
-        zone = "International Flat Rate (Global)";
-        autoCurrency = 'USD';
+        zone = `International Flat Rate (${detectedCountryName})`;
+        if (!['GBP', 'EUR'].includes(autoCurrency)) autoCurrency = 'USD';
       } 
       else if (lowerAddress.includes('lagos')) {
         if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi')) {
@@ -303,13 +292,6 @@ export default function ShopCatalog() {
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
@@ -383,7 +365,7 @@ export default function ShopCatalog() {
             </button>
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? products[0].image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? products.image : "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
 
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
@@ -497,7 +479,7 @@ export default function ShopCatalog() {
 
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
             <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
               <input
                 type="text"
                 autoFocus
@@ -515,7 +497,7 @@ export default function ShopCatalog() {
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 mt-12 sm:mt-16 flex-1 pb-24">
             {searchQuery.trim() === '' ? (
               <div className="h-full flex flex-col items-center justify-start pt-10 text-zinc-400 text-center space-y-4">
-                 <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                 <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                  <p className="text-[10px] uppercase tracking-[0.2em]">Type a keyword or style to begin exploring our collection.</p>
               </div>
             ) : searchResults.length === 0 ? (
@@ -679,13 +661,14 @@ export default function ShopCatalog() {
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]">
                   <span>Dispatch ({deliveryZone}):</span>
-                  <span>{formatPrice(deliveryFee)}</span>
+                  {/* FIXED: Shipping price format is protected from 1.5x product markup multiplier flags */}
+                  <span>{formatPrice(deliveryFee, true)}</span>
                 </div>
               )}
               
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]">
                 <span>Total:</span>
-                <span>{formatPrice(grandTotal)}</span>
+                <span>{getDisplayTotal()}</span>
               </div>
             </div>
 
@@ -693,14 +676,20 @@ export default function ShopCatalog() {
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
                 Continue Shopping
               </button>
-              
               <button 
                 onClick={() => {
                   if (deliveryFee <= 0 || !deliveryAddress.trim()) {
                     showToast("PLEASE CALCULATE SHIPPING DESTINATION TO PROCEED.");
                     return;
                   }
-                  localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency }));
+                  localStorage.setItem('sikamore_delivery', JSON.stringify({ 
+                    fee: deliveryFee, 
+                    zone: deliveryZone, 
+                    address: deliveryAddress, 
+                    currency: currency,
+                    countryCode: detectedCountryCode,
+                    countryName: detectedCountryName
+                  }));
                   setIsCartOpen(false);
                   window.location.href = '/checkout';
                 }}
@@ -763,7 +752,6 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
-                    {/* OPTIMIZED IMAGE PORTPHYSICS FOR SECURE MOBILE TAPS */}
                     <div 
                       className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
@@ -786,7 +774,6 @@ export default function ShopCatalog() {
                       onClick={(e) => handleWishlistClick(e, product)} 
                       className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
                     >
-                      {/* PRISTINE CORE HEART GEOMETRY VECTOR */}
                       <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                       </svg>
@@ -846,7 +833,7 @@ export default function ShopCatalog() {
 
       {/* FLOATING CART SUMMARY PILL */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z-[90] pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
               <span className="text-white text-[9px] sm:text-xs font-medium tracking-widest uppercase">
