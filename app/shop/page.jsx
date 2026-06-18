@@ -2,7 +2,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
@@ -25,6 +25,9 @@ const currencySymbols = {
   EUR: '€'
 };
 
+// YOUR ATELIER'S EXACT LONGITUDE & LATITUDE (Default: Victoria Island, Lagos)
+const ATELIER_COORDS = "3.4215,6.4281"; 
+
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,21 +48,16 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // NEWSLETTER POPUP STATES
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // REAL-TIME DISPATCH CALCULATOR STATES
+  // REAL-TIME MAPBOX CALCULATOR STATES
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
   const [tickerIndex, setTickerIndex] = useState(0);
-
-  // GOOGLE MAPS SECURE REFERENCE HOOKS
-  const autocompleteInputRef = useRef(null);
-  const autocompleteInitialized = useRef(false);
 
   const announcements = [
     "ENJOY COMPLIMENTARY WORLDWIDE SHIPPING ON ALL ORDERS",
@@ -81,7 +79,6 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // AUTOMATED REGIONAL MARKUP PRICING ENGINE
   const formatPrice = (ngnPrice, isShipping = false) => {
     if (!ngnPrice) return '';
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
@@ -99,59 +96,6 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // FIXED & MEMORY-SAFE GOOGLE MAPS INJECTOR
-  useEffect(() => {
-    if (typeof window === 'undefined' || !isCartOpen) return;
-
-    const initializeGoogleAutocomplete = () => {
-      if (!autocompleteInputRef.current || !window.google || autocompleteInitialized.current) return;
-
-      const autocomplete = new window.google.maps.places.Autocomplete(autocompleteInputRef.current, {
-        types: ['geocode', 'establishment'],
-      });
-
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (!place.address_components) return;
-
-        let countryCode = 'NG';
-        let fullFormattedAddress = place.formatted_address || '';
-
-        for (const component of place.address_components) {
-          if (component.types.includes('country')) {
-            countryCode = component.short_name;
-            break;
-          }
-        }
-
-        if (countryCode !== detectedCountryCode) {
-          showToast("LOCATION NOT FOUND.");
-          setDeliveryAddress('');
-          setDeliveryFee(0);
-          setDeliveryZone('');
-          return;
-        }
-        setDeliveryAddress(fullFormattedAddress);
-      });
-      
-      autocompleteInitialized.current = true;
-    };
-
-    if (window.google) {
-      initializeGoogleAutocomplete();
-    } else if (!document.getElementById('google-maps-script')) {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-      const script = document.createElement('script');
-      script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGoogleAutocomplete;
-      document.head.appendChild(script);
-    }
-  }, [isCartOpen, detectedCountryCode, showToast]); 
-
-  // SMART AUTO-DETECT GEOLOCATION ENGINE
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -177,9 +121,7 @@ export default function ShopCatalog() {
             setCurrency('USD');
           }
         }
-      } catch (err) {
-        // Fallback default operational states
-      }
+      } catch (err) {}
     }
     locateClientNetwork();
   }, []);
@@ -209,7 +151,6 @@ export default function ShopCatalog() {
     );
   }, [searchQuery, products]);
 
-  // SECURE ANALYTICS DISPATCH
   useEffect(() => {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
@@ -253,16 +194,12 @@ export default function ShopCatalog() {
       .then(() => {}).catch(() => {});
   };
 
-  // FIXED: ADD TO CART WITH GLOBAL CONTEXT SUPPRESSION
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
-    
-    // Suppresses the global provider from auto-opening the cart drawer
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50); 
-    
     showToast('Added to your bag.');
   };
 
@@ -291,43 +228,86 @@ export default function ShopCatalog() {
     }
   };
 
+  // DYNAMIC MAPBOX ROUTING & TRAFFIC CALCULATOR
   const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE SELECT AN ADDRESS VIA AUTOMATED SUGGESTIONS.");
+    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER A DELIVERY ADDRESS.");
     
     setIsCalculating(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const lowerAddress = deliveryAddress.toLowerCase().trim();
     
     try {
-      let fee = 15000; 
-      let zone = "Nigeria Nationwide";
+      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      let finalFee = 0;
+      let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
-      const internationalBaseFee = 55 / exchangeRates['USD'];
-
+      // 1. Handle International Users Directly (Bypass Mapbox distance)
       if (detectedCountryCode !== 'NG') {
-        fee = internationalBaseFee; 
-        zone = `International Delivery (${detectedCountryName})`;
+        const internationalBaseFee = 55 / exchangeRates['USD']; // $55
+        finalFee = internationalBaseFee; 
+        zoneLabel = `International Delivery (${detectedCountryName})`;
         if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
         else if (isEuropeanUser) autoCurrency = 'EUR';
-      } else if (lowerAddress.includes('lagos')) {
-        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria island')) {
-          fee = 7000;
-          zone = "Lagos (Island)";
-        } else {
-          fee = 5000;
-          zone = "Lagos (Mainland)";
-        }
+        
+        setDeliveryFee(finalFee);
+        setDeliveryZone(zoneLabel);
+        if (autoCurrency !== currency) setCurrency(autoCurrency);
+        setIsCalculating(false);
+        showToast(`Dispatch Logged: ${zoneLabel}`);
+        return;
       }
 
-      setDeliveryFee(fee);
-      setDeliveryZone(zone);
-      if (autoCurrency !== currency) setCurrency(autoCurrency);
-      showToast(`Dispatch Logged: ${zone}`);
+      // 2. Handle Nigerian Users (Calculate exact distance & traffic)
+      if (!mapboxToken) throw new Error("Mapbox Token Missing");
+
+      showToast("SCANNING SATELLITE ROUTES...");
+
+      // Step A: Convert Address to Coordinates
+      const geoRes = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(deliveryAddress)}.json?access_token=${mapboxToken}&country=ng`);
+      const geoData = await geoRes.json();
       
+      if (!geoData.features || geoData.features.length === 0) {
+        throw new Error("Location not recognized by satellite.");
+      }
+
+      const destCoords = geoData.features.center; // [longitude, latitude]
+      const placeName = geoData.features.place_name;
+
+      // Step B: Route Driving Traffic from Atelier to Destination
+      const routeRes = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${ATELIER_COORDS};${destCoords},${destCoords}?access_token=${mapboxToken}`);
+      const routeData = await routeRes.json();
+
+      if (!routeData.routes || routeData.routes.length === 0) {
+        throw new Error("No driving route found to this location.");
+      }
+
+      const distanceKm = routeData.routes.distance / 1000; // Convert meters to km
+      const durationMins = routeData.routes.duration / 60; // Convert seconds to mins
+
+      // Step C: The Pricing Algorithm (Adjust these variables as needed)
+      const BASE_FARE = 2000; // Base pickup fee ₦2,000
+      const PRICE_PER_KM = 150; // ₦150 per kilometer
+      const PRICE_PER_MINUTE = 50; // ₦50 per minute of estimated traffic
+      
+      finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
+
+      // Label Formatting
+      if (distanceKm < 30) {
+        zoneLabel = `Lagos Local (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
+      } else {
+        zoneLabel = `Inter-State Logistics (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
+      }
+
+      setDeliveryAddress(placeName); // Auto-format their typed address cleanly
+      setDeliveryFee(Math.round(finalFee));
+      setDeliveryZone(zoneLabel);
+      if (autoCurrency !== currency) setCurrency(autoCurrency);
+
+      showToast(`Route Calculated: ${Math.round(distanceKm)}km confirmed.`);
+
     } catch (err) {
-      showToast("Error processing verification rules.");
+      showToast(err.message === "Mapbox Token Missing" ? "SYSTEM ERROR: ROUTING ENGINE OFFLINE" : "LOCATION NOT FOUND. TRY ADDING YOUR CITY OR STATE.");
+      setDeliveryFee(0);
+      setDeliveryZone('');
     } finally {
       setIsCalculating(false);
     }
@@ -417,9 +397,9 @@ export default function ShopCatalog() {
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
               <img 
-                src={products.length > 0 ? products[0].image : ''} 
+                src={products.length > 0 ? products.image : ''} 
                 alt="Join the Community" 
-                onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                 className="w-full h-full object-cover" 
               />
             </div>
@@ -464,7 +444,7 @@ export default function ShopCatalog() {
                     <img 
                       src={quickViewProduct.image} 
                       alt="Preview" 
-                      onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                       className="w-full h-full object-cover" 
                     /> 
                   )}
@@ -495,7 +475,6 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   
-                  {/* FIXED: SUPPRESS DRAWER AUTO-OPEN */}
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
                       setIsCartOpen(false); 
@@ -601,7 +580,7 @@ export default function ShopCatalog() {
                                 src={product.image} 
                                 alt={product.name} 
                                 loading="lazy"
-                                onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                                 className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                               />
                             )}
@@ -659,7 +638,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH CUSTOM AUTOMATED DISPATCH */}
+      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH MAPBOX ROUTING API */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -679,7 +658,7 @@ export default function ShopCatalog() {
                     <img 
                       src={item.image} 
                       alt={item.name} 
-                      onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                       className="w-full h-full object-cover" 
                     />
                   )}
@@ -706,18 +685,17 @@ export default function ShopCatalog() {
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             
-            {/* GOOGLE CONNECTED REAL-TIME DISPATCH INPUT */}
+            {/* MAPBOX DYNAMIC DISTANCE INPUT */}
             <div className="mb-6 border-b border-zinc-800 pb-5">
               <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">
-                Calculate Verified Dispatch Route
+                Calculate Dynamic Routing Fee
               </label>
               <div className="flex gap-2">
                 <input 
                   type="text" 
-                  ref={autocompleteInputRef}
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="START TYPING YOUR DELIVERY ADDRESS..." 
+                  placeholder="ENTER FULL DESTINATION ADDRESS..." 
                   className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-700 transition-colors"
                 />
                 <button 
@@ -725,7 +703,7 @@ export default function ShopCatalog() {
                   disabled={isCalculating}
                   className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50"
                 >
-                  {isCalculating ? 'WAIT...' : 'CONFIRM'}
+                  {isCalculating ? 'WAIT...' : 'CALCULATE'}
                 </button>
               </div>
             </div>
@@ -757,7 +735,7 @@ export default function ShopCatalog() {
               <button 
                 onClick={() => {
                   if (deliveryFee <= 0 || !deliveryAddress.trim()) {
-                    showToast("PLEASE CALCULATE SHIPPING DESTINATION TO PROCEED.");
+                    showToast("PLEASE CALCULATE ROUTING FEE TO PROCEED.");
                     return;
                   }
                   localStorage.setItem('sikamore_delivery', JSON.stringify({ 
@@ -777,7 +755,7 @@ export default function ShopCatalog() {
                     : 'bg-white text-black hover:bg-zinc-300'
                 }`}
               >
-                {deliveryFee <= 0 ? 'CALCULATE DELIVERY' : 'Proceed to Payment'}
+                {deliveryFee <= 0 ? 'CALCULATE ROUTE' : 'Proceed to Payment'}
               </button>
             </div>
           </div>
@@ -842,7 +820,7 @@ export default function ShopCatalog() {
                           src={product.image} 
                           alt={product.name} 
                           loading="lazy"
-                          onError={(e) => { e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                           className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
                         />
                       )}
@@ -910,9 +888,9 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL - ELEVATED Z-INDEX */}
+      {/* FLOATING CART SUMMARY PILL - PERSISTENT VISIBILITY */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-2 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
               <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">
@@ -923,7 +901,6 @@ export default function ShopCatalog() {
                 Total - {formatPrice(cartSubtotal)}
               </span>
             </div>
-            {/* ONLY THIS BUTTON TRIGGERS THE DRAWER NOW */}
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
               View Bag
             </button>
