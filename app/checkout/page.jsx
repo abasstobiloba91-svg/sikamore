@@ -62,12 +62,9 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      const orderRefStamp = `SKM-${Math.floor(100000 + Math.random() * 900000)}`;
-
-      // 1. Log Transaction Into Supabase Orders Table (Fixed missing subtotal_amount column discrepancy)
-      const { error: dbError } = await supabase.from('orders').insert([
+      // 1. Log Transaction Into Supabase Orders Table (Letting Supabase generate the strict UUID automatically)
+      const { data: orderData, error: dbError } = await supabase.from('orders').insert([
         {
-          id: orderRefStamp,
           customer_name: customerName.toUpperCase(),
           customer_email: customerEmail.toLowerCase().trim(),
           customer_phone: customerPhone,
@@ -76,9 +73,13 @@ export default function CheckoutPage() {
           total_amount: totalAmount,
           status: 'pending'
         }
-      ]);
+      ]).select().single();
 
       if (dbError) throw dbError;
+
+      // Capture the auto-generated UUID from the database and slice it for a clean reference stamp
+      const fullOrderId = orderData.id;
+      const orderRefStamp = fullOrderId.slice(0, 8).toUpperCase();
 
       // 2. Format Items HTML string for email loops
       const orderItemsHtml = cart.map(i => `
