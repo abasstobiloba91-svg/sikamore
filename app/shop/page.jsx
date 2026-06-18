@@ -98,7 +98,7 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency]}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // FIXED: SECURE ONE-TIME GOOGLE MAPS SCRIPT INJECTOR
+  // SECURE ONE-TIME GOOGLE MAPS SCRIPT INJECTOR
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -268,12 +268,12 @@ export default function ShopCatalog() {
     logClick();
   };
 
+  // FIXED: AUTO-OPEN CART DRAWER ON ADD
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
-    setIsCartOpen(false); 
-    setTimeout(() => setIsCartOpen(false), 50);
+    setIsCartOpen(true); // Automatically slide the cart open for seamless UX
     showToast('Added to your bag.');
   };
 
@@ -427,7 +427,6 @@ export default function ShopCatalog() {
             </button>
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              {/* FIXED: Added anti-crash block to popup image */}
               <img 
                 src={products.length > 0 ? products.image : ''} 
                 alt="Join the Community" 
@@ -472,7 +471,6 @@ export default function ShopCatalog() {
               
               <div className="flex flex-col md:flex-row">
                 <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
-                  {/* FIXED: Anti-Crash Block */}
                   {quickViewProduct.image && (
                     <img 
                       src={quickViewProduct.image} 
@@ -508,11 +506,11 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   
+                  {/* FIXED: AUTO-OPEN DRAWER ON ADD */}
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
-                      setIsCartOpen(false);
-                      setTimeout(() => setIsCartOpen(false), 50);
                       setQuickViewProduct(null);
+                      setIsCartOpen(true);
                       showToast('Added to your bag.');
                     }} 
                     className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
@@ -597,7 +595,7 @@ export default function ShopCatalog() {
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                           
                           <div 
-                            className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
+                            className="absolute inset-0 z-10 cursor-pointer"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -608,7 +606,6 @@ export default function ShopCatalog() {
                               }
                             }}
                           >
-                            {/* FIXED: Anti-Crash Block */}
                             {product.image && (
                               <img 
                                 src={product.image} 
@@ -688,7 +685,6 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {/* FIXED: Anti-Crash Block */}
                   {item.image && (
                     <img 
                       src={item.image} 
@@ -844,7 +840,6 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
-                    {/* ENHANCED INTERACTIVE EVENT ISOLATION FOR TOUCH PROTOCOLS */}
                     <div 
                       className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
@@ -852,7 +847,6 @@ export default function ShopCatalog() {
                         if (!product.is_sold_out) openQuickView(product);
                       }}
                     >
-                      {/* FIXED: Anti-Crash Block */}
                       {product.image && (
                         <img 
                           src={product.image} 
@@ -926,7 +920,7 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL */}
+      {/* FLOATING CART SUMMARY PILL - ELEVATED Z-INDEX */}
       {cartItemCount > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
@@ -940,7 +934,7 @@ export default function ShopCatalog() {
               </span>
             </div>
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
-              Review Bag
+              View Bag
             </button>
           </div>
         </div>
