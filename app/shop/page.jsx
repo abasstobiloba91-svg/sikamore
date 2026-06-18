@@ -268,12 +268,11 @@ export default function ShopCatalog() {
     logClick();
   };
 
-  // FIXED: AUTO-OPEN CART DRAWER ON ADD
+  // FIXED: ADD ITEM TO CART WITHOUT OPENING DRAWER
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
-    setIsCartOpen(true); // Automatically slide the cart open for seamless UX
     showToast('Added to your bag.');
   };
 
@@ -506,11 +505,10 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   
-                  {/* FIXED: AUTO-OPEN DRAWER ON ADD */}
+                  {/* FIXED: ADD TO CART SILENTLY FROM QUICK VIEW */}
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
                       setQuickViewProduct(null);
-                      setIsCartOpen(true);
                       showToast('Added to your bag.');
                     }} 
                     className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
@@ -920,8 +918,8 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL - ELEVATED Z-INDEX */}
-      {cartItemCount > 0 && (
+      {/* FLOATING CART SUMMARY PILL - PERSISTENT VISIBILITY */}
+      {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
             <div className="flex items-center gap-3 sm:gap-6 pl-4 sm:pl-6 pr-2">
