@@ -128,11 +128,16 @@ export default function ShopCatalog() {
     try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) { console.error("Analytics error", err); }
   };
 
-  // UNRESTRICTED CART ADD - DOES NOT OPEN DRAWER
+  // UNRESTRICTED CART ADD - STRICTLY OVERRIDES DRAWER OPENING
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
+    
+    // Force drawer closed in case your global provider auto-opens it
+    setIsCartOpen(false); 
+    setTimeout(() => setIsCartOpen(false), 50);
+
     showToast('Added to your bag.');
   };
 
@@ -218,6 +223,7 @@ export default function ShopCatalog() {
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
+            {/* ONLY THIS BUTTON OPENS THE CART DRAWER */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -246,13 +252,14 @@ export default function ShopCatalog() {
                   Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.
                 </p>
                 <form onSubmit={handlePopupSubscription} className="space-y-4">
+                  {/* TEXT-BASE PREVENTS IOS ZOOM ON MOBILE */}
                   <input 
                     type="email" 
                     value={subscriberEmail}
                     onChange={(e) => setSubscriberEmail(e.target.value)}
                     placeholder="ENTER YOUR EMAIL" 
                     required 
-                    className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-xs uppercase tracking-widest text-center" 
+                    className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base md:text-xs uppercase tracking-widest text-center" 
                   />
                   <button type="submit" disabled={submittingEmail} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50">
                     {submittingEmail ? 'JOINING...' : 'JOIN NOW'}
@@ -305,6 +312,11 @@ export default function ShopCatalog() {
                   
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
+                      
+                      // Prevent auto-open drawer
+                      setIsCartOpen(false);
+                      setTimeout(() => setIsCartOpen(false), 50);
+
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -502,12 +514,12 @@ export default function ShopCatalog() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
-                Continue Shopping
+                Keep Shopping
               </button>
-              {/* BYPASSES AUTH ENTIRELY, GOES STRAIGHT TO CHECKOUT */}
-              <button onClick={() => window.location.href = '/checkout'} className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold">
+              {/* GOES DIRECTLY TO CHECKOUT PAGE */}
+              <Link href="/checkout" onClick={() => setIsCartOpen(false)} className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold">
                 Proceed to Payment
-              </button>
+              </Link>
             </div>
           </div>
         )}
@@ -634,7 +646,7 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FLOATING CART SUMMARY PILL */}
+      {/* FLOATING CART SUMMARY PILL (OPENS DRAWER FOR REVIEW) */}
       {cartItemCount > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-auto z-[90] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800 whitespace-nowrap">
@@ -647,7 +659,7 @@ export default function ShopCatalog() {
                 Total - ₦{cartSubtotal.toLocaleString()}
               </span>
             </div>
-            {/* THIS NOW OPENS THE CART DRAWER TO REVIEW ITEMS */}
+            {/* ONLY OPENS DRAWER TO REVIEW BAG */}
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
               Review Bag
             </button>
@@ -686,6 +698,7 @@ export default function ShopCatalog() {
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
             <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
             <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              {/* TEXT-BASE PREVENTS IOS ZOOM ON MOBILE */}
               <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
             </form>
