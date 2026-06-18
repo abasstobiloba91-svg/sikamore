@@ -248,17 +248,21 @@ export default function ShopCatalog() {
     setOpenAccordion('description');
     setQuickViewProduct(product);
 
-    // Fire and forget analytics to prevent blocking UI
     supabase.from('page_analytics')
       .insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }])
       .then(() => {}).catch(() => {});
   };
 
-  // FIXED: SILENTLY ADD ITEM TO CART WITHOUT OPENING DRAWER
+  // FIXED: ADD TO CART WITH GLOBAL CONTEXT SUPPRESSION
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
+    
+    // Suppresses the global provider from auto-opening the cart drawer
+    setIsCartOpen(false); 
+    setTimeout(() => setIsCartOpen(false), 50); 
+    
     showToast('Added to your bag.');
   };
 
@@ -456,7 +460,6 @@ export default function ShopCatalog() {
               
               <div className="flex flex-col md:flex-row">
                 <div className="w-full md:w-1/2 bg-zinc-50 aspect-[3/4] md:aspect-auto">
-                  {/* FIXED: Crash-Proof Mobile Fallback Image */}
                   {quickViewProduct.image && (
                     <img 
                       src={quickViewProduct.image} 
@@ -492,9 +495,11 @@ export default function ShopCatalog() {
                     </div>
                   </div>
                   
-                  {/* FIXED: ADD TO BAG SILENTLY FROM QUICK VIEW, DO NOT OPEN DRAWER */}
+                  {/* FIXED: SUPPRESS DRAWER AUTO-OPEN */}
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
+                      setIsCartOpen(false); 
+                      setTimeout(() => setIsCartOpen(false), 50); 
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -825,16 +830,13 @@ export default function ShopCatalog() {
                   
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
-                    {/* FIXED: ANTI-CRASH EVENT ISOLATION LAYER FOR TOUCH SCREENS */}
                     <div 
-                      className="absolute inset-0 z-10 cursor-pointer"
+                      className="absolute inset-0 z-10 cursor-pointer touch-pan-y"
                       onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
                         if (!product.is_sold_out) openQuickView(product);
                       }}
                     >
-                      {/* FIXED: SAFE BASE64 FALLBACK TO PREVENT INFINITE LOOP MOBILE CRASHES */}
                       {product.image && (
                         <img 
                           src={product.image} 
@@ -908,7 +910,7 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FIXED: FLOATING CART SUMMARY PILL - PERSISTENTLY VISIBLE & ELEVATED */}
+      {/* FLOATING CART SUMMARY PILL - ELEVATED Z-INDEX */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-8 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-2 sm:p-2 border border-zinc-800 whitespace-nowrap">
@@ -921,7 +923,7 @@ export default function ShopCatalog() {
                 Total - {formatPrice(cartSubtotal)}
               </span>
             </div>
-            {/* THIS BUTTON ALONE TRIGGERS THE DRAWER NOW */}
+            {/* ONLY THIS BUTTON TRIGGERS THE DRAWER NOW */}
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
               View Bag
             </button>
