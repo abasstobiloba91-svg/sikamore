@@ -64,7 +64,7 @@ export default function CheckoutPage() {
     try {
       const orderRefStamp = `SKM-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // 1. Log Transaction Into Supabase Orders Table (Fixed missing shipping_fee column discrepancy)
+      // 1. Log Transaction Into Supabase Orders Table (Fixed missing subtotal_amount column discrepancy)
       const { error: dbError } = await supabase.from('orders').insert([
         {
           id: orderRefStamp,
@@ -73,7 +73,6 @@ export default function CheckoutPage() {
           customer_phone: customerPhone,
           shipping_address: shippingAddress.toUpperCase(),
           items: cart,
-          subtotal_amount: cartSubtotal,
           total_amount: totalAmount,
           status: 'pending'
         }
@@ -207,26 +206,22 @@ export default function CheckoutPage() {
           <div className="space-y-6">
             <div>
               <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Client Full Name</label>
-              {/* FIXED: text-base on mobile prevents native engine Safari auto-zooming */}
               <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="ENTER YOUR FULL NAME" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] text-black uppercase tracking-wider transition-colors" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Digital Email Directory</label>
-                {/* FIXED: text-base on mobile prevents native engine Safari auto-zooming */}
                 <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="EMAIL@ADDRESS.COM" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] text-black tracking-wider transition-colors" />
               </div>
               <div>
                 <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Mobile Contact Matrix</label>
-                {/* FIXED: text-base on mobile prevents native engine Safari auto-zooming */}
                 <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="+234..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] text-black font-mono transition-colors" />
               </div>
             </div>
 
             <div>
               <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Fulfillment Dispatch Address / Landmark Bus Stop</label>
-              {/* FIXED: text-base on mobile prevents native engine Safari auto-zooming */}
               <textarea required rows="3" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="SPECIFY EXACT DELIVERY LOCATION PRECISELY..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] text-black uppercase tracking-wider resize-none transition-colors" />
               {deliveryInfo?.zone && (
                 <span className="text-[8px] tracking-widest text-zinc-400 block mt-2 font-mono bg-zinc-50 p-2 border border-zinc-200">
