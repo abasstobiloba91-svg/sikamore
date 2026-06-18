@@ -506,7 +506,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white p-1">
                         
-                        {/* WRAPPER (No onClick here anymore!) */}
+                        {/* WRAPPER */}
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm cursor-pointer border border-zinc-100">
                           
                           {/* 1. IMAGE CLICK LAYER (Z-0) */}
@@ -525,12 +525,26 @@ export default function ShopCatalog() {
                             {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] group-hover:scale-102" />}
                           </div>
                           
-                          {/* 2. WISHLIST BUTTON (Z-30) */}
-                          <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
-                            <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                          {/* 2. EYE BUTTON (TOP LEFT) */}
+                          <button 
+                            onClick={(e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              setIsSearchOpen(false); 
+                              setSearchQuery(''); 
+                              openQuickView(product); 
+                            }} 
+                            className="absolute top-3 left-3 z-30 pointer-events-auto p-2 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
+                          >
+                            <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                           </button>
 
-                          {/* 3. INLINE SIZES/QTY OVERLAY (Z-40) */}
+                          {/* 3. WISHLIST BUTTON (TOP RIGHT) */}
+                          <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
+                            <svg className="w-4 h-4 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                          </button>
+
+                          {/* 4. INLINE SIZES/QTY OVERLAY (Z-40) */}
                           <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
                             <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
@@ -547,44 +561,24 @@ export default function ShopCatalog() {
                             <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                           </div>
 
-                          {/* 4. BULLETPROOF ACTION BUTTONS (Z-20) */}
+                          {/* 5. BAG BUTTON (BOTTOM CENTER) */}
                           {inlineAddId !== product.id && (
-                            <div className="absolute inset-x-0 bottom-4 md:inset-0 md:bottom-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
-                              
-                              <div className="grid grid-cols-2 bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-28 rounded-sm border border-zinc-100 relative overflow-hidden">
-                                {/* BAG ACTION */}
-                                <button 
-                                  type="button"
-                                  onClick={(e) => { 
-                                    e.preventDefault(); 
-                                    e.stopPropagation(); 
-                                    if (!product.is_sold_out) setInlineAddId(product.id); 
-                                  }}
-                                  className={`flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors border-r border-zinc-200 text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
-                                >
-                                  <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
-                                </button>
-
-                                {/* EYE ACTION */}
-                                <button 
-                                  type="button"
-                                  onClick={(e) => { 
-                                    e.preventDefault(); 
-                                    e.stopPropagation(); 
-                                    setIsSearchOpen(false); 
-                                    setSearchQuery(''); 
-                                    openQuickView(product); 
-                                  }}
-                                  className="flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black"
-                                >
-                                  <svg className="w-[20px] h-[20px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                </button>
-                              </div>
-                              
+                            <div className="absolute inset-x-0 bottom-4 md:bottom-6 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
+                              <button 
+                                type="button"
+                                onClick={(e) => { 
+                                  e.preventDefault(); 
+                                  e.stopPropagation(); 
+                                  if (!product.is_sold_out) setInlineAddId(product.id); 
+                                }}
+                                className={`flex items-center justify-center bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-14 rounded-sm border border-zinc-100 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
+                              >
+                                <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+                              </button>
                             </div>
                           )}
 
-                          {/* 5. SOLD OUT LAYER (Z-10) */}
+                          {/* 6. SOLD OUT LAYER (Z-10) */}
                           {product.is_sold_out && (
                             <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
                           )}
@@ -704,13 +698,27 @@ export default function ShopCatalog() {
                 return (
                   <div key={product.id} className="flex gap-4 sm:gap-6 bg-white p-3 border border-zinc-100 items-center relative group">
                     <div className="w-28 sm:w-36 aspect-[3/4] shrink-0 overflow-hidden relative bg-zinc-50 rounded-sm border border-zinc-100">
+                      
                       {/* IMAGE CLICK LAYER */}
                       <div className="absolute inset-0 z-0 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}>
                         {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover" />}
                       </div>
                       
+                      {/* EYE BUTTON (TOP LEFT) */}
+                      <button 
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          openQuickView(product); 
+                        }} 
+                        className="absolute top-2 left-2 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
+                      >
+                        <svg className="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      </button>
+
+                      {/* WISHLIST BUTTON (TOP RIGHT) */}
                       <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-2 right-2 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
-                        <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                         </svg>
                       </button>
@@ -754,7 +762,7 @@ export default function ShopCatalog() {
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white p-1">
                   
-                  {/* WRAPPER: Notice the onClick is REMOVED from here entirely */}
+                  {/* WRAPPER */}
                   <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100">
                     
                     {/* 1. THE CLICKABLE IMAGE LAYER (Z-0) */}
@@ -769,14 +777,24 @@ export default function ShopCatalog() {
                       {product.image && <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-[1000ms] group-hover:scale-102" />}
                     </div>
                     
-                    {/* 2. WISHLIST BUTTON (Z-30) */}
-                    <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
-                      <svg className="w-3.5 h-3.5" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                      </svg>
+                    {/* 2. EYE BUTTON (TOP LEFT) */}
+                    <button 
+                      onClick={(e) => { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        openQuickView(product); 
+                      }} 
+                      className="absolute top-3 left-3 z-30 pointer-events-auto p-2 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
+                    >
+                      <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </button>
 
-                    {/* 3. INLINE SIZES/QTY OVERLAY (Z-40) */}
+                    {/* 3. WISHLIST BUTTON (TOP RIGHT) */}
+                    <button onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 bg-white/90 backdrop-blur-sm shadow-sm rounded-full text-black hover:scale-110 transition-transform">
+                      <svg className="w-4 h-4 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                    </button>
+
+                    {/* 4. INLINE SIZES/QTY OVERLAY (Z-40) */}
                     <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40 text-black transition-opacity duration-300 pointer-events-auto ${inlineAddId === product.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInlineAddId(null); }} className="absolute top-3 right-3 text-zinc-400 hover:text-black">✕</button>
                       <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Choose Size</p>
@@ -793,42 +811,24 @@ export default function ShopCatalog() {
                       <button onClick={(e) => handleInlineAdd(e, product)} className="w-full bg-black text-white py-2.5 text-[8px] sm:text-[9px] tracking-widest uppercase hover:bg-zinc-800 font-medium transition-colors">Add to Bag</button>
                     </div>
 
-                    {/* 4. THE BULLETPROOF ACTION BUTTONS (Z-20) */}
+                    {/* 5. BAG BUTTON (BOTTOM CENTER) */}
                     {inlineAddId !== product.id && (
-                      <div className="absolute inset-x-0 bottom-4 md:inset-0 md:bottom-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
-                        
-                        <div className="grid grid-cols-2 bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-28 rounded-sm border border-zinc-100 relative overflow-hidden">
-                          {/* BAG ACTION */}
-                          <button 
-                            type="button"
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              if (!product.is_sold_out) setInlineAddId(product.id); 
-                            }}
-                            className={`flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors border-r border-zinc-200 text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
-                          >
-                            <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
-                          </button>
-
-                          {/* EYE ACTION */}
-                          <button 
-                            type="button"
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              openQuickView(product); 
-                            }}
-                            className="flex items-center justify-center hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black"
-                          >
-                            <svg className="w-[20px] h-[20px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                          </button>
-                        </div>
-
+                      <div className="absolute inset-x-0 bottom-4 md:bottom-6 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
+                        <button 
+                          type="button"
+                          onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            if (!product.is_sold_out) setInlineAddId(product.id); 
+                          }}
+                          className={`flex items-center justify-center bg-white/95 backdrop-blur-sm shadow-md pointer-events-auto h-11 w-14 rounded-sm border border-zinc-100 hover:bg-zinc-50 active:bg-zinc-100 transition-colors text-black ${product.is_sold_out ? 'opacity-30 pointer-events-none' : ''}`}
+                        >
+                          <svg className="w-[18px] h-[18px] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>
+                        </button>
                       </div>
                     )}
 
-                    {/* 5. SOLD OUT LAYER (Z-10) */}
+                    {/* 6. SOLD OUT LAYER (Z-10) */}
                     {product.is_sold_out && (
                       <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-10"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
                     )}
