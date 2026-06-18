@@ -107,12 +107,11 @@ export default function ShopCatalog() {
           } else if (data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL'].includes(data.country_code)) {
             setCurrency('EUR');
           } else {
-            // Default to USD for USA, Canada, Asia, and the rest of the world
             setCurrency('USD');
           }
         }
       } catch (err) {
-        // Silently defaults to NGN if the user has strict ad-blockers preventing the API call
+        // Fallback default
       }
     }
     autoDetectCurrency();
@@ -174,7 +173,6 @@ export default function ShopCatalog() {
     }
   }, []);
 
-  // CART & GRAND TOTAL MATRICES
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
   const grandTotal = cartSubtotal + deliveryFee;
@@ -187,7 +185,6 @@ export default function ShopCatalog() {
     try { await supabase.from('page_analytics').insert([{ event_type: 'click', page_path: '/shop', product_name: product.name }]); } catch (err) { console.error("Analytics error", err); }
   };
 
-  // UNRESTRICTED CART ADD - STAYS CLOSED ON THE SCREEN
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -197,7 +194,6 @@ export default function ShopCatalog() {
     showToast('Added to your bag.');
   };
 
-  // UNRESTRICTED WISHLIST
   const handleWishlistClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -223,43 +219,36 @@ export default function ShopCatalog() {
     }
   };
 
-  // AUTOMATED REAL-TIME DISPATCH CALCULATOR WITH LOCATION-BASED CURRENCY SWITCHING
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("Please enter your delivery city or country context.");
     
     setIsCalculating(true);
     
     try {
-      // Simulate real-time route query delay
       await new Promise(resolve => setTimeout(resolve, 1200));
       
       const lowerAddress = deliveryAddress.toLowerCase().trim();
-      let fee = 15000; // Default flat rate outside Lagos (Nationwide)
+      let fee = 15000; 
       let zone = "Nigeria Nationwide";
-      let autoCurrency = 'NGN'; // Default back to Naira for local
+      let autoCurrency = 'NGN';
 
-      // True Market Equivalent of $55 USD in NGN Base
       const internationalBaseFee = 55 / exchangeRates['USD'];
 
-      // Check if UK
       if (lowerAddress.includes('uk') || lowerAddress.includes('london') || lowerAddress.includes('united kingdom') || lowerAddress.includes('england')) {
         fee = internationalBaseFee; 
         zone = "International Flat Rate (UK)";
         autoCurrency = 'GBP';
       } 
-      // Check if Europe
       else if (lowerAddress.includes('europe') || lowerAddress.includes('germany') || lowerAddress.includes('france') || lowerAddress.includes('italy') || lowerAddress.includes('spain') || lowerAddress.includes('ireland')) {
         fee = internationalBaseFee; 
         zone = "International Flat Rate (Europe)";
         autoCurrency = 'EUR';
       }
-      // Check if USA/Canada/General International
       else if (lowerAddress.includes('usa') || lowerAddress.includes('states') || lowerAddress.includes('canada') || lowerAddress.includes('america') || lowerAddress.includes('international') || lowerAddress.includes('outside nigeria') || lowerAddress.includes('ghana')) {
         fee = internationalBaseFee; 
         zone = "International Flat Rate";
         autoCurrency = 'USD';
       } 
-      // Check for Lagos contexts
       else if (lowerAddress.includes('lagos')) {
         if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ikoyi') || lowerAddress.includes('vi') || lowerAddress.includes('victoria island') || lowerAddress.includes('ajah')) {
           fee = 7000;
@@ -273,7 +262,6 @@ export default function ShopCatalog() {
       setDeliveryFee(fee);
       setDeliveryZone(zone);
       
-      // Auto-switch the store currency if they manually type an international address
       if (autoCurrency !== currency) {
         setCurrency(autoCurrency);
       }
@@ -330,8 +318,6 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
-            
-            {/* MANUAL CURRENCY SELECTOR */}
             <select 
               value={currency} 
               onChange={(e) => setCurrency(e.target.value)} 
@@ -355,13 +341,11 @@ export default function ShopCatalog() {
               {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
             </Link>
 
-            {/* ONLY THIS BUTTON OPENS THE CART DRAWER */}
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
             </button>
           </div>
-          
         </div>
       </header>
 
@@ -384,7 +368,6 @@ export default function ShopCatalog() {
                   Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.
                 </p>
                 <form onSubmit={handlePopupSubscription} className="space-y-4">
-                  {/* TEXT-BASE PREVENTS IOS ZOOM ON MOBILE */}
                   <input 
                     type="email" 
                     value={subscriberEmail}
@@ -444,11 +427,8 @@ export default function ShopCatalog() {
                   
                   <button onClick={(e) => { 
                       addToCart(quickViewProduct, qty, selectedSize); 
-                      
-                      // Prevent auto-open drawer
                       setIsCartOpen(false);
                       setTimeout(() => setIsCartOpen(false), 50);
-
                       setQuickViewProduct(null);
                       showToast('Added to your bag.');
                     }} 
@@ -459,7 +439,6 @@ export default function ShopCatalog() {
                 </div>
               </div>
 
-              {/* 4-TAB LUXURY EXPANDABLE ACCORDION (FULLY IMPLEMENTED) */}
               <div className="border-t border-zinc-100 bg-white p-6 sm:p-10 space-y-2">
                 {productTabs.map((tab) => (
                   <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
@@ -689,15 +668,18 @@ export default function ShopCatalog() {
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">
                 Continue Shopping
               </button>
-              <button 
+              
+              {/* FIXED LINK COMPONENT TO PREVENT ROUTE CRASHES */}
+              <Link 
+                href="/checkout"
                 onClick={() => {
                   localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency }));
-                  window.location.href = '/checkout';
-                }} 
+                  setIsCartOpen(false);
+                }}
                 className="flex-1 bg-white text-black text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-300 transition-colors font-bold"
               >
                 Proceed to Payment
-              </button>
+              </Link>
             </div>
           </div>
         )}
@@ -770,7 +752,6 @@ export default function ShopCatalog() {
                       </svg>
                     </button>
 
-                    {/* DESKTOP HOVER OVERLAY BUTTONS */}
                     <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
                       <button 
                         type="button"
@@ -798,7 +779,6 @@ export default function ShopCatalog() {
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                     <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                     
-                    {/* MOBILE STATIC BUTTONS */}
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
                       <button 
                         type="button"
@@ -837,7 +817,6 @@ export default function ShopCatalog() {
                 Total - {formatPrice(cartSubtotal)}
               </span>
             </div>
-            {/* ONLY OPENS DRAWER TO REVIEW BAG */}
             <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors ml-4 shrink-0">
               Review Bag
             </button>
@@ -876,7 +855,6 @@ export default function ShopCatalog() {
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
             <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
             <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              {/* TEXT-BASE PREVENTS IOS ZOOM ON MOBILE */}
               <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
               <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
             </form>
