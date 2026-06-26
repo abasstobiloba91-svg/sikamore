@@ -17,12 +17,28 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF PARSER: Extracts clean URLs only, ignoring all database syntax noise
+// BULLETPROOF & CRASH-SAFE URL EXTRACTOR
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  const stringified = typeof imgField === 'string' ? imgField : JSON.stringify(imgField);
-  const urlMatches = stringified.match(/https?:\/\/[^"',}\s\]\\]+/g);
-  return urlMatches ? urlMatches.map(url => url.trim()) : [];
+  let parsed = [];
+  try {
+    if (Array.isArray(imgField)) parsed = imgField;
+    else if (typeof imgField === 'string') {
+      if (imgField.startsWith('[')) parsed = JSON.parse(imgField);
+      else if (imgField.startsWith('{')) {
+        const inner = imgField.slice(1, -1);
+        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+      } else {
+        parsed = imgField.split(',').map(s => s.trim());
+      }
+    }
+  } catch (e) {}
+
+  if (parsed.length === 0 && typeof imgField === 'string') {
+    const matches = imgField.match(/https?:\/\/[^"',}\s\]\\]+/g);
+    if (matches) parsed = matches;
+  }
+  return parsed.filter(s => typeof s === 'string' && s.startsWith('http')).map(s => s.trim());
 };
 
 const getPrimaryImage = (imgField) => {
@@ -106,13 +122,11 @@ export default function ShopCatalog() {
       try {
         const res = await fetch('https://ipapi.co/json/');
         const data = await res.json();
-        
         if (data && data.country_code) {
           setDetectedCountryCode(data.country_code);
           setDetectedCountryName(data.country_name);
           const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
           setIsEuropeanUser(checkEurope);
-
           if (data.country_code === 'NG') setCurrency('NGN');
           else if (data.continent_code === 'AF') setCurrency('USD'); 
           else if (data.country_code === 'GB') setCurrency('GBP');
@@ -189,8 +203,8 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // REFINED TOUCH SWIPE LOGIC
-  const minSwipeDistance = 30; // Sensitive to swipes
+  // OPTIMIZED SWIPE LOGIC FOR MOBILE
+  const minSwipeDistance = 30;
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches.clientX);
@@ -201,15 +215,13 @@ export default function ShopCatalog() {
     const distance = touchStart - touchEnd;
     const images = getImagesArray(quickViewProduct?.image);
     
-    // Prevent zero-division if no images
-    if (images.length === 0) return;
+    if (images.length <= 1) return;
 
     if (distance > minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev + 1) % images.length); // Swipe Left
+      setQuickViewImgIndex((prev) => (prev + 1) % images.length);
     } else if (distance < -minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length); // Swipe Right
+      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
     }
-    
     setTouchStart(null);
     setTouchEnd(null);
   };
@@ -270,14 +282,11 @@ export default function ShopCatalog() {
       }
 
       showToast("SCANNING HIGHWAY NETWORKS...");
-
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
       
-      if (!geoData || geoData.length === 0) {
-        throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
-      }
+      if (!geoData || geoData.length === 0) throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
 
       const destLon = parseFloat(geoData.lon);
       const destLat = parseFloat(geoData.lat);
@@ -287,9 +296,7 @@ export default function ShopCatalog() {
       const routeRes = await fetch(routeUrl);
       const routeData = await routeRes.json();
 
-      if (!routeData.routes || routeData.routes.length === 0) {
-        throw new Error("No navigable roadways found to this destination.");
-      }
+      if (!routeData.routes || routeData.routes.length === 0) throw new Error("No navigable roadways found to this destination.");
 
       const distanceKm = routeData.routes.distance / 1000; 
       const durationMins = routeData.routes.duration / 60; 
@@ -336,7 +343,6 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -376,11 +382,6 @@ export default function ShopCatalog() {
               {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
             </Link>
 
-            <Link href="/dashboard" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
-              <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-              {hasUnreadSupport && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>}
-            </Link>
-
             <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
               {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
@@ -406,7 +407,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* MAIN PRODUCTS SELECTION LAYER */}
+      {/* MAIN PRODUCTS SELECTION LAYER - MEMORY OPTIMIZED */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -477,8 +478,6 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* ROOT ATELIER MODALS DIRECTORY */}
-
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -514,7 +513,7 @@ export default function ShopCatalog() {
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              {/* SLIDER WRAPPER */}
+              {/* SLIDER WRAPPER - HARDWARE ACCELERATED FOR MOBILE */}
               <div 
                 className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
                 onTouchStart={onTouchStart} 
@@ -536,45 +535,37 @@ export default function ShopCatalog() {
                   ))}
                 </div>
                 
-                {/* ALWAYS VISIBLE WHITE NAVIGATION ARROWS (Forced to show so you can see them clearly) */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setQuickViewImgIndex(prev => {
-                      const arr = getImagesArray(quickViewProduct.image);
-                      return arr.length > 0 ? (prev - 1 + arr.length) % arr.length : 0;
-                    });
-                  }} 
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                </button>
-                
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setQuickViewImgIndex(prev => {
-                      const arr = getImagesArray(quickViewProduct.image);
-                      return arr.length > 0 ? (prev + 1) % arr.length : 0;
-                    });
-                  }} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </button>
-
-                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                {/* ALWAYS VISIBLE WHITE NAVIGATION ARROWS */}
+                {getImagesArray(quickViewProduct.image).length > 1 && (
+                  <>
                     <button 
-                      key={idx} 
-                      onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
-                    />
-                  ))}
-                </div>
+                      onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} 
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} 
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+
+                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
+                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                        <button 
+                          key={idx} 
+                          onClick={() => setQuickViewImgIndex(idx)} 
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* PRODUCT DETAILS AREA */}
+              {/* DETAILS AND CONFIGURATION SUMMARY CARD */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
@@ -761,6 +752,43 @@ export default function ShopCatalog() {
           </div>
         </div>
       )}
+
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );
