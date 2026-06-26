@@ -437,9 +437,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SWIPEABLE QUICK VIEW MODAL */}
+      {/* SWIPEABLE QUICK VIEW MODAL (FIXED Z-INDEX LAYER ISSUE) */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z- bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
             
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
