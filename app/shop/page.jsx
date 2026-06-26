@@ -17,28 +17,30 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF & CRASH-SAFE URL EXTRACTOR
+// FAIL-SAFE PARSER: Gracefully translates native arrays, Postgres literals, and raw string formats
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  let parsed = [];
-  try {
-    if (Array.isArray(imgField)) parsed = imgField;
-    else if (typeof imgField === 'string') {
-      if (imgField.startsWith('[')) parsed = JSON.parse(imgField);
-      else if (imgField.startsWith('{')) {
-        const inner = imgField.slice(1, -1);
-        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-      } else {
-        parsed = imgField.split(',').map(s => s.trim());
-      }
-    }
-  } catch (e) {}
-
-  if (parsed.length === 0 && typeof imgField === 'string') {
-    const matches = imgField.match(/https?:\/\/[^"',}\s\]\\]+/g);
-    if (matches) parsed = matches;
+  if (Array.isArray(imgField)) return imgField.filter(Boolean);
+  
+  let cleaned = String(imgField).trim();
+  
+  // Clean Postgres standard literal arrays: {"url1","url2"}
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    cleaned = cleaned.slice(1, -1);
+    return cleaned.split(',').map(s => s.replace(/^"|"$/g, '').trim()).filter(s => s.startsWith('http'));
   }
-  return parsed.filter(s => typeof s === 'string' && s.startsWith('http')).map(s => s.trim());
+  
+  // Clean standard JSON arrays: ["url1","url2"]
+  if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch (e) {}
+  }
+  
+  // Fallback Magnet matching engine
+  const matches = cleaned.match(/https?:\/\/[^"',}\s\]\\]+/g);
+  return matches ? matches.map(url => url.replace(/[\]})]+$/, '').trim()) : [];
 };
 
 const getPrimaryImage = (imgField) => {
@@ -65,7 +67,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // MULTI-IMAGE CAROUSEL STATES
+  // MULTI-IMAGE GALLERY MANAGEMENT
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -203,7 +205,7 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // OPTIMIZED SWIPE LOGIC FOR MOBILE
+  // TOUCH TRANSLATION SWIPE LOGIC
   const minSwipeDistance = 30;
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -232,7 +234,6 @@ export default function ShopCatalog() {
     addToCart(product, 1, 'M'); 
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50); 
-    showToast('Added to your bag.');
   };
 
   const handleWishlistClick = (e, product) => {
@@ -407,7 +408,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* MAIN PRODUCTS SELECTION LAYER - MEMORY OPTIMIZED */}
+      {/* CATALOG MATRIX GRID - FIXED FOR SAFARI ABSOLUTE CLIP CRASH */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -425,26 +426,22 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* PRIMARY IMAGE */}
+                    {/* PRIMARY ATELIER IMAGE - DE-LAZYED TO FORCE IMMEDIATE SAFARI PAINT */}
                     {pPrimary ? (
                       <img 
                         src={pPrimary} 
                         alt={product.name} 
-                        decoding="async"
-                        loading="lazy"
                         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${pSecondary ? 'md:group-hover/img:opacity-0' : ''}`} 
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
                     
-                    {/* SECONDARY HOVER IMAGE - HIDDEN ON MOBILE TO PREVENT RAM CRASHES */}
+                    {/* ALTERNATIVE VIEW CANVAS - BLOCKED ON MOBILE VIEWPORTS TO PROTECT RAM EXPENSES */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
                         alt={`${product.name} alternate view`} 
-                        decoding="async"
-                        loading="lazy"
                         className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 md:group-hover/img:opacity-100 hidden md:block" 
                       />
                     )}
@@ -478,6 +475,43 @@ export default function ShopCatalog() {
         )}
       </main>
 
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
+
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -502,7 +536,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL WITH HARDWARE ACCELERATION */}
+      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL (FIXED SWIPING AND PERMANENT CIRCLE ARROWS) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -513,7 +547,7 @@ export default function ShopCatalog() {
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              {/* SLIDER WRAPPER - HARDWARE ACCELERATED FOR MOBILE */}
+              {/* SLIDER WRAPPER - HARDWARE ACCELERATED */}
               <div 
                 className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
                 onTouchStart={onTouchStart} 
@@ -535,37 +569,46 @@ export default function ShopCatalog() {
                   ))}
                 </div>
                 
-                {/* ALWAYS VISIBLE WHITE NAVIGATION ARROWS */}
-                {getImagesArray(quickViewProduct.image).length > 1 && (
-                  <>
-                    <button 
-                      onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} 
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    
-                    <button 
-                      onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} 
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                    </button>
+                {/* PERMANENTLY MOUNTED NAVIGATION ARROWS WITH WHITE SOLID BASE CHANNELS */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickViewImgIndex(prev => {
+                      const arr = getImagesArray(quickViewProduct.image);
+                      return arr.length > 0 ? (prev - 1 + arr.length) % arr.length : 0;
+                    });
+                  }} 
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickViewImgIndex(prev => {
+                      const arr = getImagesArray(quickViewProduct.image);
+                      return arr.length > 0 ? (prev + 1) % arr.length : 0;
+                    });
+                  }} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
 
-                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
-                        <button 
-                          key={idx} 
-                          onClick={() => setQuickViewImgIndex(idx)} 
-                          className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* SOLID WHITE ACTIVE RANGE SYSTEM INDEX SPOTS */}
+                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
+                  {(getImagesArray(quickViewProduct.image).length > 0 ? getImagesArray(quickViewProduct.image) :).map((_, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
+                    />
+                  ))}
+                </div>
               </div>
 
-              {/* DETAILS AND CONFIGURATION SUMMARY CARD */}
+              {/* PRODUCT DETAILS AREA */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
@@ -644,7 +687,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                           <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
                             <button type="button" onClick={(e) => { e.stopPropagation(); handleCartClick(e, product); }} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
@@ -722,7 +765,7 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 5. MOBILE MENU EXPANSION MATRIX */}
+      {/* 5. MOBILE MENU INTERACTION EXPANSION */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -737,7 +780,7 @@ export default function ShopCatalog() {
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
 
-      {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE (VIEW BAG CARD) */}
+      {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
@@ -752,43 +795,6 @@ export default function ShopCatalog() {
           </div>
         </div>
       )}
-
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
-          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
-            S. SIKAMÒRE
-          </h2>
-        </div>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
-            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
-            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
-            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
-            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
-            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
-            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
-            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
-              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
-            </form>
-          </div>
-        </div>
-      </footer>
 
     </div>
   );
