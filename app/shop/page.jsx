@@ -17,30 +17,13 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// FAIL-SAFE PARSER: Gracefully translates native arrays, Postgres literals, and raw string formats
+// CLEAN URL MAGNET ENGINE: Forcefully strips all array artifacts and trailing quotes from strings
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  if (Array.isArray(imgField)) return imgField.filter(Boolean);
-  
-  let cleaned = String(imgField).trim();
-  
-  // Clean Postgres standard literal arrays: {"url1","url2"}
-  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
-    cleaned = cleaned.slice(1, -1);
-    return cleaned.split(',').map(s => s.replace(/^"|"$/g, '').trim()).filter(s => s.startsWith('http'));
-  }
-  
-  // Clean standard JSON arrays: ["url1","url2"]
-  if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (Array.isArray(parsed)) return parsed.filter(Boolean);
-    } catch (e) {}
-  }
-  
-  // Fallback Magnet matching engine
-  const matches = cleaned.match(/https?:\/\/[^"',}\s\]\\]+/g);
-  return matches ? matches.map(url => url.replace(/[\]})]+$/, '').trim()) : [];
+  const str = String(imgField);
+  const matches = str.match(/https?:\/\/[^"',}\s\]\\]+/g);
+  if (!matches) return [];
+  return matches.map(url => url.replace(/[\]}"']+/g, '').trim());
 };
 
 const getPrimaryImage = (imgField) => {
@@ -228,122 +211,10 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  const handleCartClick = (e, product) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart(product, 1, 'M'); 
-    setIsCartOpen(false); 
-    setTimeout(() => setIsCartOpen(false), 50); 
-  };
-
-  const handleWishlistClick = (e, product) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleWishlist(product);
-  };
-
-  const handlePopupSubscription = async (e) => {
-    e.preventDefault();
-    if (!subscriberEmail.trim()) return;
-    setSubmittingEmail(true);
-    try {
-      const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
-      if (error && error.code !== '23505') throw error;
-      showToast('Thank you for joining our community.');
-      setShowNewsletter(false);
-      sessionStorage.setItem('sikamore_newsletter', 'true');
-    } catch (err) {
-      showToast(`Oops, there was an issue: ${err.message}`);
-    } finally {
-      setSubmittingEmail(false);
-    }
-  };
-
-  const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
-    setIsCalculating(true);
-    try {
-      let finalFee = 0;
-      let zoneLabel = "";
-      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
-
-      if (detectedCountryCode !== 'NG') {
-        const internationalBaseFee = 55 / exchangeRates['USD']; 
-        finalFee = internationalBaseFee; 
-        zoneLabel = `International Delivery (${detectedCountryName})`;
-        if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
-        else if (isEuropeanUser) autoCurrency = 'EUR';
-        
-        setDeliveryFee(finalFee);
-        setDeliveryZone(zoneLabel);
-        if (autoCurrency !== currency) setCurrency(autoCurrency);
-        setIsCalculating(false);
-        showToast(`Dispatch Logged: ${zoneLabel}`);
-        return;
-      }
-
-      showToast("SCANNING HIGHWAY NETWORKS...");
-      const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
-      const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
-      const geoData = await geoRes.json();
-      
-      if (!geoData || geoData.length === 0) throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
-
-      const destLon = parseFloat(geoData.lon);
-      const destLat = parseFloat(geoData.lat);
-      const placeName = geoData.display_name;
-
-      const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
-      const routeRes = await fetch(routeUrl);
-      const routeData = await routeRes.json();
-
-      if (!routeData.routes || routeData.routes.length === 0) throw new Error("No navigable roadways found to this destination.");
-
-      const distanceKm = routeData.routes.distance / 1000; 
-      const durationMins = routeData.routes.duration / 60; 
-
-      const BASE_FARE = 2500; 
-      const PRICE_PER_KM = 180; 
-      const PRICE_PER_MINUTE = 60; 
-      
-      finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
-
-      if (distanceKm < 30) {
-        zoneLabel = `Lagos Dispatch (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
-      } else {
-        zoneLabel = `Regional Freight Delivery (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
-      }
-
-      setDeliveryAddress(placeName); 
-      setDeliveryFee(Math.round(finalFee));
-      setDeliveryZone(zoneLabel);
-      if (autoCurrency !== currency) setCurrency(autoCurrency);
-
-      showToast(`Route Calculated: ${Math.round(distanceKm)}km layout validated.`);
-
-    } catch (err) {
-      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
-      setDeliveryFee(0);
-      setDeliveryZone('');
-    } finally {
-      setIsCalculating(false);
-    }
-  };
-
-  const toggleAccordion = (tabId) => {
-    setOpenAccordion(openAccordion === tabId ? '' : tabId);
-  };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
-
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
+      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -408,7 +279,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* MAIN PRODUCTS SELECTION LAYER */}
+      {/* CATALOG MATRIX GRID */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -438,7 +309,7 @@ export default function ShopCatalog() {
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
                     
-                    {/* SECONDARY HOVER IMAGE - HIDDEN ON MOBILE TO PREVENT RAM CRASHES */}
+                    {/* SECONDARY HOVER IMAGE - FORCED INACTIVE ON MOBILE STACKING DOM VIA HIDDEN CLASS */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
@@ -477,7 +348,42 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* ALL MODALS, DRAWERS, AND POPUPS PLACED HERE AT ROOT LEVEL TO AVOID Z-INDEX TRAPS */}
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
 
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
@@ -503,7 +409,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL (FIXED SWIPING AND PERMANENT CIRCLE ARROWS) */}
+      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL (FIXED STACKING ARROWS) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -536,34 +442,37 @@ export default function ShopCatalog() {
                   ))}
                 </div>
                 
-                {/* PERMANENTLY MOUNTED NAVIGATION ARROWS WITH WHITE SOLID BASE CHANNELS */}
+                {/* STABILIZED PERMANENT NAVIGATION ARROWS (Forced high index layer to bypass transform-gpu overlap) */}
                 <button 
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    setQuickViewImgIndex(prev => {
-                      const arr = getImagesArray(quickViewProduct.image);
-                      return arr.length > 0 ? (prev - 1 + arr.length) % arr.length : 0;
-                    });
+                    const arr = getImagesArray(quickViewProduct.image);
+                    if (arr.length > 0) {
+                      setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
+                    }
                   }} 
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                  style={{ zIndex: 100 }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl active:scale-90 transform-gpu transition-all pointer-events-auto"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 </button>
                 
                 <button 
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    setQuickViewImgIndex(prev => {
-                      const arr = getImagesArray(quickViewProduct.image);
-                      return arr.length > 0 ? (prev + 1) % arr.length : 0;
-                    });
+                    const arr = getImagesArray(quickViewProduct.image);
+                    if (arr.length > 0) {
+                      setQuickViewImgIndex(prev => (prev + 1) % arr.length);
+                    }
                   }} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                  style={{ zIndex: 100 }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl active:scale-90 transform-gpu transition-all pointer-events-auto"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </button>
 
-                {/* SOLID WHITE ACTIVE RANGE SYSTEM INDEX SPOTS (FIXED SYNTAX DISCREPANCY) */}
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
                   {getImagesArray(quickViewProduct.image).map((_, idx) => (
                     <button 
