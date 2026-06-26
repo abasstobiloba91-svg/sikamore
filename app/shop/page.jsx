@@ -17,7 +17,7 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF PARSER: Cleans up any scrambled DB strings, quotes, or brackets
+// BULLETPROOF PARSER: Cleans up any scrambled DB strings, Postgres arrays, or JSON
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
   let parsed = [];
@@ -30,7 +30,6 @@ const getImagesArray = (imgField) => {
       if (Array.isArray(j)) parsed = j;
       else parsed = [imgField];
     } catch (e) {
-      // Clean up raw Postgres array strings e.g., '{"https://...","https://..."}'
       if (imgField.startsWith('{') && imgField.endsWith('}')) {
         const inner = imgField.slice(1, -1);
         parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
@@ -41,7 +40,6 @@ const getImagesArray = (imgField) => {
       }
     }
   }
-  // Ensure we only return clean, valid HTTP URLs
   return parsed.filter(s => typeof s === 'string' && s.startsWith('http'));
 };
 
@@ -69,7 +67,6 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // MULTI-IMAGE CAROUSEL STATES
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -130,7 +127,6 @@ export default function ShopCatalog() {
         if (data && data.country_code) {
           setDetectedCountryCode(data.country_code);
           setDetectedCountryName(data.country_name);
-          
           const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
           setIsEuropeanUser(checkEurope);
 
@@ -210,7 +206,6 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // TOUCH SWIPE LOGIC
   const minSwipeDistance = 40;
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -222,13 +217,12 @@ export default function ShopCatalog() {
     const distance = touchStart - touchEnd;
     const images = getImagesArray(quickViewProduct?.image);
     
-    // Prevent swipe calculations if there's only 1 image
     if (images.length <= 1) return;
 
     if (distance > minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev + 1) % images.length); // Swipe Left
+      setQuickViewImgIndex((prev) => (prev + 1) % images.length);
     } else if (distance < -minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length); // Swipe Right
+      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
@@ -238,15 +232,12 @@ export default function ShopCatalog() {
     addToCart(product, 1, 'M'); 
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50); 
-    showToast('Added to your bag.');
   };
 
   const handleWishlistClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
-    const isCurrentlyInWishlist = wishlist.some(w => w.id === product.id);
-    showToast(isCurrentlyInWishlist ? 'Removed from your wishlist.' : 'Added to your beautifully curated wishlist.');
   };
 
   const handlePopupSubscription = async (e) => {
@@ -290,7 +281,6 @@ export default function ShopCatalog() {
       }
 
       showToast("SCANNING HIGHWAY NETWORKS...");
-
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
@@ -354,9 +344,9 @@ export default function ShopCatalog() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
+    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0">
       
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
             <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
@@ -366,7 +356,7 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0" style={{ zIndex: 50 }}>
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           
           <div className="flex-1 flex items-center justify-start gap-4">
@@ -415,316 +405,7 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      {showNewsletter && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
-          <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
-            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            
-            <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img 
-                src={products.length > 0 ? getPrimaryImage(products.image) : ''} 
-                alt="Join the Community" 
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-                className="w-full h-full object-cover" 
-              />
-            </div>
-
-            <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
-              <div className="animate-fade-in">
-                <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">Join Our Circle</h2>
-                <p className="text-[10px] tracking-widest text-zinc-500 uppercase leading-relaxed mb-8">
-                  Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.
-                </p>
-                <form onSubmit={handlePopupSubscription} className="space-y-4">
-                  <input 
-                    type="email" 
-                    value={subscriberEmail}
-                    onChange={(e) => setSubscriberEmail(e.target.value)}
-                    placeholder="ENTER YOUR EMAIL" 
-                    required 
-                    className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base md:text-xs uppercase tracking-widest text-center" 
-                  />
-                  <button type="submit" disabled={submittingEmail} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50">
-                    {submittingEmail ? 'JOINING...' : 'JOIN NOW'}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SWIPEABLE QUICK VIEW MODAL (WITH FORCED ABSOLUTE Z-INDEX) */}
-      {quickViewProduct && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
-            
-            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            
-            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
-              
-              {/* IMAGE CAROUSEL AREA */}
-              <div 
-                className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group"
-                onTouchStart={onTouchStart} 
-                onTouchMove={onTouchMove} 
-                onTouchEnd={onTouchEnd}
-              >
-                <div 
-                  className="flex w-full h-full transition-transform duration-500 ease-out" 
-                  style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}
-                >
-                  {getImagesArray(quickViewProduct.image).map((img, i) => (
-                    <div key={i} className="w-full h-full shrink-0 relative">
-                      <img 
-                        src={img} 
-                        alt={`${quickViewProduct.name} - View ${i + 1}`} 
-                        decoding="async" loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover" 
-                      />
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Carousel Controls */}
-                {getImagesArray(quickViewProduct.image).length > 1 && (
-                  <>
-                    <button onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <button onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
-                        <button key={idx} onClick={() => setQuickViewImgIndex(idx)} className={`h-1.5 rounded-full transition-all ${idx === quickViewImgIndex ? 'bg-black w-4' : 'bg-black/30 w-1.5'}`} />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* PRODUCT DETAILS AREA */}
-              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
-                <div className="flex justify-between items-start mb-1">
-                  <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
-                  <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                  </button>
-                </div>
-                <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
-                
-                <div className="mb-5">
-                  <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
-                  <div className="flex gap-2">
-                    {['S', 'M', 'L'].map(s => (
-                      <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex items-center border border-zinc-200 bg-white">
-                    <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">-</button>
-                    <span className="w-8 text-center text-xs font-mono text-black">{qty}</span>
-                    <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
-                  </div>
-                </div>
-                
-                <button onClick={(e) => { 
-                    addToCart(quickViewProduct, qty, selectedSize); 
-                    setIsCartOpen(false); 
-                    setTimeout(() => setIsCartOpen(false), 50); 
-                    setQuickViewProduct(null);
-                    showToast('Added to your bag.');
-                  }} 
-                  className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
-                >
-                  Add to Bag • {formatPrice(quickViewProduct.price * qty)}
-                </button>
-
-                <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
-                  {productTabs.map((tab) => (
-                    <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
-                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                        <span>{tab.title}</span>
-                        <span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
-                      </button>
-                      {openAccordion === tab.id && (
-                        <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">
-                          {tab.content}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* --- FULL-SCREEN DYNAMIC SEARCH MODAL --- */}
-      {isSearchOpen && (
-        <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 999999 }}>
-          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
-            <h2 className="text-xl sm:text-2xl font-serif tracking-[0.1em] uppercase text-black">Find Your Perfect Piece</h2>
-            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 text-zinc-400 hover:text-black transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-          </div>
-
-          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
-            <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-              <input type="text" autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full outline-none text-base md:text-2xl text-black uppercase tracking-widest bg-transparent placeholder-zinc-300 font-light" placeholder="WHAT ARE YOU LOOKING FOR TODAY?..." />
-              {searchQuery && ( <button onClick={() => setSearchQuery('')} className="ml-4 text-zinc-400 hover:text-black uppercase text-[10px] tracking-[0.2em] font-medium">Clear</button> )}
-            </div>
-          </div>
-
-          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 mt-12 sm:mt-16 flex-1 pb-24">
-            {searchQuery.trim() === '' ? (
-              <div className="h-full flex flex-col items-center justify-start pt-10 text-zinc-400 text-center space-y-4">
-                 <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                 <p className="text-[10px] uppercase tracking-[0.2em]">Type a keyword or style to begin exploring our collection.</p>
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
-                We couldn&apos;t quite find what you&apos;re looking for. Try a different search.
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-8 border-b border-zinc-100 pb-3">
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">Your Matches</span>
-                  <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-mono">{searchResults.length} Match{searchResults.length !== 1 && 'es'}</span>
-                </div>
-
-                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6`}>
-                  {searchResults.map((product) => {
-                    const inWishlist = wishlist.some(w => w.id === product.id);
-                    return (
-                      <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
-                        <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
-                          <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
-                            <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                          </button>
-                          <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleCartClick(e, product); }} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
-                          </div>
-                          {product.is_sold_out && ( <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div> )}
-                        </div>
-                        <div className="flex flex-col gap-1 mt-4 text-left px-1">
-                          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* SLIDING MINI BAG CAROUSEL DRAWER */}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
-        <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
-          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
-          ) : (
-            cart.map((item, idx) => (
-              <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
-                <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={getPrimaryImage(item.image)} alt={item.name} onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover" /> )}
-                </div>
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h3 className="text-[10px] tracking-widest uppercase font-medium">{item.name}</h3>
-                    <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">{formatPrice(item.price)}</span>
-                    <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
-                      <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
-                      <span className="text-zinc-800">|</span>
-                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        
-        {cart.length > 0 && (
-          <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
-            <div className="mb-6 border-b border-zinc-800 pb-5">
-              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={deliveryAddress} 
-                  onChange={(e) => setDeliveryAddress(e.target.value)} 
-                  placeholder="ENTER NEAREST BUS STOP OR LANDMARK..." 
-                  className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" 
-                />
-                <button onClick={calculateLiveDelivery} disabled={isCalculating} className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50">{isCalculating ? 'WAIT...' : 'CALCULATE'}</button>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
-              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
-              {deliveryFee > 0 && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
-              <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">Continue Shopping</button>
-              <button 
-                onClick={() => {
-                  if (deliveryFee <= 0 || !deliveryAddress.trim()) return showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED.");
-                  localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName }));
-                  setIsCartOpen(false); window.location.href = '/checkout';
-                }}
-                className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${deliveryFee <= 0 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}
-              >{deliveryFee <= 0 ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}</button>
-            </div>
-          </div>
-        )}
-      </div>
-      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsCartOpen(false)}></div>}
-
-      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
-        <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
-          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
-          <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-        </div>
-        <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
-          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
-          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
-          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
-        </nav>
-        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
-      </div>
-      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 999998 }} onClick={() => setIsMenuOpen(false)}></div>}
-
-      <section className="bg-white border-b border-zinc-200 relative" style={{ zIndex: 40 }}>
+      <section className="bg-white border-b border-zinc-200 relative z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
           <div className="flex items-center gap-3">
@@ -742,7 +423,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z-10 pb-32">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
         ) : (
@@ -755,15 +436,10 @@ export default function ShopCatalog() {
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
-                  
                   <div 
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!product.is_sold_out) openQuickView(product);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* PRIMARY IMAGE */}
                     {pPrimary && (
                       <img 
                         src={pPrimary} 
@@ -772,8 +448,6 @@ export default function ShopCatalog() {
                         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 lg:group-hover/img:scale-105 ${pSecondary ? 'group-hover/img:opacity-0' : ''}`} 
                       />
                     )}
-
-                    {/* SECONDARY HOVER IMAGE */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
@@ -783,32 +457,13 @@ export default function ShopCatalog() {
                       />
                     )}
                     
-                    <button 
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} 
-                      className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"
-                    >
-                      <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                      </svg>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
+                      <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                     </button>
 
                     <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
-                      <button 
-                        type="button"
-                        onClick={(e) => handleCartClick(e, product)}
-                        disabled={product.is_sold_out}
-                        className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        Add to Cart
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
-                        className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg"
-                      >
-                        View Product
-                      </button>
+                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
                     </div>
 
                     {product.is_sold_out && (
@@ -819,23 +474,9 @@ export default function ShopCatalog() {
                   <div className="flex flex-col gap-1 mt-4 text-left px-1">
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                     <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
-                    
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
-                      <button 
-                        type="button"
-                        onClick={(e) => handleCartClick(e, product)}
-                        disabled={product.is_sold_out}
-                        className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : 'active:bg-zinc-800'}`}
-                      >
-                        Add to Cart
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openQuickView(product); }}
-                        className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors"
-                      >
-                        View Product
-                      </button>
+                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : 'active:bg-zinc-800'}`}>Add to Cart</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
                     </div>
                   </div>
                 </div>
@@ -845,23 +486,7 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* COMPACT PILL FOR MOBILE */}
-      {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
-          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
-            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
-              <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
-              <span className="text-zinc-600">|</span>
-              <span>{formatPrice(cartSubtotal)}</span>
-            </div>
-            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors shrink-0 ml-2">
-              View Bag
-            </button>
-          </div>
-        </div>
-      )}
-
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
           <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
             S. SIKAMÒRE
@@ -897,6 +522,253 @@ export default function ShopCatalog() {
           </div>
         </div>
       </footer>
+
+      {/* ALL MODALS, DRAWERS, AND POPUPS PLACED HERE AT ROOT LEVEL TO AVOID Z-INDEX TRAPS */}
+
+      {/* 1. NEWSLETTER POPUP */}
+      {showNewsletter && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
+          <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
+            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
+              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+            </div>
+            <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
+              <div className="animate-fade-in">
+                <h2 className="text-xl md:text-2xl font-normal tracking-[0.2em] uppercase font-serif mb-4">Join Our Circle</h2>
+                <p className="text-[10px] tracking-widest text-zinc-500 uppercase leading-relaxed mb-8">Stay up to date with new arrivals and get exclusive offers delivered directly to your inbox first.</p>
+                <form onSubmit={handlePopupSubscription} className="space-y-4">
+                  <input type="email" value={subscriberEmail} onChange={(e) => setSubscriberEmail(e.target.value)} placeholder="ENTER YOUR EMAIL" required className="w-full bg-white p-4 border border-zinc-300 focus:border-black outline-none text-base md:text-xs uppercase tracking-widest text-center" />
+                  <button type="submit" disabled={submittingEmail} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium disabled:opacity-50">{submittingEmail ? 'JOINING...' : 'JOIN NOW'}</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. SWIPEABLE QUICK VIEW MODAL */}
+      {quickViewProduct && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
+            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
+              
+              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                <div className="flex w-full h-full transition-transform duration-500 ease-out" style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}>
+                  {getImagesArray(quickViewProduct.image).map((img, i) => (
+                    <div key={i} className="w-full h-full shrink-0 relative">
+                      <img src={img} alt={`${quickViewProduct.name} - View ${i + 1}`} decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+                {getImagesArray(quickViewProduct.image).length > 1 && (
+                  <>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                        <button key={idx} onClick={() => setQuickViewImgIndex(idx)} className={`h-1.5 rounded-full transition-all ${idx === quickViewImgIndex ? 'bg-black w-4' : 'bg-black/30 w-1.5'}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
+                <div className="flex justify-between items-start mb-1">
+                  <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
+                  <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                  </button>
+                </div>
+                <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
+                <div className="mb-5">
+                  <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
+                  <div className="flex gap-2">
+                    {['S', 'M', 'L'].map(s => (
+                      <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex items-center border border-zinc-200 bg-white">
+                    <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">-</button>
+                    <span className="w-8 text-center text-xs font-mono text-black">{qty}</span>
+                    <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
+                  </div>
+                </div>
+                <button onClick={(e) => { addToCart(quickViewProduct, qty, selectedSize); setIsCartOpen(false); setTimeout(() => setIsCartOpen(false), 50); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
+                  Add to Bag • {formatPrice(quickViewProduct.price * qty)}
+                </button>
+                <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
+                  {productTabs.map((tab) => (
+                    <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
+                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                        <span>{tab.title}</span><span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
+                      </button>
+                      {openAccordion === tab.id && <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">{tab.content}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. FULL-SCREEN DYNAMIC SEARCH MODAL */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
+          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
+            <h2 className="text-xl sm:text-2xl font-serif tracking-[0.1em] uppercase text-black">Find Your Perfect Piece</h2>
+            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 text-zinc-400 hover:text-black transition-colors">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
+            <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+              <input type="text" autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full outline-none text-base md:text-2xl text-black uppercase tracking-widest bg-transparent placeholder-zinc-300 font-light" placeholder="WHAT ARE YOU LOOKING FOR TODAY?..." />
+              {searchQuery && ( <button onClick={() => setSearchQuery('')} className="ml-4 text-zinc-400 hover:text-black uppercase text-[10px] tracking-[0.2em] font-medium">Clear</button> )}
+            </div>
+          </div>
+          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 mt-12 sm:mt-16 flex-1 pb-24">
+            {searchQuery.trim() === '' ? (
+              <div className="h-full flex flex-col items-center justify-start pt-10 text-zinc-400 text-center space-y-4">
+                 <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                 <p className="text-[10px] uppercase tracking-[0.2em]">Type a keyword or style to begin exploring our collection.</p>
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">We couldn&apos;t quite find what you&apos;re looking for. Try a different search.</div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-8 border-b border-zinc-100 pb-3">
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">Your Matches</span>
+                  <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-mono">{searchResults.length} Match{searchResults.length !== 1 && 'es'}</span>
+                </div>
+                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6`}>
+                  {searchResults.map((product) => {
+                    const inWishlist = wishlist.some(w => w.id === product.id);
+                    return (
+                      <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
+                        <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
+                          <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleCartClick(e, product); }} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
+                          </div>
+                          {product.is_sold_out && ( <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div> )}
+                        </div>
+                        <div className="flex flex-col gap-1 mt-4 text-left px-1">
+                          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
+                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. SLIDING MINI BAG CAROUSEL DRAWER */}
+      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsCartOpen(false)}></div>}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+        <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
+          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
+          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {cart.length === 0 ? (
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
+          ) : (
+            cart.map((item, idx) => (
+              <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
+                <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
+                  {item.image && ( <img src={getPrimaryImage(item.image)} alt={item.name} className="w-full h-full object-cover" /> )}
+                </div>
+                <div className="flex-1 flex flex-col justify-between py-1">
+                  <div>
+                    <h3 className="text-[10px] tracking-widest uppercase font-medium">{item.name}</h3>
+                    <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">{formatPrice(item.price)}</span>
+                    <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
+                      <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
+                      <span className="text-zinc-800">|</span>
+                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        {cart.length > 0 && (
+          <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
+            <div className="mb-6 border-b border-zinc-800 pb-5">
+              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
+              <div className="flex gap-2">
+                <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="ENTER NEAREST BUS STOP OR LANDMARK..." className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" />
+                <button onClick={calculateLiveDelivery} disabled={isCalculating} className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50">{isCalculating ? 'WAIT...' : 'CALCULATE'}</button>
+              </div>
+            </div>
+            <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
+              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
+              {deliveryFee > 0 && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
+              <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">Continue Shopping</button>
+              <button onClick={() => { if (deliveryFee <= 0 || !deliveryAddress.trim()) return showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED."); localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); setIsCartOpen(false); window.location.href = '/checkout'; }} className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${deliveryFee <= 0 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}>{deliveryFee <= 0 ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 5. MOBILE MENU DRAWER */}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
+      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+        <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
+          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
+          <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
+          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
+          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
+          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
+        </nav>
+        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
+      </div>
+
+      {/* 6. COMPACT PILL FOR MOBILE (VIEW BAG) */}
+      {cartItemCount > 0 && !isCartOpen && (
+        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
+          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
+            <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
+              <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
+              <span className="text-zinc-600">|</span>
+              <span>{formatPrice(cartSubtotal)}</span>
+            </div>
+            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors shrink-0 ml-2">
+              View Bag
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
