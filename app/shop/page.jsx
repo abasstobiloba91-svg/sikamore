@@ -17,30 +17,12 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF PARSER: Cleans up any scrambled DB strings, Postgres arrays, or JSON
+// BULLETPROOF PARSER: Extracts clean URLs only, ignoring all database syntax noise
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  let parsed = [];
-  
-  if (Array.isArray(imgField)) {
-    parsed = imgField;
-  } else if (typeof imgField === 'string') {
-    try {
-      const j = JSON.parse(imgField);
-      if (Array.isArray(j)) parsed = j;
-      else parsed = [imgField];
-    } catch (e) {
-      if (imgField.startsWith('{') && imgField.endsWith('}')) {
-        const inner = imgField.slice(1, -1);
-        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-      } else if (imgField.includes(',')) {
-        parsed = imgField.split(',').map(s => s.trim());
-      } else {
-        parsed = [imgField];
-      }
-    }
-  }
-  return parsed.filter(s => typeof s === 'string' && s.startsWith('http'));
+  const stringified = typeof imgField === 'string' ? imgField : JSON.stringify(imgField);
+  const urlMatches = stringified.match(/https?:\/\/[^"',}\s\]\\]+/g);
+  return urlMatches ? urlMatches.map(url => url.trim()) : [];
 };
 
 const getPrimaryImage = (imgField) => {
@@ -67,6 +49,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
+  // MULTI-IMAGE CAROUSEL STATES
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -206,7 +189,8 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  const minSwipeDistance = 40;
+  // REFINED TOUCH SWIPE LOGIC
+  const minSwipeDistance = 30; // Sensitive to swipes
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches.clientX);
@@ -217,13 +201,17 @@ export default function ShopCatalog() {
     const distance = touchStart - touchEnd;
     const images = getImagesArray(quickViewProduct?.image);
     
-    if (images.length <= 1) return;
+    // Prevent zero-division if no images
+    if (images.length === 0) return;
 
     if (distance > minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev + 1) % images.length);
+      setQuickViewImgIndex((prev) => (prev + 1) % images.length); // Swipe Left
     } else if (distance < -minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
+      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length); // Swipe Right
     }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
   };
 
   const handleCartClick = (e, product) => {
@@ -232,6 +220,7 @@ export default function ShopCatalog() {
     addToCart(product, 1, 'M'); 
     setIsCartOpen(false); 
     setTimeout(() => setIsCartOpen(false), 50); 
+    showToast('Added to your bag.');
   };
 
   const handleWishlistClick = (e, product) => {
@@ -281,6 +270,7 @@ export default function ShopCatalog() {
       }
 
       showToast("SCANNING HIGHWAY NETWORKS...");
+
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
@@ -344,8 +334,9 @@ export default function ShopCatalog() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0">
+    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
+      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -358,7 +349,6 @@ export default function ShopCatalog() {
 
       <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
-          
           <div className="flex-1 flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
@@ -374,11 +364,7 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
-            <select 
-              value={currency} 
-              onChange={(e) => setCurrency(e.target.value)} 
-              className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block"
-            >
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block">
               <option value="NGN">NGN ₦</option>
               <option value="USD">USD $</option>
               {isEuropeanUser && <option value="GBP">GBP £</option>}
@@ -386,9 +372,7 @@ export default function ShopCatalog() {
             </select>
 
             <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
-              <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-              </svg>
+              <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
               {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
             </Link>
 
@@ -419,10 +403,10 @@ export default function ShopCatalog() {
               <button onClick={() => { setViewCols(4); setIsListView(false); }} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg></button>
             </div>
           </div>
-          <select className="bg-transparent border-0 outline-none text-[9px] uppercase tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black font-light py-1 pr-2 max-w-[120px] text-right"><option>Sort by newest arrivals</option></select>
         </div>
       </section>
 
+      {/* MAIN PRODUCTS SELECTION LAYER */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -440,20 +424,27 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {pPrimary && (
+                    {/* PRIMARY IMAGE */}
+                    {pPrimary ? (
                       <img 
                         src={pPrimary} 
                         alt={product.name} 
+                        decoding="async"
                         loading="lazy"
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 lg:group-hover/img:scale-105 ${pSecondary ? 'group-hover/img:opacity-0' : ''}`} 
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${pSecondary ? 'md:group-hover/img:opacity-0' : ''}`} 
                       />
+                    ) : (
+                      <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
+                    
+                    {/* SECONDARY HOVER IMAGE - HIDDEN ON MOBILE TO PREVENT RAM CRASHES */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
                         alt={`${product.name} alternate view`} 
+                        decoding="async"
                         loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover transition-all duration-700 opacity-0 group-hover/img:opacity-100 lg:group-hover/img:scale-105" 
+                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 md:group-hover/img:opacity-100 hidden md:block" 
                       />
                     )}
                     
@@ -475,7 +466,7 @@ export default function ShopCatalog() {
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                     <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
-                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : 'active:bg-zinc-800'}`}>Add to Cart</button>
+                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
                       <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
                     </div>
                   </div>
@@ -486,48 +477,11 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
-          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
-            S. SIKAMÒRE
-          </h2>
-        </div>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
-            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
-            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
-            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
-            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
-            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
-            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
-            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
-              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
-            </form>
-          </div>
-        </div>
-      </footer>
-
-      {/* ALL MODALS, DRAWERS, AND POPUPS PLACED HERE AT ROOT LEVEL TO AVOID Z-INDEX TRAPS */}
+      {/* ROOT ATELIER MODALS DIRECTORY */}
 
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
             <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -549,40 +503,78 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW MODAL */}
+      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL WITH HARDWARE ACCELERATION */}
       {quickViewProduct && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
+            
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
+            
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                <div className="flex w-full h-full transition-transform duration-500 ease-out" style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}>
+              {/* SLIDER WRAPPER */}
+              <div 
+                className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
+                onTouchStart={onTouchStart} 
+                onTouchMove={onTouchMove} 
+                onTouchEnd={onTouchEnd}
+              >
+                <div 
+                  className="flex w-full h-full transition-transform duration-500 ease-out transform-gpu" 
+                  style={{ transform: `translate3d(-${quickViewImgIndex * 100}%, 0, 0)` }}
+                >
                   {getImagesArray(quickViewProduct.image).map((img, i) => (
                     <div key={i} className="w-full h-full shrink-0 relative">
-                      <img src={img} alt={`${quickViewProduct.name} - View ${i + 1}`} decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt={`${quickViewProduct.name} - View ${i + 1}`} 
+                        className="absolute inset-0 w-full h-full object-cover" 
+                      />
                     </div>
                   ))}
                 </div>
-                {getImagesArray(quickViewProduct.image).length > 1 && (
-                  <>
-                    <button onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <button onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
-                        <button key={idx} onClick={() => setQuickViewImgIndex(idx)} className={`h-1.5 rounded-full transition-all ${idx === quickViewImgIndex ? 'bg-black w-4' : 'bg-black/30 w-1.5'}`} />
-                      ))}
-                    </div>
-                  </>
-                )}
+                
+                {/* ALWAYS VISIBLE WHITE NAVIGATION ARROWS (Forced to show so you can see them clearly) */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickViewImgIndex(prev => {
+                      const arr = getImagesArray(quickViewProduct.image);
+                      return arr.length > 0 ? (prev - 1 + arr.length) % arr.length : 0;
+                    });
+                  }} 
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickViewImgIndex(prev => {
+                      const arr = getImagesArray(quickViewProduct.image);
+                      return arr.length > 0 ? (prev + 1) % arr.length : 0;
+                    });
+                  }} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
+                  {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
+                    />
+                  ))}
+                </div>
               </div>
 
+              {/* PRODUCT DETAILS AREA */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
@@ -625,7 +617,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 3. FULL-SCREEN DYNAMIC SEARCH MODAL */}
+      {/* 3. DYNAMIC SEARCH PORTAL */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
@@ -683,7 +675,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 4. SLIDING MINI BAG CAROUSEL DRAWER */}
+      {/* 4. SLIDING MINI BAG DRAWER GRID */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
@@ -739,7 +731,7 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 5. MOBILE MENU DRAWER */}
+      {/* 5. MOBILE MENU EXPANSION MATRIX */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -754,9 +746,9 @@ export default function ShopCatalog() {
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
 
-      {/* 6. COMPACT PILL FOR MOBILE (VIEW BAG) */}
+      {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE (VIEW BAG CARD) */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
