@@ -11,6 +11,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// HELPER: Safely extract the first image for thumbnails/emails regardless of DB format (string vs array)
+const getPrimaryImage = (imageField) => {
+  if (!imageField) return '';
+  if (Array.isArray(imageField)) return imageField || '';
+  return imageField;
+};
+
 export default function AdminDashboard() {
   const { showToast } = useApp();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -21,11 +28,14 @@ export default function AdminDashboard() {
   const [inventoryMode, setInventoryMode] = useState('manage'); 
   const [liveProducts, setLiveProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [editFile, setEditFile] = useState(null);
+  
+  // MULTI-IMAGE STATES
+  const [editFiles, setEditFiles] = useState([]);
+  const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [productsList, setProductsList] = useState([
-    { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }
+    { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }
   ]);
   const [disabled, setDisabled] = useState(false);
 
@@ -62,7 +72,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // STABILIZED DIAGNOSTIC DATA LOADER: Isolated blocks stop table exceptions from breaking layout states
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -189,9 +198,9 @@ export default function AdminDashboard() {
     showToast('PORTAL LOCKED.');
   };
 
-  // ====================== INVENTORY: DEPLOY NEW ====================== //
+  // ====================== INVENTORY: DEPLOY NEW (MULTI-IMAGE) ====================== //
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
+    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
   };
 
   const removeProductRow = (id) => {
@@ -203,10 +212,10 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const file = e.target.files;
-    if (file) {
-      const preview = URL.createObjectURL(file);
-      setProductsList(prev => prev.map(p => p.id === id ? { ...p, file, preview } : p));
+    const selectedFiles = Array.from(e.target.files).slice(0, 5); // Limit to 5 images
+    if (selectedFiles.length > 0) {
+      const previews = selectedFiles.map(file => URL.createObjectURL(file));
+      setProductsList(prev => prev.map(p => p.id === id ? { ...p, files: selectedFiles, previews } : p));
     }
   };
 
@@ -222,7 +231,7 @@ export default function AdminDashboard() {
         if (!product.name || String(product.name).trim() === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
         else if (!product.price || String(product.price).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
         else if (!product.stock || String(product.stock).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
-        else if (!product.file) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING AN ATTACHED IMAGE.`;
+        else if (!product.files || product.files.length === 0) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING ATTACHED IMAGES.`;
       });
 
       if (detailedError) {
@@ -231,22 +240,31 @@ export default function AdminDashboard() {
       }
 
       for (const product of productsList) {
-        const fileExt = product.file.name.split('.').pop().toLowerCase();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const safeContentType = product.file.type || `image/jpeg`;
-
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, product.file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
-        if (uploadError) throw new Error(uploadError.message);
+        let imageUrls = [];
         
-        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        // Concurrently upload all selected files for this product
+        await Promise.all(
+          product.files.map(async (file) => {
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const safeContentType = file.type || `image/jpeg`;
+
+            const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
+            if (uploadError) throw new Error(uploadError.message);
+            
+            const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+            imageUrls.push(data.publicUrl);
+          })
+        );
+
         const { error: dbError } = await supabase.from('products').insert([{ 
-          name: product.name.toUpperCase(), price: parseFloat(product.price), stock_quantity: parseInt(product.stock), description: product.description || null, additional_information: product.additional_information || null, store_policies: product.store_policies || null, inquiries: product.inquiries || null, image: data.publicUrl, is_sold_out: parseInt(product.stock) <= 0 
+          name: product.name.toUpperCase(), price: parseFloat(product.price), stock_quantity: parseInt(product.stock), description: product.description || null, additional_information: product.additional_information || null, store_policies: product.store_policies || null, inquiries: product.inquiries || null, image: imageUrls, is_sold_out: parseInt(product.stock) <= 0 
         }]);
         if (dbError) throw new Error(dbError.message);
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
-      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', file: null, preview: null }]);
+      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
       setInventoryMode('manage'); 
     } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setDisabled(false); }
   };
@@ -264,13 +282,15 @@ export default function AdminDashboard() {
 
   const startEditingProduct = (product) => {
     setEditingProduct({ ...product });
-    setEditFile(null);
+    setEditFiles([]);
+    setEditPreviews([]);
   };
 
   const handleEditImageChange = (e) => {
-    const file = e.target.files;
-    if (file) {
-      setEditFile(file);
+    const selectedFiles = Array.from(e.target.files).slice(0, 5);
+    if (selectedFiles.length > 0) {
+      setEditFiles(selectedFiles);
+      setEditPreviews(selectedFiles.map(f => URL.createObjectURL(f)));
     }
   };
 
@@ -279,18 +299,24 @@ export default function AdminDashboard() {
     setIsUpdating(true);
 
     try {
-      let imageUrl = editingProduct.image;
+      // Gracefully handle older products that had a single string instead of an array
+      let finalImageUrls = Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean);
 
-      if (editFile) {
-        const fileExt = editFile.name.split('.').pop().toLowerCase();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const safeContentType = editFile.type || `image/jpeg`;
+      if (editFiles.length > 0) {
+        finalImageUrls = []; // Clear old images if new ones are uploaded
+        await Promise.all(
+          editFiles.map(async (file) => {
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const safeContentType = file.type || `image/jpeg`;
 
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, editFile, { cacheControl: '3600', upsert: false, contentType: safeContentType });
-        if (uploadError) throw new Error(uploadError.message);
-        
-        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-        imageUrl = data.publicUrl;
+            const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
+            if (uploadError) throw new Error(uploadError.message);
+            
+            const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+            finalImageUrls.push(data.publicUrl);
+          })
+        );
       }
 
       const { error: dbError } = await supabase.from('products').update({
@@ -301,7 +327,7 @@ export default function AdminDashboard() {
         additional_information: editingProduct.additional_information || null,
         store_policies: editingProduct.store_policies || null,
         inquiries: editingProduct.inquiries || null,
-        image: imageUrl,
+        image: finalImageUrls,
         is_sold_out: parseInt(editingProduct.stock_quantity) <= 0
       }).eq('id', editingProduct.id);
 
@@ -309,7 +335,8 @@ export default function AdminDashboard() {
 
       showToast("PRODUCT UPDATED SUCCESSFULLY.");
       setEditingProduct(null);
-      setEditFile(null);
+      setEditFiles([]);
+      setEditPreviews([]);
     } catch (error) {
       showToast(`UPDATE ERROR: ${error.message.toUpperCase()}`);
     } finally {
@@ -423,12 +450,11 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-  // ====================== NEWSLETTER DISPATCH CENTER (CONCURRENT BLUEPRINT FROM IMAGE_3.PNG) ====================== //
+  // ====================== NEWSLETTER DISPATCH CENTER ====================== //
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
     
-    // Safety Fallback check to avoid crashing if data failed to populate
     if (subscribers.length === 0) {
       return showToast("DISPATCH DENIED: ACTIVE REGISTRY SIZE IS 0 PROFILES.");
     }
@@ -441,6 +467,9 @@ export default function AdminDashboard() {
       let productGridHtml = '';
       
       if (gridProducts.length >= 2) {
+        const img1 = getPrimaryImage(gridProducts.image);
+        const img2 = getPrimaryImage(gridProducts.image);
+
         productGridHtml = `
           <tr>
             <td>
@@ -449,18 +478,18 @@ export default function AdminDashboard() {
                 <tr>
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[0].image}" width="100%" style="display:block;" /></td></tr>
-                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[0].name.toUpperCase()}</td></tr>
-                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[0].price.toLocaleString()}</td></tr>
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${img1}" width="100%" style="display:block;" /></td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts.name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts.price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
                     </table>
                   </td>
                   <td width="4%"></td>
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${gridProducts[1].image}" width="100%" style="display:block;" /></td></tr>
-                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[1].name.toUpperCase()}</td></tr>
-                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[1].price.toLocaleString()}</td></tr>
+                      <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${img2}" width="100%" style="display:block;" /></td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts.name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts.price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
                     </table>
                   </td>
@@ -501,7 +530,6 @@ export default function AdminDashboard() {
       const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
       if (error) throw error;
 
-      // UPGRADED CONCURRENT BROADCAST MECHANISM: Shoots all emails in parallel so it never encounters execution locks
       await Promise.all(
         subscribers.map(async (sub) => {
           if (!sub.email) return;
@@ -645,16 +673,15 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="flex items-center gap-6">
-                          <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
-                            {editFile ? (
-                              <img src={URL.createObjectURL(editFile)} alt="Preview" className="w-full h-full object-cover" />
-                            ) : (
-                              <img src={editingProduct.image} alt="Current" className="w-full h-full object-cover" />
-                            )}
+                          <div className="flex gap-2">
+                            {editPreviews.length > 0 
+                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
+                              : (Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean)).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
+                            }
                           </div>
                           <div className="flex-1">
-                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Image (Optional)</label>
-                            <input type="file" accept="image/*" onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
+                            <input type="file" accept="image/*" multiple onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
                       </div>
@@ -677,7 +704,7 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
-                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
                                 <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
@@ -748,11 +775,16 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="flex items-center gap-6">
-                        <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
-                          {product.preview ? <img src={product.preview} alt="Preview" className="w-full h-full object-cover" /> : <span className="text-[7px] text-zinc-400 uppercase tracking-widest text-center">Img</span>}
+                        <div className="flex gap-2">
+                          {product.previews.length > 0 ? (
+                            product.previews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>)
+                          ) : (
+                            <span className="text-[7px] text-zinc-400 uppercase tracking-widest flex items-center justify-center w-12 h-16 border border-zinc-200 bg-white">Img</span>
+                          )}
                         </div>
                         <div className="flex-1">
-                          <input type="file" accept="image/*" onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
+                          <input type="file" accept="image/*" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
                     </div>
