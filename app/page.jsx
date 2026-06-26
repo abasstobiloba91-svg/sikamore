@@ -37,21 +37,20 @@ export default function EditorialLanding() {
     return () => clearInterval(interval);
   }, [products]);
 
-  const defaultHero = "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200";
-  const displayedImage = products.length > 0 ? products[heroIndex]?.image : defaultHero;
+  const displayedImage = products.length > 0 ? products[heroIndex]?.image : '';
 
   return (
     <div className="w-full h-screen relative md:grid md:grid-cols-2 bg-[#F5F5F4] text-[#0A0A0A] font-sans antialiased overflow-hidden select-none">
       
       {/* COLUMN 1: THE BRAND STATEMENT & CTA OVERLAY */}
-      <div className="absolute inset-0 md:relative md:inset-auto z-20 flex flex-col justify-between p-8 sm:p-16 lg:p-24 bg-gradient-to-r from-[#F5F5F4] via-[#F5F5F4]/90 to-transparent md:from-transparent md:bg-transparent h-full">
-        <div>
+      <div className="absolute inset-0 md:relative md:inset-auto z-20 flex flex-col justify-between p-8 sm:p-16 lg:p-24 bg-transparent h-full pointer-events-none">
+        <div className="pointer-events-auto">
           <h1 className="text-xs font-normal tracking-[0.5em] uppercase font-serif text-[#0A0A0A]">
             S. SIKAMÒRE
           </h1>
         </div>
 
-        <div className="space-y-4 md:space-y-8 my-auto max-w-sm">
+        <div className="space-y-4 md:space-y-8 my-auto max-w-sm pointer-events-auto">
           <span className="text-zinc-500 text-[9px] tracking-[0.4em] uppercase font-medium block">
             NEW ARRIVALS
           </span>
@@ -72,20 +71,21 @@ export default function EditorialLanding() {
           </div>
         </div>
 
-        <div className="text-[8px] md:text-[9px] text-zinc-500 tracking-[0.2em] uppercase">
+        <div className="text-[8px] md:text-[9px] text-zinc-500 tracking-[0.2em] uppercase pointer-events-auto">
           © 2026 S. SIKAMÒRE. ARCHIVE COLLECTION.
         </div>
       </div>
 
       {/* COLUMN 2: THE FULL-SCREEN EDITORIAL CANVAS */}
       <div className="absolute inset-0 md:relative md:inset-auto w-full h-full z-10 md:z-auto border-l border-zinc-200">
-        <img 
-          src={displayedImage} 
-          alt="Campaign Visual" 
-          className="w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
-          key={heroIndex}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#F5F5F4]/20 via-transparent to-transparent pointer-events-none" />
+        {displayedImage && (
+          <img 
+            src={displayedImage} 
+            alt="Campaign Visual" 
+            className="w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
+            key={heroIndex}
+          />
+        )}
         
         {/* Minimalist Slide Progress Dots */}
         {products.length > 1 && (
