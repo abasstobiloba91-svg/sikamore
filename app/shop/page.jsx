@@ -17,22 +17,14 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE MASTER URL PARSER: Decodes the Supabase text[] column flawlessly.
-const extractPristineUrls = (imgPayload) => {
+// THE URL MAGNET: Ignores all double-wrapped arrays, brackets, and escaped quotes from the DB
+const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
-  
-  // We stringify the Postgres text[] array to flatten any weird database structures
-  let rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-  
-  // If multiple URLs were accidentally joined by a comma, we separate them safely 
-  // (without breaking secure Cloudinary URL parameters)
-  rawString = rawString.replace(/,https?:\/\//g, ' https://');
-  
-  // Extract strictly valid URLs, ignoring database brackets and quotes
-  const matches = rawString.match(/https?:\/\/[^"'\s\[\]{}]+/g);
-  
-  // Strip any accidental trailing commas off the very end of the URL
-  return matches ? matches.map(url => url.replace(/,+$/, '').trim()) : []; 
+  // Flatten whatever deeply nested structure the DB sends into a single text string
+  const rawString = JSON.stringify(imgPayload);
+  // Pull out ONLY the valid URLs, ignoring all [ ] { } " \ characters
+  const matches = rawString.match(/https?:\/\/[^"\\\[\]{}]+/g);
+  return matches || [];
 };
 
 export default function ShopCatalog() {
@@ -157,6 +149,7 @@ export default function ShopCatalog() {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
 
+  // LOAD AND PRE-PROCESS PRODUCTS
   useEffect(() => {
     async function fetchProducts() {
       const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
@@ -187,19 +180,14 @@ export default function ShopCatalog() {
   const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
   const cartItemCount = cart ? cart.reduce((acc, curr) => acc + curr.quantity, 0) : 0;
 
-  // POPULATE ISOLATED QUICK VIEW MODAL
+  // QUICK VIEW OPENER
   const openQuickView = (product) => {
     if (!product) return;
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
     setQuickViewImgIndex(0); 
-    
-    // Safely attach the array ONLY to the quick view
-    setQuickViewProduct({
-      ...product,
-      validImages: extractPristineUrls(product.image)
-    });
+    setQuickViewProduct(product);
   };
 
   const minSwipeDistance = 30;
@@ -211,7 +199,7 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const images = quickViewProduct?.validImages || [];
+    const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
     
     if (images.length <= 1) return;
 
@@ -224,28 +212,27 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  // 🚨 IOS CRASH PREVENTER: We flatten the object before pushing to localStorage
+  // SAFARI CRASH PREVENTER: Formats object into primitive strings before hitting Cart State
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    // Strip out the text[] array and pass a pure STRING to the cart to save memory
-    const safeCartPayload = {
+    const safeProduct = {
       id: product.id,
       name: product.name,
       price: Number(product.price || 0),
-      image: extractPristineUrls(product.image) || '', 
+      image: extractCleanUrls(product.image) || '', // Forces a single primitive string
       is_sold_out: product.is_sold_out
     };
 
     try {
-      addToCart(safeCartPayload, overrideQty, overrideSize); 
-      setTimeout(() => { setIsCartOpen(false); }, 10);
+      addToCart(safeProduct, overrideQty, overrideSize); 
+      setTimeout(() => setIsCartOpen(false), 50); // Keep drawer closed silently
       showToast('Added to your bag.');
     } catch (err) {
-      console.error(err);
+      showToast('Error adding to bag.');
     }
   };
 
@@ -255,15 +242,15 @@ export default function ShopCatalog() {
       e.stopPropagation();
     }
     
-    const safeWishlistPayload = {
+    const safeWishlistProduct = {
       id: product.id,
       name: product.name,
       price: Number(product.price || 0),
-      image: extractPristineUrls(product.image) || '', 
+      image: extractCleanUrls(product.image) || '', 
       is_sold_out: product.is_sold_out
     };
 
-    toggleWishlist(safeWishlistPayload);
+    toggleWishlist(safeWishlistProduct);
   };
 
   const calculateLiveDelivery = async () => {
@@ -416,7 +403,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG CORE GRID */}
+      {/* PRIMARY CATALOG GRID - FIXED IMAGE DECODING */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -424,8 +411,8 @@ export default function ShopCatalog() {
           <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
             {searchResults.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              // GUARANTEED SAFE SINGLE STRING FETCH
-              const gridPrimaryImage = extractPristineUrls(product.image) || '';
+              // PULLS THE CLEANED ARRAY AND TAKES EXACTLY 1 IMAGE
+              const gridPrimaryImage = extractCleanUrls(product.image) || '';
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
@@ -519,7 +506,7 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? extractPristineUrls(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? extractCleanUrls(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -554,9 +541,9 @@ export default function ShopCatalog() {
                 onTouchEnd={onTouchEnd}
               >
                 <div className="w-full h-full relative flex items-center justify-center">
-                  {quickViewProduct.validImages && quickViewProduct.validImages[quickViewImgIndex] && (
+                  {extractCleanUrls(quickViewProduct.image)[quickViewImgIndex] && (
                     <img 
-                      src={quickViewProduct.validImages[quickViewImgIndex]} 
+                      src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
                     />
@@ -569,7 +556,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = quickViewProduct.validImages || [];
+                      const arr = extractCleanUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
                       }
@@ -584,7 +571,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = quickViewProduct.validImages || [];
+                      const arr = extractCleanUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev + 1) % arr.length);
                       }
@@ -596,7 +583,7 @@ export default function ShopCatalog() {
                 </div>
 
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {(quickViewProduct.validImages || []).map((_, idx) => (
+                  {extractCleanUrls(quickViewProduct.image).map((_, idx) => (
                     <button 
                       key={idx} 
                       type="button"
@@ -691,7 +678,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={extractPristineUrls(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
+                          {product.image && ( <img src={extractCleanUrls(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                           <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
                             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
@@ -727,8 +714,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {/* PULLS THE SAFE STRING WE SAVED DURING THE CLICK INTERCEPTION */}
-                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
+                  {item.image && ( <img src={extractCleanUrls(item.image) || ''} alt={item.name} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
