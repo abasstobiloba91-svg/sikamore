@@ -11,23 +11,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const exchangeRates = {
-  NGN: 1,
-  USD: 1 / 1360,
-  GBP: 1 / 1820,
-  EUR: 1 / 1570
-};
+const exchangeRates = { NGN: 1, USD: 1 / 1360, GBP: 1 / 1820, EUR: 1 / 1570 };
+const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 
-const currencySymbols = {
-  NGN: '₦',
-  USD: '$',
-  GBP: '£',
-  EUR: '€'
-};
-
-// ATELIER'S COORDINATES FOR DRIVING MATRIX (Longitude, Latitude)
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
+
+// HELPER: Safely extract image arrays from database to prevent crashes
+const getImagesArray = (imgField) => {
+  if (!imgField) return [];
+  if (Array.isArray(imgField)) return imgField.filter(Boolean);
+  try {
+    const parsed = JSON.parse(imgField);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch (e) {}
+  return [imgField].filter(Boolean);
+};
+
+// HELPER: Get strictly the first image for thumbnails/cart
+const getPrimaryImage = (imgField) => {
+  const arr = getImagesArray(imgField);
+  return arr.length > 0 ? arr : '';
+};
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
@@ -35,7 +40,6 @@ export default function ShopCatalog() {
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
 
-  // GEOLOCATION ENGINE STATES
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
   const [isEuropeanUser, setIsEuropeanUser] = useState(false);
@@ -49,11 +53,15 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
+  // MULTI-IMAGE CAROUSEL STATES
+  const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [submittingEmail, setSubmittingEmail] = useState(false);
 
-  // OPENSTREETMAP CALCULATOR STATES
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -61,7 +69,7 @@ export default function ShopCatalog() {
   const [tickerIndex, setTickerIndex] = useState(0);
 
   const announcements = [
-    "jOIN OUR CIRCLE TO RECEIVE AMAZING UPDATES",
+    "JOIN OUR CIRCLE TO RECEIVE AMAZING UPDATES",
     "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
     "BEAUTIFULLY CRAFTED SILHOUETTES • DESIGNED FOR YOU",
   ];
@@ -110,17 +118,11 @@ export default function ShopCatalog() {
           const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
           setIsEuropeanUser(checkEurope);
 
-          if (data.country_code === 'NG') {
-            setCurrency('NGN');
-          } else if (data.continent_code === 'AF') {
-            setCurrency('USD'); 
-          } else if (data.country_code === 'GB') {
-            setCurrency('GBP');
-          } else if (checkEurope) {
-            setCurrency('EUR');
-          } else {
-            setCurrency('USD');
-          }
+          if (data.country_code === 'NG') setCurrency('NGN');
+          else if (data.continent_code === 'AF') setCurrency('USD'); 
+          else if (data.country_code === 'GB') setCurrency('GBP');
+          else if (checkEurope) setCurrency('EUR');
+          else setCurrency('USD');
         }
       } catch (err) {}
     }
@@ -188,7 +190,26 @@ export default function ShopCatalog() {
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
+    setQuickViewImgIndex(0); // Reset carousel to first image
     setQuickViewProduct(product);
+  };
+
+  // TOUCH SWIPE LOGIC FOR MOBILE GALLERY
+  const minSwipeDistance = 50;
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches.clientX);
+  };
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches.clientX);
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    const images = getImagesArray(quickViewProduct?.image);
+    
+    if (isLeftSwipe) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
+    if (isRightSwipe) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const handleCartClick = (e, product) => {
@@ -225,18 +246,14 @@ export default function ShopCatalog() {
     }
   };
 
-  // 100% FREE OPEN-SOURCE DISTANCE & ROUTING MATRIX CALCULATOR (OSM / OSRM)
   const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
-    
     setIsCalculating(true);
-    
     try {
       let finalFee = 0;
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
-      // 1. Gated Rule Layer: Immediate Flat-Rate Exclusion Outside Nigeria
       if (detectedCountryCode !== 'NG') {
         const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
@@ -254,21 +271,18 @@ export default function ShopCatalog() {
 
       showToast("SCANNING HIGHWAY NETWORKS...");
 
-      // 2. OpenStreetMap Free Nominatim Geocoding Request
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
       
-      // FIXED: Personalized explicit landmark/bus stop prompt if the geocoding canvas yields zero matches
       if (!geoData || geoData.length === 0) {
         throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
       }
 
-      const destLon = parseFloat(geoData[0].lon);
-      const destLat = parseFloat(geoData[0].lat);
-      const placeName = geoData[0].display_name;
+      const destLon = parseFloat(geoData.lon);
+      const destLat = parseFloat(geoData.lat);
+      const placeName = geoData.display_name;
 
-      // 3. Open-Source Routing Machine (OSRM) Free Traffic & Distance Lookup
       const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
       const routeRes = await fetch(routeUrl);
       const routeData = await routeRes.json();
@@ -277,13 +291,12 @@ export default function ShopCatalog() {
         throw new Error("No navigable roadways found to this destination.");
       }
 
-      const distanceKm = routeData.routes[0].distance / 1000; 
-      const durationMins = routeData.routes[0].duration / 60; 
+      const distanceKm = routeData.routes.distance / 1000; 
+      const durationMins = routeData.routes.duration / 60; 
 
-      // 4. Logistics Cost Calibration (Change base/minute scales to match your business metrics)
       const BASE_FARE = 2500; 
       const PRICE_PER_KM = 180; 
-      const PRICE_PER_MINUTE = 60; // Estimates transit time expenses
+      const PRICE_PER_MINUTE = 60; 
       
       finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
 
@@ -383,7 +396,6 @@ export default function ShopCatalog() {
         </div>
       </header>
 
-      {/* SINGLE-STAGE NEWSLETTER POPUP MODAL */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
@@ -393,7 +405,7 @@ export default function ShopCatalog() {
             
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
               <img 
-                src={products.length > 0 ? products[0].image : ''} 
+                src={products.length > 0 ? getPrimaryImage(products.image) : ''} 
                 alt="Join the Community" 
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
                 className="w-full h-full object-cover" 
@@ -425,9 +437,9 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* DETAILED PRODUCT OVERLAY MODAL */}
+      {/* SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-[9999999] bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 z- bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
             
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
@@ -435,18 +447,50 @@ export default function ShopCatalog() {
             </button>
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
-              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative">
-                {quickViewProduct.image && (
-                  <img 
-                    src={quickViewProduct.image} 
-                    alt="Preview" 
-                    decoding="async"
-                    loading="lazy"
-                    onError={(e) => { e.currentTarget.style.opacity = 0; }}
-                    className="absolute inset-0 w-full h-full object-cover" 
-                  /> 
+              
+              {/* IMAGE CAROUSEL AREA */}
+              <div 
+                className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group"
+                onTouchStart={onTouchStart} 
+                onTouchMove={onTouchMove} 
+                onTouchEnd={onTouchEnd}
+              >
+                <div 
+                  className="flex w-full h-full transition-transform duration-500 ease-out" 
+                  style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}
+                >
+                  {getImagesArray(quickViewProduct.image).map((img, i) => (
+                    <div key={i} className="w-full h-full shrink-0 relative">
+                      <img 
+                        src={img} 
+                        alt={`${quickViewProduct.name} - View ${i + 1}`} 
+                        decoding="async" loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover" 
+                      />
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Carousel Controls */}
+                {getImagesArray(quickViewProduct.image).length > 1 && (
+                  <>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                      {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                        <button key={idx} onClick={() => setQuickViewImgIndex(idx)} className={`h-1.5 rounded-full transition-all ${idx === quickViewImgIndex ? 'bg-black w-4' : 'bg-black/30 w-1.5'}`} />
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
+
+              {/* PRODUCT DETAILS AREA */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
@@ -548,7 +592,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={product.image} alt={product.name} loading="lazy" onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
                           <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
                             <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                           </button>
@@ -572,7 +616,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SLIDING MINI BAG CAROUSEL DRAWER WITH AUTOMATED ZERO-COST DISPATCH */}
+      {/* SLIDING MINI BAG CAROUSEL DRAWER */}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -588,7 +632,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={item.image} alt={item.name} onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover" /> )}
+                  {item.image && ( <img src={getPrimaryImage(item.image)} alt={item.name} onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
@@ -612,8 +656,6 @@ export default function ShopCatalog() {
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             <div className="mb-6 border-b border-zinc-800 pb-5">
-              
-              {/* FIXED: Placeholder explicit instructions to match InDrive landmarks lookup */}
               <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
               <div className="flex gap-2">
                 <input 
@@ -688,24 +730,37 @@ export default function ShopCatalog() {
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12`}`}>
             {products.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
+              const pImages = getImagesArray(product.image);
+              const pPrimary = pImages;
+              const pSecondary = pImages.length > 1 ? pImages : null;
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
                   
                   <div 
-                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
+                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!product.is_sold_out) openQuickView(product);
                     }}
                   >
-                    {product.image && (
+                    {/* PRIMARY IMAGE */}
+                    {pPrimary && (
                       <img 
-                        src={product.image} 
+                        src={pPrimary} 
                         alt={product.name} 
                         loading="lazy"
-                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-                        className="w-full h-full object-cover transition-transform duration-[1000ms] lg:group-hover:scale-102" 
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 lg:group-hover/img:scale-105 ${pSecondary ? 'group-hover/img:opacity-0' : ''}`} 
+                      />
+                    )}
+
+                    {/* SECONDARY HOVER IMAGE */}
+                    {pSecondary && (
+                      <img 
+                        src={pSecondary} 
+                        alt={`${product.name} alternate view`} 
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-all duration-700 opacity-0 group-hover/img:opacity-100 lg:group-hover/img:scale-105" 
                       />
                     )}
                     
@@ -771,9 +826,9 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* FIXED: HIGH-RESPONSIVE COMPACT PILL FOR NARROW MOBILE SCREENS */}
+      {/* COMPACT PILL FOR MOBILE */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z-[99999] pointer-events-auto animate-fade-in shadow-2xl">
+        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
@@ -787,7 +842,6 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* FOOTER */}
       <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
           <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
