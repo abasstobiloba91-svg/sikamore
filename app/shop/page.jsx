@@ -17,22 +17,36 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// UNIFIED SYSTEM IMAGE CLEANER: Unpacks all database string layouts cleanly without breaking security tokens
+// UNIFIED ARTIFACT CLEANER: Securely unpacks single links, JSON arrays, and comma-separated database values perfectly
 const cleanImages = (imgField) => {
   if (!imgField) return [];
+  
+  // If it's already a clean native JavaScript array array, sanitize it directly
   if (Array.isArray(imgField)) {
-    return imgField.map(String).map(s => s.trim()).filter(s => s.startsWith('http'));
+    return imgField.map(s => String(s).trim()).filter(s => s.startsWith('http'));
   }
   
-  const str = String(imgField).trim();
+  let str = String(imgField).trim();
   
-  // Safe extraction matching any valid HTTP/HTTPS link up until quotes, brackets, or braces
-  const matches = str.match(/https?:\/\/[^"',;}\s\]]+/g);
-  if (!matches) return [];
+  // Handle stringified JSON arrays like ["url1", "url2"]
+  if (str.startsWith('[') && str.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed.map(s => String(s).trim()).filter(s => s.startsWith('http'));
+      }
+    } catch (e) {}
+  }
   
-  return matches.map(url => {
-    return url.replace(/[}\],"'`]+$/, '').trim();
-  }).filter(url => url.startsWith('http'));
+  // Handle Postgres literal array strings like {"url1", "url2"}
+  if (str.startsWith('{') && str.endsWith('}')) {
+    str = str.slice(1, -1);
+  }
+  
+  // Split strictly by comma separations to isolate distinct paths safely
+  return str.split(',')
+    .map(item => item.replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim())
+    .filter(item => item.startsWith('http'));
 };
 
 export default function ShopCatalog() {
@@ -54,7 +68,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // OPTIMIZED GALLERY CAROUSEL TRACKERS
+  // GALLERY CAROUSEL TRACKERS
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -216,14 +230,14 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  // SILENT BAG UTILITIES: Safely posts state updates without opening drawers
+  // SILENT BAG SUBMISSION HANDLER
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
     setTimeout(() => {
-      setIsCartOpen(false); 
-    }, 50);
+      setIsCartOpen(false); // Dampens context auto-popups natively
+    }, 10);
     showToast('Added to your bag.');
   };
 
@@ -383,7 +397,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG CORE MATRIX GRID - EXPLICIT CLASS COMBINATIONS FIXED FOR TURBOPACK COMPILER */}
+      {/* CATALOG MATRIX LAYOUT MATRIX (TURBOPACK FIXED VIA STRING CONCATENATION) */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -399,7 +413,7 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* SINGLE IMAGE PAINTER (ZERO PROCESSING ON SCROLL CYCLE) */}
+                    {/* SAFE UNIFIED RENDER PAINT PATHWAY */}
                     {gridImgUrl ? (
                       <img 
                         src={gridImgUrl} 
@@ -463,7 +477,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW MODAL (FIXED ENGINE CAROUSEL SHARDS) */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL (UNIFIED THUMBNAIL CALLS PREVENT MEMORY CRASHES) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -491,7 +505,7 @@ export default function ShopCatalog() {
                   )}
                 </div>
                 
-                {/* NAVIGATION ARROWS LOCKED OUTSIDE TRANSFORMS (GUARANTEES PERMANENT TAP VISIBILITY ON ALL TOUCH PHONES) */}
+                {/* STABILIZED ISOLATED UI CIRCLE NAVIGATION SYSTEMS */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z- pointer-events-none">
                   <button 
                     type="button"
@@ -630,7 +644,7 @@ export default function ShopCatalog() {
                           {product.is_sold_out && ( <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div> )}
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
-                          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
+                          h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                         </div>
                       </div>
