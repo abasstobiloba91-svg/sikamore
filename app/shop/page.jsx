@@ -408,7 +408,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG MATRIX GRID - FIXED FOR SAFARI ABSOLUTE CLIP CRASH */}
+      {/* MAIN PRODUCTS SELECTION LAYER */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -426,22 +426,24 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* PRIMARY ATELIER IMAGE - DE-LAZYED TO FORCE IMMEDIATE SAFARI PAINT */}
+                    {/* PRIMARY IMAGE */}
                     {pPrimary ? (
                       <img 
                         src={pPrimary} 
                         alt={product.name} 
+                        decoding="async"
                         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${pSecondary ? 'md:group-hover/img:opacity-0' : ''}`} 
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
                     
-                    {/* ALTERNATIVE VIEW CANVAS - BLOCKED ON MOBILE VIEWPORTS TO PROTECT RAM EXPENSES */}
+                    {/* SECONDARY HOVER IMAGE - HIDDEN ON MOBILE TO PREVENT RAM CRASHES */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
                         alt={`${product.name} alternate view`} 
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 md:group-hover/img:opacity-100 hidden md:block" 
                       />
                     )}
@@ -475,46 +477,11 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
-          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
-            S. SIKAMÒRE
-          </h2>
-        </div>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
-            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
-            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
-            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
-            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
-            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
-            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
-            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
-              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
-            </form>
-          </div>
-        </div>
-      </footer>
+      {/* ALL MODALS, DRAWERS, AND POPUPS PLACED HERE AT ROOT LEVEL TO AVOID Z-INDEX TRAPS */}
 
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
             <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -596,9 +563,9 @@ export default function ShopCatalog() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </button>
 
-                {/* SOLID WHITE ACTIVE RANGE SYSTEM INDEX SPOTS */}
+                {/* SOLID WHITE ACTIVE RANGE SYSTEM INDEX SPOTS (FIXED SYNTAX DISCREPANCY) */}
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {(getImagesArray(quickViewProduct.image).length > 0 ? getImagesArray(quickViewProduct.image) :).map((_, idx) => (
+                  {getImagesArray(quickViewProduct.image).map((_, idx) => (
                     <button 
                       key={idx} 
                       onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
