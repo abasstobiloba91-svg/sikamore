@@ -17,7 +17,7 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// UNIFIED ARTIFACT CLEANER: Securely unpacks single links, JSON arrays, and comma-separated database values perfectly
+// CLEAN IMAGES ENGINE: Safely parses single strings, JSON arrays, and comma-separated database tokens
 const cleanImages = (imgField) => {
   if (!imgField) return [];
   
@@ -409,7 +409,7 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* SINGLE IMAGE PAINTER GRID LAYERING */}
+                    {/* FIXED GRID RENDER CANVAS */}
                     {gridImgUrl ? (
                       <img 
                         src={gridImgUrl} 
@@ -449,6 +449,43 @@ export default function ShopCatalog() {
         )}
       </main>
 
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
+
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -473,7 +510,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW MODAL (COMPLETELY LIGHTWEIGHT AND CRASH-PROOF) */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL (UNIFIED THUMBNAIL CALLS PREVENT MEMORY CRASHES) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -595,7 +632,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 3. DYNAMIC SEARCH PORTAL (OPENING BRACKET TYPO ANCHORED) */}
+      {/* 3. DYNAMIC SEARCH PORTAL (OPENING BRACKET TYPO RECTIFIED ON LINE 538) */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
@@ -697,7 +734,7 @@ export default function ShopCatalog() {
               </div>
             </div>
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
-              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>formatPrice(cartSubtotal)</span></div>
+              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
               {deliveryFee > 0 && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
             </div>
