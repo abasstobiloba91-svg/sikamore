@@ -17,12 +17,30 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE URL MAGNET: Cleanly extracts valid image links and strips database formatting noise
+// BULLETPROOF PARSER: Cleans up any scrambled DB strings, Postgres arrays, or JSON
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  const stringified = typeof imgField === 'string' ? imgField : JSON.stringify(imgField);
-  const urlMatches = stringified.match(/https?:\/\/[^"',}\s\]\\]+/g);
-  return urlMatches ? urlMatches.map(url => url.trim()) : [];
+  let parsed = [];
+  
+  if (Array.isArray(imgField)) {
+    parsed = imgField;
+  } else if (typeof imgField === 'string') {
+    try {
+      const j = JSON.parse(imgField);
+      if (Array.isArray(j)) parsed = j;
+      else parsed = [imgField];
+    } catch (e) {
+      if (imgField.startsWith('{') && imgField.endsWith('}')) {
+        const inner = imgField.slice(1, -1);
+        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+      } else if (imgField.includes(',')) {
+        parsed = imgField.split(',').map(s => s.trim());
+      } else {
+        parsed = [imgField];
+      }
+    }
+  }
+  return parsed.filter(s => typeof s === 'string' && s.startsWith('http'));
 };
 
 const getPrimaryImage = (imgField) => {
@@ -49,7 +67,6 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // CAROUSEL & SWIPE STATES
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -189,8 +206,7 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // HIGH-SENSITIVITY SWIPE ENGINE FOR MOBILE PHONES
-  const minSwipeDistance = 30;
+  const minSwipeDistance = 40;
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches.clientX);
@@ -204,12 +220,10 @@ export default function ShopCatalog() {
     if (images.length <= 1) return;
 
     if (distance > minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev + 1) % images.length); // Next Image
+      setQuickViewImgIndex((prev) => (prev + 1) % images.length);
     } else if (distance < -minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length); // Previous Image
+      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
     }
-    setTouchStart(null);
-    setTouchEnd(null);
   };
 
   const handleCartClick = (e, product) => {
@@ -224,6 +238,23 @@ export default function ShopCatalog() {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
+  };
+
+  const handlePopupSubscription = async (e) => {
+    e.preventDefault();
+    if (!subscriberEmail.trim()) return;
+    setSubmittingEmail(true);
+    try {
+      const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
+      if (error && error.code !== '23505') throw error;
+      showToast('Thank you for joining our community.');
+      setShowNewsletter(false);
+      sessionStorage.setItem('sikamore_newsletter', 'true');
+    } catch (err) {
+      showToast(`Oops, there was an issue: ${err.message}`);
+    } finally {
+      setSubmittingEmail(false);
+    }
   };
 
   const calculateLiveDelivery = async () => {
@@ -250,7 +281,6 @@ export default function ShopCatalog() {
       }
 
       showToast("SCANNING HIGHWAY NETWORKS...");
-
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
       const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
       const geoData = await geoRes.json();
@@ -314,9 +344,8 @@ export default function ShopCatalog() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
+    <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0">
       
-      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -329,6 +358,7 @@ export default function ShopCatalog() {
 
       <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
+          
           <div className="flex-1 flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
               <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
@@ -344,7 +374,11 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block">
+            <select 
+              value={currency} 
+              onChange={(e) => setCurrency(e.target.value)} 
+              className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block"
+            >
               <option value="NGN">NGN ₦</option>
               <option value="USD">USD $</option>
               {isEuropeanUser && <option value="GBP">GBP £</option>}
@@ -352,7 +386,9 @@ export default function ShopCatalog() {
             </select>
 
             <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
-              <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+              <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+              </svg>
               {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
             </Link>
 
@@ -387,7 +423,6 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* MAIN PRODUCTS SELECTION LAYER */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -395,24 +430,31 @@ export default function ShopCatalog() {
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12`}`}>
             {products.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              const cleanPrimaryUrl = getPrimaryImage(product.image);
+              const pImages = getImagesArray(product.image);
+              const pPrimary = pImages;
+              const pSecondary = pImages.length > 1 ? pImages : null;
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
                   <div 
-                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
+                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* STABILIZED SOURCE LINK RENDERING PROFILE */}
-                    {cleanPrimaryUrl ? (
+                    {pPrimary && (
                       <img 
-                        src={cleanPrimaryUrl} 
+                        src={pPrimary} 
                         alt={product.name} 
                         loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 hover:scale-102" 
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 lg:group-hover/img:scale-105 ${pSecondary ? 'group-hover/img:opacity-0' : ''}`} 
                       />
-                    ) : (
-                      <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
+                    )}
+                    {pSecondary && (
+                      <img 
+                        src={pSecondary} 
+                        alt={`${product.name} alternate view`} 
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-all duration-700 opacity-0 group-hover/img:opacity-100 lg:group-hover/img:scale-105" 
+                      />
                     )}
                     
                     <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
@@ -433,7 +475,7 @@ export default function ShopCatalog() {
                     <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                     <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                     <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
-                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
+                      <button type="button" onClick={(e) => handleCartClick(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : 'active:bg-zinc-800'}`}>Add to Cart</button>
                       <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
                     </div>
                   </div>
@@ -444,7 +486,44 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      {/* ROOT ATELIER MODALS DIRECTORY SEPARATION */}
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
+
+      {/* ALL MODALS, DRAWERS, AND POPUPS PLACED HERE AT ROOT LEVEL TO AVOID Z-INDEX TRAPS */}
 
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
@@ -470,72 +549,40 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
-            
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              {/* SLIDER WRAPPER - STABILIZED OVERLAY CONTROLS */}
-              <div 
-                className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
-                onTouchStart={onTouchStart} 
-                onTouchMove={onTouchMove} 
-                onTouchEnd={onTouchEnd}
-              >
-                <div 
-                  className="flex w-full h-full transition-transform duration-500 ease-out" 
-                  style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}
-                >
+              <div className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                <div className="flex w-full h-full transition-transform duration-500 ease-out" style={{ transform: `translateX(-${quickViewImgIndex * 100}%)` }}>
                   {getImagesArray(quickViewProduct.image).map((img, i) => (
                     <div key={i} className="w-full h-full shrink-0 relative">
-                      <img 
-                        src={img} 
-                        alt={`${quickViewProduct.name} - View ${i + 1}`} 
-                        decoding="async" loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover" 
-                      />
+                      <img src={img} alt={`${quickViewProduct.name} - View ${i + 1}`} decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                     </div>
                   ))}
                 </div>
-                
-                {/* SLIDER NAVIGATION COHORTS (ROUND WHITE CIRCLE OVERLAYS) */}
                 {getImagesArray(quickViewProduct.image).length > 1 && (
                   <>
-                    <button 
-                      onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} 
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev - 1 + getImagesArray(quickViewProduct.image).length) % getImagesArray(quickViewProduct.image).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    
-                    <button 
-                      onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} 
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-black w-10 h-10 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-transform z-30"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <button onClick={() => setQuickViewImgIndex(prev => (prev + 1) % getImagesArray(quickViewProduct.image).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 text-black p-2 rounded-full shadow-sm hover:bg-white hover:scale-110 transition-all hidden md:block z-20 opacity-0 group-hover:opacity-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
-
-                    {/* INTERACTIVE ROUNDED PROGRESS BAR DOTS */}
-                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 backdrop-blur-xs px-3 py-1.5 rounded-full">
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
                       {getImagesArray(quickViewProduct.image).map((_, idx) => (
-                        <button 
-                          key={idx} 
-                          onClick={() => setQuickViewImgIndex(idx)} 
-                          className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} 
-                        />
+                        <button key={idx} onClick={() => setQuickViewImgIndex(idx)} className={`h-1.5 rounded-full transition-all ${idx === quickViewImgIndex ? 'bg-black w-4' : 'bg-black/30 w-1.5'}`} />
                       ))}
                     </div>
                   </>
                 )}
               </div>
 
-              {/* DETAILS AND CONFIGURATION SUMMARY CARD */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
@@ -578,7 +625,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 3. DYNAMIC SEARCH PORTAL */}
+      {/* 3. FULL-SCREEN DYNAMIC SEARCH MODAL */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
@@ -636,7 +683,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 4. SLIDING MINI BAG DRAWER GRID */}
+      {/* 4. SLIDING MINI BAG CAROUSEL DRAWER */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
@@ -692,7 +739,7 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 5. MOBILE MENU EXPANSION MATRIX */}
+      {/* 5. MOBILE MENU DRAWER */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -707,9 +754,9 @@ export default function ShopCatalog() {
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
 
-      {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE (VIEW BAG CARD) */}
+      {/* 6. COMPACT PILL FOR MOBILE (VIEW BAG) */}
       {cartItemCount > 0 && !isCartOpen && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999999 }}>
+        <div className="fixed bottom-6 sm:bottom-10 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto z- pointer-events-auto animate-fade-in shadow-2xl">
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
