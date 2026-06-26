@@ -9,6 +9,17 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const AppContext = createContext();
 
+// HELPER: Safely extract the primary image to keep localStorage lean and prevent UI crashes
+const getPrimaryImage = (imgField) => {
+  if (!imgField) return '';
+  if (Array.isArray(imgField)) return imgField || '';
+  try {
+    const parsed = JSON.parse(imgField);
+    if (Array.isArray(parsed)) return parsed || '';
+  } catch (e) {}
+  return imgField;
+};
+
 export function AppProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
@@ -45,7 +56,10 @@ export function AppProvider({ children }) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.size === size);
       if (existing) return prev.map(item => item.id === product.id && item.size === size ? { ...item, quantity: item.quantity + quantity } : item);
-      return [...prev, { ...product, quantity, size }];
+      
+      // Extract only the primary image for the cart registry
+      const sanitizedProduct = { ...product, image: getPrimaryImage(product.image) };
+      return [...prev, { ...sanitizedProduct, quantity, size }];
     });
     setIsCartOpen(true); 
     showToast('ADDED TO BAG.');
@@ -62,7 +76,10 @@ export function AppProvider({ children }) {
         return prev.filter(item => item.id !== product.id);
       }
       showToast('ADDED TO WISHLIST.');
-      return [...prev, product];
+      
+      // Extract only the primary image for the wishlist registry
+      const sanitizedProduct = { ...product, image: getPrimaryImage(product.image) };
+      return [...prev, sanitizedProduct];
     });
   };
 
@@ -84,7 +101,7 @@ export function AppProvider({ children }) {
       
       {/* MODERN EDITORIAL NOTIFICATION CANVAS */}
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100000000] w-[90%] sm:max-w-md bg-white text-black px-5 py-4 rounded-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-neutral-200/80 text-center transition-all duration-300 ease-out animate-fade-in whitespace-normal break-words">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z- w-[90%] sm:max-w-md bg-white text-black px-5 py-4 rounded-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-neutral-200/80 text-center transition-all duration-300 ease-out animate-fade-in whitespace-normal break-words">
           <div className="flex flex-col items-center justify-center gap-1.5">
             <span className="text-[7.5px] text-neutral-400 tracking-[0.35em] font-light uppercase select-none font-mono">— System Dispatch —</span>
             <p className="text-[10px] sm:text-[11px] leading-relaxed text-neutral-900 font-medium tracking-[0.15em] uppercase">
