@@ -17,18 +17,34 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// HELPER: Safely extract image arrays from database to prevent crashes
+// BULLETPROOF PARSER: Cleans up any scrambled DB strings, quotes, or brackets
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  if (Array.isArray(imgField)) return imgField.filter(Boolean);
-  try {
-    const parsed = JSON.parse(imgField);
-    if (Array.isArray(parsed)) return parsed.filter(Boolean);
-  } catch (e) {}
-  return [imgField].filter(Boolean);
+  let parsed = [];
+  
+  if (Array.isArray(imgField)) {
+    parsed = imgField;
+  } else if (typeof imgField === 'string') {
+    try {
+      const j = JSON.parse(imgField);
+      if (Array.isArray(j)) parsed = j;
+      else parsed = [imgField];
+    } catch (e) {
+      // Clean up raw Postgres array strings e.g., '{"https://...","https://..."}'
+      if (imgField.startsWith('{') && imgField.endsWith('}')) {
+        const inner = imgField.slice(1, -1);
+        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+      } else if (imgField.includes(',')) {
+        parsed = imgField.split(',').map(s => s.trim());
+      } else {
+        parsed = [imgField];
+      }
+    }
+  }
+  // Ensure we only return clean, valid HTTP URLs
+  return parsed.filter(s => typeof s === 'string' && s.startsWith('http'));
 };
 
-// HELPER: Get strictly the first image for thumbnails/cart
 const getPrimaryImage = (imgField) => {
   const arr = getImagesArray(imgField);
   return arr.length > 0 ? arr : '';
@@ -190,12 +206,12 @@ export default function ShopCatalog() {
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
-    setQuickViewImgIndex(0); // Reset carousel to first image
+    setQuickViewImgIndex(0); 
     setQuickViewProduct(product);
   };
 
-  // TOUCH SWIPE LOGIC FOR MOBILE GALLERY
-  const minSwipeDistance = 50;
+  // TOUCH SWIPE LOGIC
+  const minSwipeDistance = 40;
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches.clientX);
@@ -204,12 +220,16 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
     const images = getImagesArray(quickViewProduct?.image);
     
-    if (isLeftSwipe) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
-    if (isRightSwipe) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
+    // Prevent swipe calculations if there's only 1 image
+    if (images.length <= 1) return;
+
+    if (distance > minSwipeDistance) {
+      setQuickViewImgIndex((prev) => (prev + 1) % images.length); // Swipe Left
+    } else if (distance < -minSwipeDistance) {
+      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length); // Swipe Right
+    }
   };
 
   const handleCartClick = (e, product) => {
@@ -336,7 +356,6 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 60 }}>
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -437,7 +456,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* SWIPEABLE QUICK VIEW MODAL (FIXED Z-INDEX LAYER ISSUE) */}
+      {/* SWIPEABLE QUICK VIEW MODAL (WITH FORCED ABSOLUTE Z-INDEX) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -592,7 +611,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-105" /> )}
                           <button type="button" onClick={(e) => { e.stopPropagation(); handleWishlistClick(e, product); }} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
                             <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                           </button>
@@ -632,7 +651,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={getPrimaryImage(item.image)} alt={item.name} onError={(e) => { e.currentTarget.style.opacity = 0; }} className="w-full h-full object-cover" /> )}
+                  {item.image && ( <img src={getPrimaryImage(item.image)} alt={item.name} onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
