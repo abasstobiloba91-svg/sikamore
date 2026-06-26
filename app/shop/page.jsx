@@ -21,14 +21,12 @@ const ATELIER_LAT = 6.4281;
 const cleanImages = (imgField) => {
   if (!imgField) return [];
   
-  // If it's already a clean native JavaScript array array, sanitize it directly
   if (Array.isArray(imgField)) {
     return imgField.map(s => String(s).trim()).filter(s => s.startsWith('http'));
   }
   
   let str = String(imgField).trim();
   
-  // Handle stringified JSON arrays like ["url1", "url2"]
   if (str.startsWith('[') && str.endsWith(']')) {
     try {
       const parsed = JSON.parse(str);
@@ -38,12 +36,10 @@ const cleanImages = (imgField) => {
     } catch (e) {}
   }
   
-  // Handle Postgres literal array strings like {"url1", "url2"}
   if (str.startsWith('{') && str.endsWith('}')) {
     str = str.slice(1, -1);
   }
   
-  // Split strictly by comma separations to isolate distinct paths safely
   return str.split(',')
     .map(item => item.replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim())
     .filter(item => item.startsWith('http'));
@@ -236,7 +232,7 @@ export default function ShopCatalog() {
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
     setTimeout(() => {
-      setIsCartOpen(false); // Dampens context auto-popups natively
+      setIsCartOpen(false); 
     }, 10);
     showToast('Added to your bag.');
   };
@@ -397,7 +393,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG MATRIX LAYOUT MATRIX (TURBOPACK FIXED VIA STRING CONCATENATION) */}
+      {/* CATALOG CORE DISPLAY GRID */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -413,7 +409,7 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* SAFE UNIFIED RENDER PAINT PATHWAY */}
+                    {/* SINGLE IMAGE PAINTER GRID LAYERING */}
                     {gridImgUrl ? (
                       <img 
                         src={gridImgUrl} 
@@ -477,7 +473,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW MODAL (UNIFIED THUMBNAIL CALLS PREVENT MEMORY CRASHES) */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL (COMPLETELY LIGHTWEIGHT AND CRASH-PROOF) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -486,7 +482,7 @@ export default function ShopCatalog() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             
-            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
+            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row h-full w-full">
               
               {/* SLIDER CANVAS */}
               <div 
@@ -505,7 +501,7 @@ export default function ShopCatalog() {
                   )}
                 </div>
                 
-                {/* STABILIZED ISOLATED UI CIRCLE NAVIGATION SYSTEMS */}
+                {/* NAVIGATION ARROWS LOCKED OUTSIDE TRANSFORMS */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z- pointer-events-none">
                   <button 
                     type="button"
@@ -599,7 +595,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 3. DYNAMIC SEARCH PORTAL */}
+      {/* 3. DYNAMIC SEARCH PORTAL (OPENING BRACKET TYPO ANCHORED) */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
@@ -644,7 +640,7 @@ export default function ShopCatalog() {
                           {product.is_sold_out && ( <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div> )}
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
-                          h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
+                          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
                         </div>
                       </div>
@@ -701,7 +697,7 @@ export default function ShopCatalog() {
               </div>
             </div>
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
-              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
+              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>formatPrice(cartSubtotal)</span></div>
               {deliveryFee > 0 && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
             </div>
