@@ -17,32 +17,8 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// LEGACY SINGLE-IMAGE CONVERTER: Extracts strictly the first clean URL with zero array formatting noise
-const getPrimaryImage = (imgField) => {
-  if (!imgField) return '';
-  if (Array.isArray(imgField)) return imgField || '';
-  
-  let str = String(imgField).trim();
-  
-  // Strip Postgres text array wrappers: {"url1","url2"}
-  if (str.startsWith('{')) {
-    str = str.replace(/^\{|^\s*["']?|["']?\}?$/g, '');
-    if (str.includes(',')) str = str.split(',');
-  }
-  
-  // Strip standard JSON array wrappers: ["url1","url2"]
-  if (str.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(str);
-      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed).trim();
-    } catch (e) {}
-  }
-  
-  return str.replace(/^["']|["']$/g, '').trim();
-};
-
-// MULTI-ANGLE CONVERTER: Unpacks multiple image strings securely inside the isolated modal scope
-const getImagesArray = (imgField) => {
+// CLEAN EXTRACTION ENGINE: Processes raw db properties into valid link collections
+const cleanProductImages = (imgField) => {
   if (!imgField) return [];
   if (Array.isArray(imgField)) return imgField.map(String).filter(s => s.startsWith('http'));
   
@@ -83,7 +59,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // ISOLATED GALLERY MANAGEMENT
+  // OPTIMIZED GALLERY CAROUSEL TRACKERS
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -185,10 +161,21 @@ export default function ShopCatalog() {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
 
+  // MASTER FETCH DESERIALIZER: Cleans link references right at the source log layer
   useEffect(() => {
     async function fetchProducts() {
       const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (data) setProducts(data);
+      if (data) {
+        const formattedProducts = data.map(product => {
+          const images = cleanProductImages(product.image);
+          return {
+            ...product,
+            imageArray: images,
+            primaryImage: images || ''
+          };
+        });
+        setProducts(formattedProducts);
+      }
       setLoading(false);
     }
     fetchProducts();
@@ -221,7 +208,6 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // LIGHTWEIGHT TOUCH engine
   const minSwipeDistance = 30;
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -231,7 +217,7 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const images = getImagesArray(quickViewProduct?.image);
+    const images = quickViewProduct?.imageArray || [];
     
     if (images.length <= 1) return;
 
@@ -244,10 +230,12 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
+  // SILENT BAG SUBMISSION INTERCEPTORS
   const handleCartClick = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product, 1, 'M'); 
+    setIsCartOpen(false); // Overrides background auto-drawer trigger
   };
 
   const handleWishlistClick = (e, product) => {
@@ -423,7 +411,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG CARD CORE MATRIX GRID */}
+      {/* PRODUCTS CATALOG DISPLAY */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -431,19 +419,19 @@ export default function ShopCatalog() {
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12`}`}>
             {products.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              const pristineLegacyPath = getPrimaryImage(product.image);
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
                   <div 
-                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
+                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer group/img"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* STANDARD STATIC PAINTER CONSOLE */}
-                    {pristineLegacyPath ? (
+                    {/* PRIMARY RESOLVED IMAGE */}
+                    {product.primaryImage ? (
                       <img 
-                        src={pristineLegacyPath} 
+                        src={product.primaryImage} 
                         alt={product.name} 
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover transform-gpu" 
                       />
                     ) : (
@@ -479,6 +467,45 @@ export default function ShopCatalog() {
         )}
       </main>
 
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
+          <h2 className="textxl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
+            S. SIKAMÒRE
+          </h2>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
+            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
+            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
+            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+          </div>
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
+            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
+            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
+            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
+              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
+              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
+            </form>
+          </div>
+        </div>
+      </footer>
+
+      {/* ALL LAYER POPUPS RENDERED AT ROOT SYSTEM LAYER */}
+
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -503,7 +530,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL (LAZY LAYER TREE PAINT MOUNTING) */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -514,7 +541,7 @@ export default function ShopCatalog() {
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              {/* SLIDER WRAPPER - ON-DEMAND TEXTURE RESOLUTION DECODING */}
+              {/* SLIDER CONTROLLER CANVAS */}
               <div 
                 className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
                 onTouchStart={onTouchStart} 
@@ -522,22 +549,22 @@ export default function ShopCatalog() {
                 onTouchEnd={onTouchEnd}
               >
                 <div className="w-full h-full relative flex items-center justify-center">
-                  {/* MEMORY CONSERVATION PROFILE: ONLY RENDERS THE ACTIVE INDEX TO PREVENT CRASHES */}
-                  {getImagesArray(quickViewProduct.image)[quickViewImgIndex] && (
+                  {/* SEGREGATED ENGINE RENDERING CORE */}
+                  {quickViewProduct.imageArray && quickViewProduct.imageArray[quickViewImgIndex] && (
                     <img 
-                      src={getImagesArray(quickViewProduct.image)[quickViewImgIndex]} 
+                      src={quickViewProduct.imageArray[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover transform-gpu animate-fade-in"
                     />
                   )}
                 </div>
                 
-                {/* PERMANENT NAVIGATION ARROWS (Locked on screen at all times) */}
+                {/* STATIONARY PERMANENT CIRCULAR OVERLAYS */}
                 <button 
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const arr = getImagesArray(quickViewProduct.image);
+                    const arr = quickViewProduct.imageArray || [];
                     if (arr.length > 0) {
                       setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
                     }
@@ -552,7 +579,7 @@ export default function ShopCatalog() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const arr = getImagesArray(quickViewProduct.image);
+                    const arr = quickViewProduct.imageArray || [];
                     if (arr.length > 0) {
                       setQuickViewImgIndex(prev => (prev + 1) % arr.length);
                     }
@@ -564,7 +591,7 @@ export default function ShopCatalog() {
                 </button>
 
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                  {(quickViewProduct.imageArray || []).map((_, idx) => (
                     <button 
                       key={idx} 
                       onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
@@ -598,7 +625,15 @@ export default function ShopCatalog() {
                     <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
                   </div>
                 </div>
-                <button onClick={(e) => { addToCart(quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">
+                {/* ADD TO CART ACTION FROM QUICKVIEW BALANCED FOR SILENT BAG EXCLUSION */}
+                <button 
+                  onClick={(e) => { 
+                    addToCart(quickViewProduct, qty, selectedSize); 
+                    setIsCartOpen(false); // Overrides automatic state flip
+                    setQuickViewProduct(null); 
+                  }} 
+                  className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
+                >
                   Add to Bag • {formatPrice(quickViewProduct.price * qty)}
                 </button>
                 <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
@@ -731,7 +766,7 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 5. MOBILE MENU INTERACTION EXPANSION */}
+      {/* 5. MOBILE MENU EXPANSION MATRIX */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
