@@ -17,30 +17,17 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF PARSER: Cleans up any scrambled DB strings, Postgres arrays, or JSON
+// THE URL MAGNET: Automatically extracts clean URLs regardless of how messy the database formatting is
 const getImagesArray = (imgField) => {
   if (!imgField) return [];
-  let parsed = [];
   
-  if (Array.isArray(imgField)) {
-    parsed = imgField;
-  } else if (typeof imgField === 'string') {
-    try {
-      const j = JSON.parse(imgField);
-      if (Array.isArray(j)) parsed = j;
-      else parsed = [imgField];
-    } catch (e) {
-      if (imgField.startsWith('{') && imgField.endsWith('}')) {
-        const inner = imgField.slice(1, -1);
-        parsed = inner.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-      } else if (imgField.includes(',')) {
-        parsed = imgField.split(',').map(s => s.trim());
-      } else {
-        parsed = [imgField];
-      }
-    }
-  }
-  return parsed.filter(s => typeof s === 'string' && s.startsWith('http'));
+  // Convert whatever we get into a string so we can scan it
+  const stringified = typeof imgField === 'string' ? imgField : JSON.stringify(imgField);
+  
+  // This Regex acts like a magnet: it pulls out ONLY pure http/https URLs and ignores quotes, brackets, and commas
+  const urlMatches = stringified.match(/https?:\/\/[^"',}\s\]]+/g);
+  
+  return urlMatches ? urlMatches : [];
 };
 
 const getPrimaryImage = (imgField) => {
@@ -67,6 +54,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
+  // MULTI-IMAGE CAROUSEL STATES
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
