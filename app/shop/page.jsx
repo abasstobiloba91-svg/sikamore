@@ -17,18 +17,30 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// CLEAN URL MAGNET ENGINE: Forcefully strips all array artifacts and trailing quotes from strings
-const getImagesArray = (imgField) => {
+// INDUSTRIAL-STRENGTH PARSER: Cleans arrays, JSON, and dirty database formatting safely
+const cleanProductImages = (imgField) => {
   if (!imgField) return [];
-  const str = String(imgField);
-  const matches = str.match(/https?:\/\/[^"',}\s\]\\]+/g);
-  if (!matches) return [];
-  return matches.map(url => url.replace(/[\]}"']+/g, '').trim());
-};
-
-const getPrimaryImage = (imgField) => {
-  const arr = getImagesArray(imgField);
-  return arr.length > 0 ? arr : '';
+  if (Array.isArray(imgField)) return imgField.map(String).filter(s => s.startsWith('http'));
+  
+  let str = String(imgField).trim();
+  
+  // Parse clean JSON array formats
+  if (str.startsWith('[') && str.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(s => s.startsWith('http'));
+    } catch (e) {}
+  }
+  
+  // Clean raw Postgres text array wrappers: {"url1","url2"}
+  if (str.startsWith('{') && str.endsWith('}')) {
+    str = str.slice(1, -1);
+  }
+  
+  // Split by comma and completely strip out any lingering quotes or escaping slashes
+  return str.split(',')
+    .map(item => item.replace(/^["'\\]+|["'\\]+$/g, '').trim())
+    .filter(item => item.startsWith('http'));
 };
 
 export default function ShopCatalog() {
@@ -50,7 +62,7 @@ export default function ShopCatalog() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   
-  // MULTI-IMAGE GALLERY MANAGEMENT
+  // MULTI-IMAGE CAROUSEL ENGINE STATES
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -152,10 +164,17 @@ export default function ShopCatalog() {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
 
+  // DATA EXTRACTION HARNESS: Pre-processing values right at the fetch source to ensure zero overhead inside render loops
   useEffect(() => {
     async function fetchProducts() {
       const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (data) setProducts(data);
+      if (data) {
+        const formattedProducts = data.map(product => ({
+          ...product,
+          imageArray: cleanProductImages(product.image)
+        }));
+        setProducts(formattedProducts);
+      }
       setLoading(false);
     }
     fetchProducts();
@@ -188,7 +207,7 @@ export default function ShopCatalog() {
     setQuickViewProduct(product);
   };
 
-  // TOUCH TRANSLATION SWIPE LOGIC
+  // LIGHTWEIGHT TOUCH ENGINE Matrix
   const minSwipeDistance = 30;
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -198,7 +217,7 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const images = getImagesArray(quickViewProduct?.image);
+    const images = quickViewProduct?.imageArray || [];
     
     if (images.length <= 1) return;
 
@@ -210,6 +229,119 @@ export default function ShopCatalog() {
     setTouchStart(null);
     setTouchEnd(null);
   };
+
+  const handleCartClick = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(product, 1, 'M'); 
+    setIsCartOpen(false); 
+    setTimeout(() => setIsCartOpen(false), 50); 
+  };
+
+  const handleWishlistClick = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product);
+  };
+
+  const handlePopupSubscription = async (e) => {
+    e.preventDefault();
+    if (!subscriberEmail.trim()) return;
+    setSubmittingEmail(true);
+    try {
+      const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
+      if (error && error.code !== '23505') throw error;
+      showToast('Thank you for joining our community.');
+      setShowNewsletter(false);
+      sessionStorage.setItem('sikamore_newsletter', 'true');
+    } catch (err) {
+      showToast(`Oops, there was an issue: ${err.message}`);
+    } finally {
+      setSubmittingEmail(false);
+    }
+  };
+
+  const calculateLiveDelivery = async () => {
+    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
+    setIsCalculating(true);
+    try {
+      let finalFee = 0;
+      let zoneLabel = "";
+      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
+
+      if (detectedCountryCode !== 'NG') {
+        const internationalBaseFee = 55 / exchangeRates['USD']; 
+        finalFee = internationalBaseFee; 
+        zoneLabel = `International Delivery (${detectedCountryName})`;
+        if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
+        else if (isEuropeanUser) autoCurrency = 'EUR';
+        
+        setDeliveryFee(finalFee);
+        setDeliveryZone(zoneLabel);
+        if (autoCurrency !== currency) setCurrency(autoCurrency);
+        setIsCalculating(false);
+        showToast(`Dispatch Logged: ${zoneLabel}`);
+        return;
+      }
+
+      showToast("SCANNING HIGHWAY NETWORKS...");
+      const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
+      const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
+      const geoData = await geoRes.json();
+      
+      if (!geoData || geoData.length === 0) throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
+
+      const destLon = parseFloat(geoData.lon);
+      const destLat = parseFloat(geoData.lat);
+      const placeName = geoData.display_name;
+
+      const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
+      const routeRes = await fetch(routeUrl);
+      const routeData = await routeRes.json();
+
+      if (!routeData.routes || routeData.routes.length === 0) throw new Error("No navigable roadways found to this destination.");
+
+      const distanceKm = routeData.routes.distance / 1000; 
+      const durationMins = routeData.routes.duration / 60; 
+
+      const BASE_FARE = 2500; 
+      const PRICE_PER_KM = 180; 
+      const PRICE_PER_MINUTE = 60; 
+      
+      finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
+
+      if (distanceKm < 30) {
+        zoneLabel = `Lagos Dispatch (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
+      } else {
+        zoneLabel = `Regional Freight Delivery (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
+      }
+
+      setDeliveryAddress(placeName); 
+      setDeliveryFee(Math.round(finalFee));
+      setDeliveryZone(zoneLabel);
+      if (autoCurrency !== currency) setCurrency(autoCurrency);
+
+      showToast(`Route Calculated: ${Math.round(distanceKm)}km layout validated.`);
+
+    } catch (err) {
+      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
+      setDeliveryFee(0);
+      setDeliveryZone('');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  const toggleAccordion = (tabId) => {
+    setOpenAccordion(openAccordion === tabId ? '' : tabId);
+  };
+
+  const productTabs = [
+    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
+    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
+    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
+    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
+  ];
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
@@ -279,7 +411,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG MATRIX GRID */}
+      {/* MAIN CATALOG CATALOG GRID - HARDWARE ACCELERATED AND STABLE */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -287,7 +419,7 @@ export default function ShopCatalog() {
           <div className={`grid ${isListView ? 'grid-cols-1 gap-y-6 max-w-xl mx-auto' : `grid-cols-2 ${viewCols === 2 ? 'md:grid-cols-2' : viewCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12`}`}>
             {products.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              const pImages = getImagesArray(product.image);
+              const pImages = product.imageArray || [];
               const pPrimary = pImages;
               const pSecondary = pImages.length > 1 ? pImages : null;
 
@@ -309,7 +441,7 @@ export default function ShopCatalog() {
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
                     
-                    {/* SECONDARY HOVER IMAGE - FORCED INACTIVE ON MOBILE STACKING DOM VIA HIDDEN CLASS */}
+                    {/* SECONDARY HOVER IMAGE - BLOCKED ON MOBILE SYSTEM TO OPTIMIZE MEMORY LOAD */}
                     {pSecondary && (
                       <img 
                         src={pSecondary} 
@@ -348,43 +480,6 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
-          <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
-            S. SIKAMÒRE
-          </h2>
-        </div>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
-            <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
-            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
-            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
-            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
-            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
-            <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
-            <form onSubmit={async (e) => { e.preventDefault(); showToast('Email submitted.'); }} className="flex border-b border-zinc-200 py-1.5 mt-1">
-              <input type="email" placeholder="Enter your email" required className="w-full bg-transparent border-0 outline-none placeholder-zinc-300 text-base md:text-[10px] text-black tracking-widest uppercase font-light" />
-              <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
-            </form>
-          </div>
-        </div>
-      </footer>
-
       {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -409,7 +504,7 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW ATELIER MODAL (FIXED STACKING ARROWS) */}
+      {/* 2. SWIPEABLE QUICK VIEW MODAL (PERMANENT STEADY NAVIGATION SYSTEM OVERLAYS) */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -420,7 +515,7 @@ export default function ShopCatalog() {
             
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row w-full h-full">
               
-              {/* SLIDER WRAPPER - HARDWARE ACCELERATED */}
+              {/* SLIDER CANVAS */}
               <div 
                 className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
                 onTouchStart={onTouchStart} 
@@ -431,7 +526,7 @@ export default function ShopCatalog() {
                   className="flex w-full h-full transition-transform duration-500 ease-out transform-gpu" 
                   style={{ transform: `translate3d(-${quickViewImgIndex * 100}%, 0, 0)` }}
                 >
-                  {getImagesArray(quickViewProduct.image).map((img, i) => (
+                  {(quickViewProduct.imageArray || []).map((img, i) => (
                     <div key={i} className="w-full h-full shrink-0 relative">
                       <img 
                         src={img} 
@@ -442,12 +537,12 @@ export default function ShopCatalog() {
                   ))}
                 </div>
                 
-                {/* STABILIZED PERMANENT NAVIGATION ARROWS (Forced high index layer to bypass transform-gpu overlap) */}
+                {/* PERMANENT NAVIGATION SYSTEMS - SHARP HIGH LAYER ARCHITECTURE FOR iOS TAPS */}
                 <button 
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const arr = getImagesArray(quickViewProduct.image);
+                    const arr = quickViewProduct.imageArray || [];
                     if (arr.length > 0) {
                       setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
                     }
@@ -462,7 +557,7 @@ export default function ShopCatalog() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const arr = getImagesArray(quickViewProduct.image);
+                    const arr = quickViewProduct.imageArray || [];
                     if (arr.length > 0) {
                       setQuickViewImgIndex(prev => (prev + 1) % arr.length);
                     }
@@ -474,7 +569,7 @@ export default function ShopCatalog() {
                 </button>
 
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {getImagesArray(quickViewProduct.image).map((_, idx) => (
+                  {(quickViewProduct.imageArray || []).map((_, idx) => (
                     <button 
                       key={idx} 
                       onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
