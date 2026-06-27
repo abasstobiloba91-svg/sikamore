@@ -17,30 +17,29 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE "NUKE" EXTRACTOR: Mathematically impossible to fail.
+// FOR QUICK VIEW: Tries its best to separate the messy backend string for the popup
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    // 1. Force EVERYTHING into a flat text string. 
     let raw = JSON.stringify(payload);
-    
-    // 2. Nuke every single quote, bracket, brace, and blank space
     raw = raw.replace(/["'\[\]{}\s]/g, '');
-    
-    // 3. Now we have a pure string like http...,http...
-    // Split it forcefully at the commas
-    const urls = raw.split(',');
-    
-    // 4. Return only valid links
-    return urls.filter(u => u.startsWith('http'));
+    return raw.split(',').filter(u => u.startsWith('http'));
   } catch (e) {
     return [];
   }
 };
 
-const getPrimaryImage = (imgPayload) => {
-  const urls = extractCleanUrls(imgPayload);
-  return urls.length > 0 ? urls : '';
+// FOR THE GRID (YOUR IDEA): Brutally snatch ONLY the first valid image and ignore the rest
+const getPrimaryImage = (payload) => {
+  if (!payload) return '';
+  try {
+    const raw = JSON.stringify(payload);
+    // Hunts for the first sequence that starts with http and ends with .jpg, .jpeg, .png, or .webp
+    const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
+    return match ? match : '';
+  } catch (e) {
+    return '';
+  }
 };
 
 export default function ShopCatalog() {
@@ -392,7 +391,7 @@ export default function ShopCatalog() {
           
           <div className="flex-none flex items-center justify-center">
             <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
-              S. SIKAMÒRE <span className="text-[8px] text-zinc-300 font-sans tracking-widest ml-2 align-top">SYS_FINAL</span>
+              S. SIKAMÒRE <span className="text-[8px] text-green-500 font-sans tracking-widest ml-2 align-top">BRUTE_FORCE</span>
             </Link>
           </div>
           
@@ -451,6 +450,7 @@ export default function ShopCatalog() {
                   >
                     {gridPrimaryImage ? (
                       <img 
+                        key={gridPrimaryImage} 
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
                         className="absolute inset-0 w-full h-full object-cover" 
