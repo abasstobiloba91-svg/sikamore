@@ -17,36 +17,22 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE URL MAGNET: Safely extracts pure URLs and stops at any commas or brackets
-const extractPristineUrls = (imgPayload) => {
+// ULTRA-SAFE MEMORY EXTRACTOR: Stops extracting at commas or brackets to prevent broken URLs
+const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
-    // 1. Force the payload into a flat string
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    
-    // 2. The Magnet: Stops extracting the moment it hits a quote, bracket, space, OR a comma
     const matches = rawString.match(/https?:\/\/[^"'\s\\\[\]{},]+/g);
-    
     return matches || [];
   } catch (e) {
     return [];
   }
 };
 
-
-    // 3. If it is already a Javascript Array, loop through its items
-    else if (Array.isArray(item)) {
-      item.forEach(traverse);
-    } 
-    else if (typeof item === 'object') {
-      Object.values(item).forEach(traverse);
-    }
-  };
-  
-  traverse(data);
-  
-  // Return unique, clean URLs
-  return [...new Set(urls.filter(u => u && u.startsWith('http')))];
+// Gets strictly the first image for the grid thumbnails
+const getPrimaryImage = (imgPayload) => {
+  const urls = extractCleanUrls(imgPayload);
+  return urls.length > 0 ? urls : '';
 };
 
 export default function ShopCatalog() {
@@ -219,7 +205,7 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const images = quickViewProduct ? extractPristineUrls(quickViewProduct.image) : [];
+    const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
     
     if (images.length <= 1) return;
 
@@ -232,24 +218,24 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  // 🚨 CRASH PROTECTOR: Flattens database arrays into primitives before adding to cart context
+  // CART ADDER: Flattens payload to prevent deep-object crash on iOS
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    const safeCartPayload = {
+    const cartItemPayload = {
       id: String(product.id),
       name: String(product.name || ''),
       price: Number(product.price || 0),
-      image: extractPristineUrls(product.image) || '', // Guaranteed flat string
+      image: getPrimaryImage(product.image),
       is_sold_out: Boolean(product.is_sold_out)
     };
 
     try {
-      addToCart(safeCartPayload, overrideQty, overrideSize); 
-      setTimeout(() => { setIsCartOpen(false); }, 10);
+      addToCart(cartItemPayload, overrideQty, overrideSize); 
+      setIsCartOpen(false); 
       showToast('Added to your bag.');
     } catch (err) {
       console.error(err);
@@ -267,7 +253,7 @@ export default function ShopCatalog() {
       id: String(product.id),
       name: String(product.name || ''),
       price: Number(product.price || 0),
-      image: extractPristineUrls(product.image) || '', 
+      image: getPrimaryImage(product.image),
       is_sold_out: Boolean(product.is_sold_out)
     };
 
@@ -376,6 +362,7 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
+      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -448,8 +435,7 @@ export default function ShopCatalog() {
           <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
             {searchResults.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              // Recursively unwraps the nested arrays to find the single URL
-              const gridPrimaryImage = extractPristineUrls(product.image) || '';
+              const gridPrimaryImage = getPrimaryImage(product.image);
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
@@ -543,7 +529,7 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? extractPristineUrls(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -578,9 +564,9 @@ export default function ShopCatalog() {
                 onTouchEnd={onTouchEnd}
               >
                 <div className="w-full h-full relative flex items-center justify-center">
-                  {extractPristineUrls(quickViewProduct.image)[quickViewImgIndex] && (
+                  {extractCleanUrls(quickViewProduct.image)[quickViewImgIndex] && (
                     <img 
-                      src={extractPristineUrls(quickViewProduct.image)[quickViewImgIndex]} 
+                      src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
                     />
@@ -593,7 +579,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = extractPristineUrls(quickViewProduct.image);
+                      const arr = extractCleanUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
                       }
@@ -608,7 +594,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = extractPristineUrls(quickViewProduct.image);
+                      const arr = extractCleanUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev + 1) % arr.length);
                       }
@@ -620,7 +606,7 @@ export default function ShopCatalog() {
                 </div>
 
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {extractPristineUrls(quickViewProduct.image).map((_, idx) => (
+                  {extractCleanUrls(quickViewProduct.image).map((_, idx) => (
                     <button 
                       key={idx} 
                       type="button"
@@ -715,7 +701,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={extractPristineUrls(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                           <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
                             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
@@ -751,8 +737,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {/* PULLS THE SAFE STRING WE SAVED DURING THE CLICK INTERCEPTION */}
-                  {item.image && ( <img src={typeof item.image === 'string' ? item.image : (extractPristineUrls(item.image) || '')} alt={item.name} className="w-full h-full object-cover" /> )}
+                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
