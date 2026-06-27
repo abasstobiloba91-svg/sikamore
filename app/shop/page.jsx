@@ -17,16 +17,27 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE ULTIMATE URL MAGNET: Handles commas, arrays, and even capital H in Https!
-const extractCleanUrls = (imgPayload) => {
-  if (!imgPayload) return [];
+// THE BULLETPROOF DELIMITER EXTRACTOR: Zero Regex guessing. Just chops at the commas.
+const extractCleanUrls = (payload) => {
+  if (!payload) return [];
   try {
-    let rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Force commas to become spaces so the links separate perfectly
-    rawString = rawString.replace(/,/g, ' ');
-    // The 'gi' flag makes it case-insensitive to safely catch 'Https://'
-    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{}]+/gi);
-    return matches || [];
+    let str = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    
+    // 1. Obliterate all brackets, curly braces, and quotes from the DB payload
+    str = str.replace(/["'\[\]{}]/g, ''); 
+    
+    // 2. Split perfectly at the commas
+    const urls = str.split(',');
+    
+    // 3. Clean up the URLs and force lowercase 'https' to prevent browser CORS panic
+    return urls.map(url => {
+      let u = url.trim();
+      if (u.toLowerCase().startsWith('http')) {
+        return u.replace(/^https?/i, 'https');
+      }
+      return u;
+    }).filter(u => u.startsWith('http'));
+    
   } catch (e) {
     return [];
   }
@@ -442,11 +453,26 @@ export default function ShopCatalog() {
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
                     {gridPrimaryImage ? (
-                      <img 
-                        src={gridPrimaryImage} 
-                        alt={product.name || 'Product'} 
-                        className="absolute inset-0 w-full h-full object-cover" 
-                      />
+                      <div className="absolute inset-0 w-full h-full">
+                        <img 
+                          src={gridPrimaryImage} 
+                          alt={product.name || 'Product'} 
+                          className="absolute inset-0 w-full h-full object-cover" 
+                          onError={(e) => { 
+                            e.target.style.display = 'none'; 
+                            if (e.target.nextElementSibling) {
+                              e.target.nextElementSibling.style.display = 'flex'; 
+                            }
+                          }}
+                        />
+                        {/* THE TRUTH SERUM: Shows exact URL if the image breaks */}
+                        <div style={{display: 'none'}} className="absolute inset-0 bg-black/95 flex-col items-center justify-center p-3 z-50 overflow-y-auto">
+                          <span className="text-[9px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">URL FAILED</span>
+                          <span className="text-[7.5px] text-green-400 break-all text-center leading-relaxed">
+                            {gridPrimaryImage}
+                          </span>
+                        </div>
+                      </div>
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
