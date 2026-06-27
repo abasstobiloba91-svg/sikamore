@@ -281,7 +281,7 @@ export default function ShopCatalog() {
     }
   };
 
- const calculateLiveDelivery = async () => {
+const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
     setIsCalculating(true);
     try {
@@ -289,7 +289,6 @@ export default function ShopCatalog() {
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
-      // 1. INTERNATIONAL SHIPPING (Remains exactly the same)
       if (detectedCountryCode !== 'NG') {
         const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
@@ -305,7 +304,6 @@ export default function ShopCatalog() {
         return;
       }
 
-      // 2. NIGERIAN SHIPPING (Now securely routes through your new backend API)
       showToast("SCANNING REGIONAL NETWORKS...");
       
       const res = await fetch('/api/shipping-calc', {
@@ -314,22 +312,25 @@ export default function ShopCatalog() {
         body: JSON.stringify({ address: deliveryAddress }),
       });
 
-      const data = await res.json();
+      // FAILSAFE: If the API file is missing or crashed, this catches it so the UI doesn't freeze!
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        throw new Error("SYSTEM ROUTE MISSING. PLEASE ENSURE API FILE WAS CREATED.");
+      }
 
-      // If the API fails to find the location, throw an error to trigger the Toast
       if (!data.success) {
         throw new Error(data.error || "LOCATION NOT FOUND. TRY A MAJOR BUS STOP OR CITY.");
       }
 
-      // Set the dynamic zone label based on distance
       if (data.distanceKm < 30) {
         zoneLabel = `Lagos Dispatch (${data.distanceKm}km)`;
       } else {
         zoneLabel = `Regional Freight Delivery (${data.distanceKm}km)`;
       }
 
-      // Update the UI with the successful calculations
-      setDeliveryAddress(data.matchedAddress); // Auto-corrects the input box to the official map name!
+      setDeliveryAddress(data.matchedAddress); 
       setDeliveryFee(data.shippingFee);
       setDeliveryZone(zoneLabel);
       if (autoCurrency !== currency) setCurrency(autoCurrency);
@@ -337,7 +338,6 @@ export default function ShopCatalog() {
       showToast(`Route Calculated: ${data.distanceKm}km layout validated.`);
 
     } catch (err) {
-      // If it fails, reset the fee to 0, which keeps the "Proceed to Payment" button locked
       showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
       setDeliveryFee(0);
       setDeliveryZone('');
