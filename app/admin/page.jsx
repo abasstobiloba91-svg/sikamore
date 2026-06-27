@@ -11,16 +11,27 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE TRUE URL MAGNET: Perfectly splits glued comma URLs 
-const extractCleanUrls = (imgPayload) => {
-  if (!imgPayload) return [];
+// THE BULLETPROOF URL EXTRACTOR: Chops at commas and fixes Capital 'Https'
+const extractCleanUrls = (payload) => {
+  if (!payload) return [];
   try {
-    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
+    // 1. Force the database payload into a flat string
+    let str = typeof payload === 'string' ? payload : JSON.stringify(payload);
     
-    // We put the comma ',' back into the stop-list!
-    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{},]+/g);
+    // 2. Erase ALL brackets, curly braces, and quotes
+    str = str.replace(/["'\[\]{}]/g, ''); 
     
-    return matches || [];
+    // 3. Forcefully split the string wherever there is a comma
+    const urls = str.split(',');
+    
+    // 4. Clean up the URLs and fix any Capital 'Https' from iPhones
+    return urls.map(u => {
+      let clean = u.trim();
+      if (clean.toLowerCase().startsWith('http')) {
+        return clean.replace(/^https?/i, 'https');
+      }
+      return clean;
+    }).filter(u => u.startsWith('http'));
   } catch (e) {
     return [];
   }
@@ -30,7 +41,6 @@ const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
 };
-
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function AdminDashboard() {
