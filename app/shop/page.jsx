@@ -17,21 +17,24 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE ULTIMATE URL MAGNET: Stops exactly at commas, quotes, and brackets. Fixes Capital 'Https'.
+// THE ULTIMATE URL MAGNET (V3): Un-glues links that are stuck together!
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    // The 'gi' flag ignores capital letters. The [^,..."'\s\[\]{}\\]+ forces it to stop the exact millisecond it sees a comma.
+    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    
+    // THE MAGIC: Force a space in front of every 'http' to break glued links apart
+    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
+    
+    // Now extract the cleanly separated links
     const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
     if (!matches) return [];
-    // Ensure all links start with lowercase http so browsers don't panic
+    
     return matches.map(u => u.toLowerCase().startsWith('http') ? u.replace(/^https?/i, 'https') : u);
   } catch (e) {
     return [];
   }
 };
-
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
