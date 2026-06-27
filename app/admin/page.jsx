@@ -716,7 +716,7 @@ export default function AdminDashboard() {
                           <div className="flex gap-2">
                             {editPreviews.length > 0 
                               ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
-                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />)
+                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" 
                             }
                           </div>
                           <div className="flex-1">
