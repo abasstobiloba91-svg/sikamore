@@ -14,8 +14,31 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // HELPER: Safely extract the first image for thumbnails/emails regardless of DB format (string vs array)
 const getPrimaryImage = (imageField) => {
   if (!imageField) return '';
-  if (Array.isArray(imageField)) return imageField || '';
-  return imageField;
+  if (Array.isArray(imageField)) {
+    return imageField.length > 0 ? String(imageField).trim() : '';
+  }
+
+  let str = String(imageField).trim();
+
+  if (str.startsWith('[') && str.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed).trim();
+    } catch (e) {
+      // Fallback
+    }
+  }
+
+  if (str.startsWith('{') && str.endsWith('}')) {
+      str = str.slice(1, -1);
+      return str.split(',').replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
+  }
+
+  if (str.includes(',')) {
+     return str.split(',').replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
+  }
+  
+  return str.replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
 };
 
 export default function AdminDashboard() {
