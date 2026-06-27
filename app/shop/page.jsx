@@ -17,40 +17,22 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// RECURSIVE UNWRAPPER: Safely extracts pure URLs from double-nested arrays without using destructive Regex
-const extractPristineUrls = (data) => {
-  let urls = [];
-  
-  const traverse = (item) => {
-    if (!item) return;
+// THE URL MAGNET: Safely extracts pure URLs and stops at any commas or brackets
+const extractPristineUrls = (imgPayload) => {
+  if (!imgPayload) return [];
+  try {
+    // 1. Force the payload into a flat string
+    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
     
-    if (typeof item === 'string') {
-      let str = item.trim();
-      
-      // 1. If it's a pure URL, save it immediately
-      if (str.startsWith('http')) {
-        urls.push(str);
-      } 
-      // 2. If it's a stringified array (JSON or Postgres), unpack it
-      else if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
-        try {
-          let jsonStr = str;
-          // Convert Postgres { } arrays into parseable JSON [ ] arrays
-          if (str.startsWith('{') && str.endsWith('}')) {
-             jsonStr = '[' + str.slice(1, -1) + ']';
-          }
-          const parsed = JSON.parse(jsonStr);
-          traverse(parsed); // Loop back through the newly unpacked array
-        } catch (e) {
-          // Absolute fallback if JSON parsing fails
-          const match = str.match(/https?:\/\/[^"'\s\]\[{}]+/g);
-          if (match) urls.push(...match);
-        }
-      } else {
-         const match = str.match(/https?:\/\/[^"'\s\]\[{}]+/g);
-         if (match) urls.push(...match);
-      }
-    } 
+    // 2. The Magnet: Stops extracting the moment it hits a quote, bracket, space, OR a comma
+    const matches = rawString.match(/https?:\/\/[^"'\s\\\[\]{},]+/g);
+    
+    return matches || [];
+  } catch (e) {
+    return [];
+  }
+};
+
     // 3. If it is already a Javascript Array, loop through its items
     else if (Array.isArray(item)) {
       item.forEach(traverse);
