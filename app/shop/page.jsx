@@ -17,8 +17,23 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// BULLETPROOF EXTRACTOR: Recursively hunts down URLs no matter how the DB formats them
-const extractCleanUrls
+// THE TRUE URL MAGNET: Perfectly splits glued comma URLs 
+const extractCleanUrls = (imgPayload) => {
+  if (!imgPayload) return [];
+  try {
+    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
+    // We put the comma ',' back into the stop-list!
+    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{},]+/g);
+    return matches || [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const getPrimaryImage = (imgPayload) => {
+  const urls = extractCleanUrls(imgPayload);
+  return urls.length > 0 ? urls : '';
+};
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
@@ -345,7 +360,6 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -410,7 +424,6 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG GRID */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -580,6 +593,16 @@ export default function ShopCatalog() {
                   </div>
                 </div>
                 <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
+                <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
+                  {productTabs.map((tab) => (
+                    <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
+                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
+                        <span>{tab.title}</span><span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
+                      </button>
+                      {openAccordion === tab.id && <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">{tab.content}</div>}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
