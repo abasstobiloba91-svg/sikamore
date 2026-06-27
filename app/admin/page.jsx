@@ -11,24 +11,21 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const extractCleanUrls = (imgPayload) => {
-  if (!imgPayload) return [];
-  try {
-    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Split by comma-http in case DB flattened the array into a single comma-separated string
-    const splitString = rawString.replace(/,https?:\/\//g, ' https://');
-    const matches = splitString.match(/https?:\/\/[^"'\s\\]+/g);
-    if (!matches) return [];
-    return matches.map(url => {
-      let clean = url;
-      while (clean.endsWith(',') || clean.endsWith(']') || clean.endsWith('}')) {
-        clean = clean.slice(0, -1);
-      }
-      return clean;
-    });
-  } catch (e) {
-    return [];
-  }
+// BULLETPROOF EXTRACTOR: Recursively hunts down URLs no matter how the DB formats them
+const extractCleanUrls = (data) => {
+  const urls = [];
+  const traverse = (item) => {
+    if (typeof item === 'string') {
+      const matches = item.match(/https?:\/\/[^\s"'\[\]{}]+/g) || [];
+      matches.forEach(m => urls.push(m.replace(/,+$/, '')));
+    } else if (Array.isArray(item)) {
+      item.forEach(traverse);
+    } else if (typeof item === 'object' && item !== null) {
+      Object.values(item).forEach(traverse);
+    }
+  };
+  traverse(data);
+  return urls;
 };
 
 const getPrimaryImage = (imgPayload) => {
