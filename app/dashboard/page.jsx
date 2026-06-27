@@ -11,22 +11,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE INDESTRUCTIBLE EXTRACTOR: Protects the Dashboard from old, glued-together wishlist links
-const extractCleanUrls = (payload) => {
-  if (!payload) return [];
+// THE BRUTE FORCE EXTRACTOR: Protects the Wishlist from ever breaking
+const getPrimaryImage = (payload) => {
+  if (!payload) return '';
   try {
     const raw = JSON.stringify(payload);
-    // Scans the string and stops EXACTLY at the image extension. 
-    const matches = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/gi);
-    return matches || [];
+    // Brutally snatches ONLY the first valid image it finds and ignores the rest
+    const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
+    return match ? match : '';
   } catch (e) {
-    return [];
+    return '';
   }
-};
-
-const getPrimaryImage = (imgPayload) => {
-  const urls = extractCleanUrls(imgPayload);
-  return urls.length > 0 ? urls : '';
 };
 
 export default function Dashboard() {
@@ -408,8 +403,8 @@ export default function Dashboard() {
                   <div key={item.id} className="group flex flex-col relative bg-white border border-zinc-100 p-2 shadow-sm">
                     <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm">
                       {/* WRAPPED ITEM IMAGE IN EXTRACTOR TO FIX BUG */}
-                      <img src={getPrimaryImage(item.image)} alt={item.name} className="w-full h-full object-cover" />
-                      <button onClick={() => toggleWishlist(item)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 z-10 bg-white/80 p-1.5 rounded-full backdrop-blur-sm">✕</button>
+                      <img key={getPrimaryImage(item.image)} src={getPrimaryImage(item.image)} alt={item.name} className="w-full h-full object-cover" />
+                      <button onClick={() => toggleWishlist(item)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 z-10 bg-white/80 p-1.5 rounded-full backdrop-blur-sm shadow-sm">✕</button>
                     </div>
                     <div className="flex flex-col mt-3 text-center pb-2">
                       <h3 className="text-[9px] sm:text-[10px] tracking-[0.15em] uppercase text-zinc-600 truncate">{item.name}</h3>
@@ -458,7 +453,7 @@ export default function Dashboard() {
                       value={addressInput} 
                       onChange={(e) => setAddressInput(e.target.value)} 
                       rows="3" 
-                      className="w-full bg-white p-4 border border-zinc-300 text-base uppercase tracking-wider outline-none focus:border-black resize-none" 
+                      className="w-full bg-white p-4 border border-zinc-300 text-base md:text-xs uppercase tracking-wider outline-none focus:border-black resize-none" 
                       placeholder="ENTER PRIMARY SHIPPING ADDRESS MATRIX (STREET, CITY, STATE)..." 
                     />
                     <div className="flex gap-2">
@@ -547,7 +542,7 @@ export default function Dashboard() {
                       value={replyText} 
                       onChange={handleClientTyping} 
                       placeholder="Type your message..." 
-                      className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wide placeholder-zinc-600" 
+                      className="flex-1 bg-[#161616] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wide placeholder-zinc-600" 
                     />
                     <button type="submit" disabled={sendingReply || !replyText.trim() || !activeChat.id} className="bg-white text-black px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-200 transition-colors disabled:opacity-30">
                       {sendingReply ? 'SENDING...' : 'DISPATCH'}
@@ -572,11 +567,11 @@ export default function Dashboard() {
               <form onSubmit={handleCreateTicket} className="space-y-6">
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Subject Header</label>
-                  <input type="text" value={newTicketSubject} onChange={(e) => setNewTicketSubject(e.target.value)} required placeholder="E.G. TRANSACTION DISCREPANCY / SIZE EXCHANGE" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white uppercase tracking-wider transition-colors" />
+                  <input type="text" value={newTicketSubject} onChange={(e) => setNewTicketSubject(e.target.value)} required placeholder="E.G. TRANSACTION DISCREPANCY / SIZE EXCHANGE" className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white uppercase tracking-wider transition-colors" />
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Detailed Message Context</label>
-                  <textarea value={newTicketMessage} onChange={(e) => setNewTicketMessage(e.target.value)} required rows="5" placeholder="State your context inquiries clearly here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base text-white tracking-wider resize-none transition-colors" />
+                  <textarea value={newTicketMessage} onChange={(e) => setNewTicketMessage(e.target.value)} required rows="5" placeholder="State your context inquiries clearly here..." className="w-full bg-[#111] p-4 border border-zinc-800 focus:border-white outline-none text-base md:text-xs text-white tracking-wider resize-none transition-colors" />
                 </div>
                 <button type="submit" disabled={creatingTicket} className="w-full bg-white text-black py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-200 font-medium transition-colors disabled:opacity-40">
                   {creatingTicket ? 'DISPATCHING FILE...' : 'INITIALIZE CHAT CONNECT'}
