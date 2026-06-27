@@ -306,7 +306,7 @@ export default function ShopCatalog() {
 
       showToast("SCANNING HIGHWAY NETWORKS...");
       const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
-      const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'Sikamore-Shop-App' } });
+     const geoRes = await fetch(geoUrl);
       const geoData = await geoRes.json();
       
       if (!geoData || geoData.length === 0) throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
