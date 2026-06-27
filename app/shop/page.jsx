@@ -281,7 +281,7 @@ export default function ShopCatalog() {
     }
   };
 
-  const calculateLiveDelivery = async () => {
+ const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
     setIsCalculating(true);
     try {
@@ -289,6 +289,7 @@ export default function ShopCatalog() {
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
+      // 1. INTERNATIONAL SHIPPING (Remains exactly the same)
       if (detectedCountryCode !== 'NG') {
         const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
@@ -304,46 +305,39 @@ export default function ShopCatalog() {
         return;
       }
 
-      showToast("SCANNING HIGHWAY NETWORKS...");
-      const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(deliveryAddress)}&format=json&countrycodes=ng&limit=1`;
-     const geoRes = await fetch(geoUrl);
-      const geoData = await geoRes.json();
+      // 2. NIGERIAN SHIPPING (Now securely routes through your new backend API)
+      showToast("SCANNING REGIONAL NETWORKS...");
       
-      if (!geoData || geoData.length === 0) throw new Error("ROUTE NOT RECOGNIZED. PLEASE ENTER YOUR NEAREST WELL-KNOWN BUS STOP OR STREET LANDMARK.");
+      const res = await fetch('/api/shipping-calc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: deliveryAddress }),
+      });
 
-      const destLon = parseFloat(geoData.lon);
-      const destLat = parseFloat(geoData.lat);
-      const placeName = geoData.display_name;
+      const data = await res.json();
 
-      const routeUrl = `https://router.project-osrm.org/route/v1/driving/${ATELIER_LONG},${ATELIER_LAT};${destLon},${destLat}?overview=false`;
-      const routeRes = await fetch(routeUrl);
-      const routeData = await routeRes.json();
-
-      if (!routeData.routes || routeData.routes.length === 0) throw new Error("No navigable roadways found to this destination.");
-
-      const distanceKm = routeData.routes.distance / 1000; 
-      const durationMins = routeData.routes.duration / 60; 
-
-      const BASE_FARE = 2500; 
-      const PRICE_PER_KM = 180; 
-      const PRICE_PER_MINUTE = 60; 
-      
-      finalFee = BASE_FARE + (distanceKm * PRICE_PER_KM) + (durationMins * PRICE_PER_MINUTE);
-
-      if (distanceKm < 30) {
-        zoneLabel = `Lagos Dispatch (${Math.round(distanceKm)}km | ~${Math.round(durationMins)} mins)`;
-      } else {
-        zoneLabel = `Regional Freight Delivery (${Math.round(distanceKm)}km | ~${Math.round(durationMins / 60)} hrs)`;
+      // If the API fails to find the location, throw an error to trigger the Toast
+      if (!data.success) {
+        throw new Error(data.error || "LOCATION NOT FOUND. TRY A MAJOR BUS STOP OR CITY.");
       }
 
-      setDeliveryAddress(placeName); 
-      setDeliveryFee(Math.round(finalFee));
+      // Set the dynamic zone label based on distance
+      if (data.distanceKm < 30) {
+        zoneLabel = `Lagos Dispatch (${data.distanceKm}km)`;
+      } else {
+        zoneLabel = `Regional Freight Delivery (${data.distanceKm}km)`;
+      }
+
+      // Update the UI with the successful calculations
+      setDeliveryAddress(data.matchedAddress); // Auto-corrects the input box to the official map name!
+      setDeliveryFee(data.shippingFee);
       setDeliveryZone(zoneLabel);
       if (autoCurrency !== currency) setCurrency(autoCurrency);
 
-      showToast(`Route Calculated: ${Math.round(distanceKm)}km layout validated.`);
+      showToast(`Route Calculated: ${data.distanceKm}km layout validated.`);
 
     } catch (err) {
+      // If it fails, reset the fee to 0, which keeps the "Proceed to Payment" button locked
       showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
       setDeliveryFee(0);
       setDeliveryZone('');
@@ -351,7 +345,6 @@ export default function ShopCatalog() {
       setIsCalculating(false);
     }
   };
-
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
