@@ -17,7 +17,7 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// FOR QUICK VIEW: Tries its best to separate the messy backend string for the popup
+// FOR QUICK VIEW: Separates the messy backend string for the popup
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -29,12 +29,11 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// FOR THE GRID (YOUR IDEA): Brutally snatch ONLY the first valid image and ignore the rest
+// FOR THE GRID: Brutally snatch ONLY the first valid image and ignore the rest
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
   try {
     const raw = JSON.stringify(payload);
-    // Hunts for the first sequence that starts with http and ends with .jpg, .jpeg, .png, or .webp
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
     return match ? match : '';
   } catch (e) {
@@ -367,7 +366,8 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
+      {/* HEADER IS NOW Z-INDEX 9999950 SO IT STAYS ON TOP OF DARK OVERLAYS */}
+      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 9999950 }}>
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
             <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
@@ -377,7 +377,7 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0 z-">
+      <header className="bg-white text-black border-b border-zinc-200 sticky top-0" style={{ zIndex: 9999950 }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           <div className="flex-1 flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
@@ -450,6 +450,7 @@ export default function ShopCatalog() {
                   >
                     {gridPrimaryImage ? (
                       <img 
+                        key={gridPrimaryImage} 
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
                         className="absolute inset-0 w-full h-full object-cover" 
@@ -603,7 +604,6 @@ export default function ShopCatalog() {
                 </div>
                 <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
 
-                {/* THE RESTORED ACCORDION TABS */}
                 <div className="mt-8 border-t border-zinc-200">
                   {productTabs.map((tab) => (
                     <div key={tab.id} className="border-b border-zinc-200">
@@ -620,7 +620,6 @@ export default function ShopCatalog() {
                     </div>
                   ))}
                 </div>
-
               </div>
             </div>
           </div>
@@ -674,8 +673,8 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 4. SLIDING MINI BAG DRAWER GRID */}
-      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsCartOpen(false)}></div>}
+      {/* 4. SLIDING MINI BAG DRAWER GRID (Z-INDEX 9999999) WITH OVERLAY AT 9999900 */}
+      {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
@@ -730,8 +729,8 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 5. MOBILE MENU INTERACTION EXPANSION */}
-      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999998 }} onClick={() => setIsMenuOpen(false)}></div>}
+      {/* 5. MOBILE MENU INTERACTION EXPANSION (OVERLAY AT 9999900) */}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
