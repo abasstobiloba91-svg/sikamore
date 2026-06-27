@@ -17,19 +17,14 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE ULTIMATE URL MAGNET (V3): Un-glues links that are stuck together!
+// THE PERFECT EXTRACTOR: Separates everything cleanly and natively
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
     let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    
-    // THE MAGIC: Force a space in front of every 'http' to break glued links apart
     raw = raw.replace(/(https?:\/\/)/gi, ' $1');
-    
-    // Now extract the cleanly separated links
     const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
     if (!matches) return [];
-    
     return matches.map(u => u.toLowerCase().startsWith('http') ? u.replace(/^https?/i, 'https') : u);
   } catch (e) {
     return [];
@@ -446,25 +441,11 @@ export default function ShopCatalog() {
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
                     {gridPrimaryImage ? (
-                      <div className="absolute inset-0 w-full h-full">
-                        <img 
-                          src={gridPrimaryImage} 
-                          alt={product.name || 'Product'} 
-                          className="absolute inset-0 w-full h-full object-cover" 
-                          onError={(e) => { 
-                            e.target.style.display = 'none'; 
-                            if (e.target.nextElementSibling) {
-                              e.target.nextElementSibling.style.display = 'flex'; 
-                            }
-                          }}
-                        />
-                        <div style={{display: 'none'}} className="absolute inset-0 bg-black/95 flex-col items-center justify-center p-3 z-50 overflow-y-auto">
-                          <span className="text-[10px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">IMAGE BLOCKED (V3)</span>
-                          <span className="text-[7.5px] text-green-400 break-all text-center leading-relaxed">
-                            {gridPrimaryImage}
-                          </span>
-                        </div>
-                      </div>
+                      <img 
+                        src={gridPrimaryImage} 
+                        alt={product.name || 'Product'} 
+                        className="absolute inset-0 w-full h-full object-cover" 
+                      />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
                     )}
