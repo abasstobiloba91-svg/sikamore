@@ -363,21 +363,23 @@ export default function ShopCatalog() {
     { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
   ];
 
-  return (
+return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* HEADER IS NOW Z-INDEX 9999950 SO IT STAYS ON TOP OF DARK OVERLAYS */}
-      <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative" style={{ zIndex: 9999950 }}>
-        <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
-          {announcements.map((text, idx) => (
-            <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
-              {text}
-            </div>
-          ))}
+      {/* THE FIX: Wraps BOTH the announcement bar and header in ONE sticky container */}
+      <div className="sticky top-0 w-full" style={{ zIndex: 9999950 }}>
+        
+        <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative">
+          <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
+            {announcements.map((text, idx) => (
+              <div key={idx} className="h-full w-full flex items-center justify-center text-[7.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.3em] uppercase font-light text-zinc-300 px-4 text-center select-none truncate">
+                {text}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <header className="bg-white text-black border-b border-zinc-200 sticky top-0" style={{ zIndex: 9999950 }}>
+        <header className="bg-white text-black border-b border-zinc-200">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
           <div className="flex-1 flex items-center justify-start gap-4">
             <button onClick={() => setIsMenuOpen(true)} className="hover:text-zinc-500 transition-colors py-2">
