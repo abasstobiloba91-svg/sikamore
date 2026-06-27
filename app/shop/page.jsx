@@ -289,6 +289,7 @@ const calculateLiveDelivery = async () => {
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
+      // 1. INTERNATIONAL FLAT RATE
       if (detectedCountryCode !== 'NG') {
         const internationalBaseFee = 55 / exchangeRates['USD']; 
         finalFee = internationalBaseFee; 
@@ -304,6 +305,7 @@ const calculateLiveDelivery = async () => {
         return;
       }
 
+      // 2. NIGERIAN DYNAMIC API ROUTING
       showToast("SCANNING REGIONAL NETWORKS...");
       
       const res = await fetch('/api/shipping-calc', {
@@ -312,7 +314,6 @@ const calculateLiveDelivery = async () => {
         body: JSON.stringify({ address: deliveryAddress }),
       });
 
-      // FAILSAFE: If the API file is missing or crashed, this catches it so the UI doesn't freeze!
       let data;
       try {
         data = await res.json();
@@ -330,6 +331,7 @@ const calculateLiveDelivery = async () => {
         zoneLabel = `Regional Freight Delivery (${data.distanceKm}km)`;
       }
 
+      // Unlocks the UI and updates the final Uber-style calculated fee
       setDeliveryAddress(data.matchedAddress); 
       setDeliveryFee(data.shippingFee);
       setDeliveryZone(zoneLabel);
