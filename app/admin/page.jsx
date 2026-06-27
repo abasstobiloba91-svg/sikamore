@@ -15,7 +15,9 @@ const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    const matches = rawString.match(/https?:\/\/[^"'\s\\]+/g);
+    // Split by comma-http in case DB flattened the array into a single comma-separated string
+    const splitString = rawString.replace(/,https?:\/\//g, ' https://');
+    const matches = splitString.match(/https?:\/\/[^"'\s\\]+/g);
     if (!matches) return [];
     return matches.map(url => {
       let clean = url;
@@ -81,8 +83,6 @@ export default function AdminDashboard() {
 
   const chatEndRef = useRef(null);
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
-
-  const fallbackSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f4f4f5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='8px' fill='%23a1a1aa' letter-spacing='0.2em'%3EIMAGE ERROR%3C/text%3E%3C/svg%3E";
 
   useEffect(() => {
     if (localStorage.getItem('sikamore_admin_authenticated') === 'true') {
@@ -715,8 +715,8 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-6">
                           <div className="flex gap-2">
                             {editPreviews.length > 0 
-                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
-                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" 
+                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />) 
+                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />)
                             }
                           </div>
                           <div className="flex-1">
@@ -744,7 +744,7 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
-                                <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />
+                                <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
                                 <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
