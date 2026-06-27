@@ -11,26 +11,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE ADMIN URL MAGNET: Completely bypasses nested brackets/arrays from the DB to guarantee a valid image source
 const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
-    // Flatten any weird DB structure into a pure string
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Magnetically pull ONLY valid URLs, ignoring all quotes, slashes, and brackets
-    const matches = rawString.match(/https?:\/\/[^"\\\[\]{}\s]+/g);
-    // Strip trailing commas just in case
-    return matches ? matches.map(url => url.replace(/,+$/, '')) : [];
+    const matches = rawString.match(/https?:\/\/[^"'\s\\\[\]{},]+/g);
+    return matches || [];
   } catch (e) {
     return [];
   }
 };
 
-// Gets strictly the first image for the grid thumbnails
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
 };
+
+// Network Breather: Pauses execution to prevent mobile network saturation
+const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function AdminDashboard() {
   const { showToast } = useApp();
@@ -212,9 +210,8 @@ export default function AdminDashboard() {
     showToast('PORTAL LOCKED.');
   };
 
-  // ====================== INVENTORY: DEPLOY NEW (SEQUENTIAL UPLOAD FIX) ====================== //
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
+    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
   };
 
   const removeProductRow = (id) => {
@@ -226,13 +223,14 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const selectedFiles = Array.from(e.target.files).slice(0, 5); // Limit to 5 images
+    const selectedFiles = Array.from(e.target.files).slice(0, 5);
     if (selectedFiles.length > 0) {
       const previews = selectedFiles.map(file => URL.createObjectURL(file));
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, files: selectedFiles, previews } : p));
     }
   };
 
+  // 🚨 BULK SUBMIT: FORCES HEIC -> JPEG AND DELAYS TO PROTECT NETWORK
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
     setDisabled(true);
@@ -253,12 +251,11 @@ export default function AdminDashboard() {
         return showToast(`ERROR: ${detailedError}`);
       }
 
-      showToast('UPLOADING IMAGES SEQUENTIALLY... PLEASE WAIT.');
+      showToast('UPLOADING IMAGES... PLEASE KEEP BROWSER OPEN.');
 
       for (const product of productsList) {
         let imageUrls = [];
         
-        // SEQUENTIAL UPLOAD: Processes one by one to prevent mobile network timeouts
         for (const file of product.files) {
           const fileExt = file.name.split('.').pop().toLowerCase();
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -270,10 +267,13 @@ export default function AdminDashboard() {
             contentType: safeContentType 
           });
           
-          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Connection dropped.");
+          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Network timeout.");
           
           const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
           imageUrls.push(data.publicUrl);
+          
+          // Pause for half a second to let the cellular connection clear its buffer
+          await networkDelay(500); 
         }
 
         const { error: dbError } = await supabase.from('products').insert([{ 
@@ -335,9 +335,8 @@ export default function AdminDashboard() {
 
       if (editFiles.length > 0) {
         finalImageUrls = []; 
-        showToast('UPDATING IMAGES SEQUENTIALLY... PLEASE WAIT.');
+        showToast('UPDATING IMAGES... PLEASE KEEP BROWSER OPEN.');
 
-        // SEQUENTIAL UPLOAD FOR EDITS TO PREVENT TIMEOUTS
         for (const file of editFiles) {
           const fileExt = file.name.split('.').pop().toLowerCase();
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -349,10 +348,12 @@ export default function AdminDashboard() {
             contentType: safeContentType 
           });
           
-          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Connection dropped.");
+          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Network timeout.");
           
           const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
           finalImageUrls.push(data.publicUrl);
+
+          await networkDelay(500); // Breathe
         }
       }
 
@@ -381,7 +382,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ====================== ORDERS WITH IMAGE_3 BLUEPRINT ====================== //
   const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
@@ -487,7 +487,6 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-  // ====================== NEWSLETTER DISPATCH CENTER ====================== //
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
@@ -711,7 +710,6 @@ export default function AdminDashboard() {
 
                         <div className="flex items-center gap-6">
                           <div className="flex gap-2">
-                            {/* ROBUST EDIT IMAGE PREVIEWS */}
                             {editPreviews.length > 0 
                               ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
                               : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
@@ -719,7 +717,8 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
-                            <input type="file" accept="image/*" multiple onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                            {/* 🔥 HEIC TRAP FIX: FORCES iOS TO CONVERT PHOTOS TO JPEG */}
+                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
                       </div>
@@ -742,7 +741,6 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
-                                {/* FIXED LIVE COLLECTION THUMBNAILS */}
                                 <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
@@ -823,7 +821,8 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
-                          <input type="file" accept="image/*" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          {/* 🔥 HEIC TRAP FIX: FORCES iOS TO CONVERT PHOTOS TO JPEG */}
+                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
                     </div>
