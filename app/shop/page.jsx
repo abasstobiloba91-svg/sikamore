@@ -35,6 +35,7 @@ const extractCleanUrls = (payload) => {
     return [];
   }
 };
+
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
@@ -458,7 +459,7 @@ export default function ShopCatalog() {
                           }}
                         />
                         <div style={{display: 'none'}} className="absolute inset-0 bg-black/95 flex-col items-center justify-center p-3 z-50 overflow-y-auto">
-                          <span className="text-[10px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">IMAGE BLOCKED (V2)</span>
+                          <span className="text-[10px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">IMAGE BLOCKED (V3)</span>
                           <span className="text-[7.5px] text-green-400 break-all text-center leading-relaxed">
                             {gridPrimaryImage}
                           </span>
