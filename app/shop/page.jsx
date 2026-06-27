@@ -17,20 +17,25 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE NATIVE EXTRACTOR: Gracefully reads the text[] array directly from Supabase
+// THE "NUKE" EXTRACTOR: Mathematically impossible to fail.
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
-  if (Array.isArray(payload)) {
-    return payload.filter(url => typeof url === 'string' && url.includes('http'));
+  try {
+    // 1. Force EVERYTHING into a flat text string. 
+    let raw = JSON.stringify(payload);
+    
+    // 2. Nuke every single quote, bracket, brace, and blank space
+    raw = raw.replace(/["'\[\]{}\s]/g, '');
+    
+    // 3. Now we have a pure string like http...,http...
+    // Split it forcefully at the commas
+    const urls = raw.split(',');
+    
+    // 4. Return only valid links
+    return urls.filter(u => u.startsWith('http'));
+  } catch (e) {
+    return [];
   }
-  if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      if (Array.isArray(parsed)) return parsed.filter(url => typeof url === 'string' && url.includes('http'));
-    } catch(e) {}
-    return payload.split(',').map(s => s.trim().replace(/["'\[\]{}]/g, '')).filter(s => s.includes('http'));
-  }
-  return [];
 };
 
 const getPrimaryImage = (imgPayload) => {
@@ -386,9 +391,8 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-none flex items-center justify-center">
-            {/* THE INVESTIGATION MARKER: This red text PROVES Vercel deployed the code */}
             <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
-              S. SIKAMÒRE <span className="text-[8px] text-red-500 font-sans tracking-widest ml-2 align-top">SYS_V4</span>
+              S. SIKAMÒRE <span className="text-[8px] text-zinc-300 font-sans tracking-widest ml-2 align-top">SYS_FINAL</span>
             </Link>
           </div>
           
