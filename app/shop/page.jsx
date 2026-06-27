@@ -391,7 +391,7 @@ export default function ShopCatalog() {
           
           <div className="flex-none flex items-center justify-center">
             <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
-              S. SIKAMÒRE <span className="text-[8px] text-green-500 font-sans tracking-widest ml-2 align-top">BRUTE_FORCE</span>
+              S. SIKAMÒRE
             </Link>
           </div>
           
@@ -450,7 +450,6 @@ export default function ShopCatalog() {
                   >
                     {gridPrimaryImage ? (
                       <img 
-                        key={gridPrimaryImage} 
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
                         className="absolute inset-0 w-full h-full object-cover" 
@@ -583,7 +582,7 @@ export default function ShopCatalog() {
                   ))}
                 </div>
               </div>
-              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
+              <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-start bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
                   <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
@@ -603,6 +602,25 @@ export default function ShopCatalog() {
                   </div>
                 </div>
                 <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
+
+                {/* THE RESTORED ACCORDION TABS */}
+                <div className="mt-8 border-t border-zinc-200">
+                  {productTabs.map((tab) => (
+                    <div key={tab.id} className="border-b border-zinc-200">
+                      <button
+                        onClick={() => toggleAccordion(tab.id)}
+                        className="w-full py-4 flex justify-between items-center text-[9px] tracking-[0.2em] uppercase text-black hover:text-zinc-500 transition-colors"
+                      >
+                        {tab.title}
+                        <svg className={`w-3 h-3 transition-transform duration-300 ${openAccordion === tab.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openAccordion === tab.id ? 'max-h-96 opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
+                        <p className="text-[10px] text-zinc-500 leading-relaxed font-light whitespace-pre-wrap">{tab.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
               </div>
             </div>
           </div>
