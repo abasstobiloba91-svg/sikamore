@@ -11,6 +11,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// THE INDESTRUCTIBLE EXTRACTOR: Protects the Dashboard from old, glued-together wishlist links
+const extractCleanUrls = (payload) => {
+  if (!payload) return [];
+  try {
+    const raw = JSON.stringify(payload);
+    // Scans the string and stops EXACTLY at the image extension. 
+    const matches = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/gi);
+    return matches || [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const getPrimaryImage = (imgPayload) => {
+  const urls = extractCleanUrls(imgPayload);
+  return urls.length > 0 ? urls : '';
+};
+
 export default function Dashboard() {
   const { showToast, wishlist, toggleWishlist, addToCart } = useApp();
   
@@ -285,7 +303,7 @@ export default function Dashboard() {
       if (data) setActiveChat(data);
     } catch (err) {
       showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`);
-    } finally { setSendingReply(false); } // FIXED: 'loyal' has been correctly rewritten to 'finally'
+    } finally { setSendingReply(false); } 
   };
 
   const handleSaveAddress = async () => {
@@ -389,7 +407,8 @@ export default function Dashboard() {
                 {wishlist.map((item) => (
                   <div key={item.id} className="group flex flex-col relative bg-white border border-zinc-100 p-2 shadow-sm">
                     <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      {/* WRAPPED ITEM IMAGE IN EXTRACTOR TO FIX BUG */}
+                      <img src={getPrimaryImage(item.image)} alt={item.name} className="w-full h-full object-cover" />
                       <button onClick={() => toggleWishlist(item)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 z-10 bg-white/80 p-1.5 rounded-full backdrop-blur-sm">✕</button>
                     </div>
                     <div className="flex flex-col mt-3 text-center pb-2">
@@ -419,7 +438,7 @@ export default function Dashboard() {
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="bg-white border border-zinc-200 shadow-sm p-8 sm:p-12 text-center flex flex-col items-center">
               <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mb-6 border border-zinc-200">
-                <span className="textxl font-serif text-zinc-400">{userProfile?.name?.charAt(0) || 'C'}</span>
+                <span className="text-xl font-serif text-zinc-400">{userProfile?.name?.charAt(0) || 'C'}</span>
               </div>
               <h2 className="text-lg font-medium tracking-widest uppercase mb-1">{userProfile?.name}</h2>
               <p className="text-xs text-zinc-500 tracking-widest mb-8 font-mono">{userProfile?.email}</p>
