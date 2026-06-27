@@ -18,26 +18,7 @@ const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
 // BULLETPROOF EXTRACTOR: Recursively hunts down URLs no matter how the DB formats them
-const extractCleanUrls = (data) => {
-  const urls = [];
-  const traverse = (item) => {
-    if (typeof item === 'string') {
-      const matches = item.match(/https?:\/\/[^\s"'\[\]{}]+/g) || [];
-      matches.forEach(m => urls.push(m.replace(/,+$/, '')));
-    } else if (Array.isArray(item)) {
-      item.forEach(traverse);
-    } else if (typeof item === 'object' && item !== null) {
-      Object.values(item).forEach(traverse);
-    }
-  };
-  traverse(data);
-  return urls;
-};
-
-const getPrimaryImage = (imgPayload) => {
-  const urls = extractCleanUrls(imgPayload);
-  return urls.length > 0 ? urls : '';
-};
+const extractCleanUrls
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
