@@ -17,27 +17,27 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE BULLETPROOF DELIMITER EXTRACTOR: Zero Regex guessing. Just chops at the commas.
+// THE BULLETPROOF URL EXTRACTOR: Chops at commas and fixes Capital 'Https'
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
+    // 1. Force the database payload into a flat string
     let str = typeof payload === 'string' ? payload : JSON.stringify(payload);
     
-    // 1. Obliterate all brackets, curly braces, and quotes from the DB payload
+    // 2. Erase ALL brackets, curly braces, and quotes
     str = str.replace(/["'\[\]{}]/g, ''); 
     
-    // 2. Split perfectly at the commas
+    // 3. Forcefully split the string wherever there is a comma
     const urls = str.split(',');
     
-    // 3. Clean up the URLs and force lowercase 'https' to prevent browser CORS panic
-    return urls.map(url => {
-      let u = url.trim();
-      if (u.toLowerCase().startsWith('http')) {
-        return u.replace(/^https?/i, 'https');
+    // 4. Clean up the URLs and fix any Capital 'Https' from iPhones
+    return urls.map(u => {
+      let clean = u.trim();
+      if (clean.toLowerCase().startsWith('http')) {
+        return clean.replace(/^https?/i, 'https');
       }
-      return u;
+      return clean;
     }).filter(u => u.startsWith('http'));
-    
   } catch (e) {
     return [];
   }
@@ -47,7 +47,6 @@ const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
 };
-
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
