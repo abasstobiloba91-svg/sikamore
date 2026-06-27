@@ -15,8 +15,15 @@ const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    const matches = rawString.match(/https?:\/\/[^"'\s\\\[\]{},]+/g);
-    return matches || [];
+    const matches = rawString.match(/https?:\/\/[^"'\s\\]+/g);
+    if (!matches) return [];
+    return matches.map(url => {
+      let clean = url;
+      while (clean.endsWith(',') || clean.endsWith(']') || clean.endsWith('}')) {
+        clean = clean.slice(0, -1);
+      }
+      return clean;
+    });
   } catch (e) {
     return [];
   }
@@ -27,7 +34,6 @@ const getPrimaryImage = (imgPayload) => {
   return urls.length > 0 ? urls : '';
 };
 
-// Network Breather: Pauses execution to prevent mobile network saturation
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function AdminDashboard() {
@@ -36,12 +42,10 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
   
-  // INVENTORY STATES
   const [inventoryMode, setInventoryMode] = useState('manage'); 
   const [liveProducts, setLiveProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   
-  // MULTI-IMAGE STATES
   const [editFiles, setEditFiles] = useState([]);
   const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -77,6 +81,8 @@ export default function AdminDashboard() {
 
   const chatEndRef = useRef(null);
   const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
+
+  const fallbackSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f4f4f5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='8px' fill='%23a1a1aa' letter-spacing='0.2em'%3EIMAGE ERROR%3C/text%3E%3C/svg%3E";
 
   useEffect(() => {
     if (localStorage.getItem('sikamore_admin_authenticated') === 'true') {
@@ -223,14 +229,13 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const selectedFiles = Array.from(e.target.files).slice(0, 5);
+    const selectedFiles = Array.from(e.target.files).slice(0, 5); 
     if (selectedFiles.length > 0) {
       const previews = selectedFiles.map(file => URL.createObjectURL(file));
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, files: selectedFiles, previews } : p));
     }
   };
 
-  // 🚨 BULK SUBMIT: FORCES HEIC -> JPEG AND DELAYS TO PROTECT NETWORK
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
     setDisabled(true);
@@ -272,7 +277,6 @@ export default function AdminDashboard() {
           const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
           imageUrls.push(data.publicUrl);
           
-          // Pause for half a second to let the cellular connection clear its buffer
           await networkDelay(500); 
         }
 
@@ -353,7 +357,7 @@ export default function AdminDashboard() {
           const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
           finalImageUrls.push(data.publicUrl);
 
-          await networkDelay(500); // Breathe
+          await networkDelay(500);
         }
       }
 
@@ -712,12 +716,11 @@ export default function AdminDashboard() {
                           <div className="flex gap-2">
                             {editPreviews.length > 0 
                               ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
-                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
+                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />)
                             }
                           </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
-                            {/* 🔥 HEIC TRAP FIX: FORCES iOS TO CONVERT PHOTOS TO JPEG */}
                             <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
@@ -741,7 +744,7 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
-                                <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
+                                <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />
                               </div>
                               <div>
                                 <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
@@ -821,7 +824,6 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
-                          {/* 🔥 HEIC TRAP FIX: FORCES iOS TO CONVERT PHOTOS TO JPEG */}
                           <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
