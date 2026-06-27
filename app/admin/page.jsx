@@ -11,34 +11,25 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// HELPER: Safely extract the first image for thumbnails/emails regardless of DB format (string vs array)
-const getPrimaryImage = (imageField) => {
-  if (!imageField) return '';
-  if (Array.isArray(imageField)) {
-    return imageField.length > 0 ? String(imageField).trim() : '';
+// THE ADMIN URL MAGNET: Completely bypasses nested brackets/arrays from the DB to guarantee a valid image source
+const extractCleanUrls = (imgPayload) => {
+  if (!imgPayload) return [];
+  try {
+    // Flatten any weird DB structure into a pure string
+    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
+    // Magnetically pull ONLY valid URLs, ignoring all quotes, slashes, and brackets
+    const matches = rawString.match(/https?:\/\/[^"\\\[\]{}\s]+/g);
+    // Strip trailing commas just in case
+    return matches ? matches.map(url => url.replace(/,+$/, '')) : [];
+  } catch (e) {
+    return [];
   }
+};
 
-  let str = String(imageField).trim();
-
-  if (str.startsWith('[') && str.endsWith(']')) {
-    try {
-      const parsed = JSON.parse(str);
-      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed).trim();
-    } catch (e) {
-      // Fallback
-    }
-  }
-
-  if (str.startsWith('{') && str.endsWith('}')) {
-      str = str.slice(1, -1);
-      return str.split(',').replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
-  }
-
-  if (str.includes(',')) {
-     return str.split(',').replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
-  }
-  
-  return str.replace(/^["'\s\\]+|["'\s\\]+$/g, '').trim();
+// Gets strictly the first image for the grid thumbnails
+const getPrimaryImage = (imgPayload) => {
+  const urls = extractCleanUrls(imgPayload);
+  return urls.length > 0 ? urls : '';
 };
 
 export default function AdminDashboard() {
@@ -340,7 +331,7 @@ export default function AdminDashboard() {
     setIsUpdating(true);
 
     try {
-      let finalImageUrls = Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean);
+      let finalImageUrls = extractCleanUrls(editingProduct.image);
 
       if (editFiles.length > 0) {
         finalImageUrls = []; 
@@ -720,9 +711,10 @@ export default function AdminDashboard() {
 
                         <div className="flex items-center gap-6">
                           <div className="flex gap-2">
+                            {/* ROBUST EDIT IMAGE PREVIEWS */}
                             {editPreviews.length > 0 
                               ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
-                              : (Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean)).map((p, i) => <img key={i} src={getPrimaryImage(p)} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
+                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
                             }
                           </div>
                           <div className="flex-1">
@@ -750,6 +742,7 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
+                                {/* FIXED LIVE COLLECTION THUMBNAILS */}
                                 <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
