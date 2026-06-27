@@ -22,10 +22,14 @@ const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Matches the link perfectly up until it hits a quote or bracket
-    const matches = rawString.match(/https?:\/\/[^"'\s\}\]]+/g);
-    // Removes any trailing commas just in case
-    return matches ? matches.map(url => url.replace(/,+$/, '')) : [];
+    // Matches the link perfectly up until it hits a quote, space, or bracket.
+    // Explicitly ALLOWS commas because filenames sometimes contain them!
+    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{}]+/g);
+    
+    if (!matches) return [];
+    
+    // Removes any trailing commas that the database might have added at the very end
+    return matches.map(url => url.replace(/,+$/, '').trim());
   } catch (e) {
     return [];
   }
@@ -87,8 +91,6 @@ export default function ShopCatalog() {
 
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
-
-  const fallbackSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f4f4f5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='8px' fill='%23a1a1aa' letter-spacing='0.2em'%3EIMAGE ERROR%3C/text%3E%3C/svg%3E";
 
   const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
@@ -443,12 +445,11 @@ export default function ShopCatalog() {
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
                     {gridPrimaryImage ? (
+                      // COMPLETELY REMOVED loading="lazy", decoding="async", AND THE ERROR TRAP
                       <img 
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
-                        loading="lazy"
-                        decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover" 
+                        className="absolute inset-0 w-full h-full object-cover bg-zinc-100" 
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
@@ -528,7 +529,7 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />
+              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -564,7 +565,6 @@ export default function ShopCatalog() {
                       src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
-                      onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }}
                     />
                   )}
                 </div>
@@ -635,7 +635,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover bg-zinc-100" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
@@ -666,7 +666,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} /> )}
+                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
