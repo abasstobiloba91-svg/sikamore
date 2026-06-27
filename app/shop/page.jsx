@@ -17,19 +17,27 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// ULTRA-SAFE MEMORY EXTRACTOR: Stops extracting at commas or brackets to prevent broken URLs
+// THE URL MAGNET: Prevents truncating valid URLs that contain brackets or commas
 const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    const matches = rawString.match(/https?:\/\/[^"'\s\\\[\]{},]+/g);
-    return matches || [];
+    // Extract everything until a quote or space
+    const matches = rawString.match(/https?:\/\/[^"'\s\\]+/g);
+    if (!matches) return [];
+    // Clean trailing database array characters from the very end only
+    return matches.map(url => {
+      let clean = url;
+      while (clean.endsWith(',') || clean.endsWith(']') || clean.endsWith('}')) {
+        clean = clean.slice(0, -1);
+      }
+      return clean;
+    });
   } catch (e) {
     return [];
   }
 };
 
-// Gets strictly the first image for the grid thumbnails
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
@@ -52,7 +60,6 @@ export default function ShopCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   
-  // QUICK VIEW STATE
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
   const [quickViewImgIndex, setQuickViewImgIndex] = useState(0);
@@ -87,6 +94,8 @@ export default function ShopCatalog() {
 
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
+
+  const fallbackSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f4f4f5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='8px' fill='%23a1a1aa' letter-spacing='0.2em'%3EIMAGE ERROR%3C/text%3E%3C/svg%3E";
 
   const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
@@ -218,7 +227,6 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  // CART ADDER: Flattens payload to prevent deep-object crash on iOS
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) {
       e.preventDefault();
@@ -362,7 +370,6 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -427,7 +434,6 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* CATALOG GRID */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -450,6 +456,7 @@ export default function ShopCatalog() {
                         loading="lazy"
                         decoding="async"
                         className="absolute inset-0 w-full h-full object-cover" 
+                        onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }}
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
@@ -529,7 +536,7 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -549,14 +556,10 @@ export default function ShopCatalog() {
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
-            
             <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row h-full w-full">
-              
-              {/* SLIDER CANVAS */}
               <div 
                 className="w-full md:w-1/2 bg-zinc-50 shrink-0 aspect-[3/4] relative overflow-hidden group touch-pan-y"
                 onTouchStart={onTouchStart} 
@@ -569,68 +572,31 @@ export default function ShopCatalog() {
                       src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+                      onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }}
                     />
                   )}
                 </div>
                 
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-">
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const arr = extractCleanUrls(quickViewProduct.image);
-                      if (arr.length > 0) {
-                        setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
-                      }
-                    }} 
-                    className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                  </button>
-                  
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const arr = extractCleanUrls(quickViewProduct.image);
-                      if (arr.length > 0) {
-                        setQuickViewImgIndex(prev => (prev + 1) % arr.length);
-                      }
-                    }} 
-                    className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                  </button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const arr = extractCleanUrls(quickViewProduct.image); if (arr.length > 0) { setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length); } }} className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const arr = extractCleanUrls(quickViewProduct.image); if (arr.length > 0) { setQuickViewImgIndex(prev => (prev + 1) % arr.length); } }} className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
                 </div>
-
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
                   {extractCleanUrls(quickViewProduct.image).map((_, idx) => (
-                    <button 
-                      key={idx} 
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} 
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} />
+                    <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); setQuickViewImgIndex(idx); }} className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === quickViewImgIndex ? 'bg-white scale-125' : 'bg-white/40'}`} />
                   ))}
                 </div>
               </div>
-
-              {/* PRODUCT DETAILS AREA */}
               <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center bg-white">
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
-                  <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                  </button>
+                  <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform mt-0.5 pointer-events-auto z-10"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                 </div>
                 <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
                 <div className="mb-5">
                   <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
                   <div className="flex gap-2">
-                    {['S', 'M', 'L'].map(s => (
-                      <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>
-                    ))}
+                    {['S', 'M', 'L'].map(s => <button key={s} onClick={() => setSelectedSize(s)} className={`w-8 h-8 flex items-center justify-center text-[10px] border transition-colors ${selectedSize === s ? 'border-black bg-black text-white' : 'border-zinc-200 text-black hover:border-black'}`}>{s}</button>)}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 mb-6">
@@ -640,25 +606,7 @@ export default function ShopCatalog() {
                     <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
                   </div>
                 </div>
-                <button 
-                  onClick={(e) => { 
-                    handleAddToCart(e, quickViewProduct, qty, selectedSize); 
-                    setQuickViewProduct(null); 
-                  }} 
-                  className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4"
-                >
-                  Add to Bag • {formatPrice(quickViewProduct.price * qty)}
-                </button>
-                <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
-                  {productTabs.map((tab) => (
-                    <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
-                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                        <span>{tab.title}</span><span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
-                      </button>
-                      {openAccordion === tab.id && <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">{tab.content}</div>}
-                    </div>
-                  ))}
-                </div>
+                <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
               </div>
             </div>
           </div>
@@ -670,9 +618,7 @@ export default function ShopCatalog() {
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
             <h2 className="text-xl sm:text-2xl font-serif tracking-[0.1em] uppercase text-black">Find Your Perfect Piece</h2>
-            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 text-zinc-400 hover:text-black transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 text-zinc-400 hover:text-black transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 shrink-0">
             <div className="w-full relative flex items-center border-b-2 border-zinc-200 focus-within:border-black transition-colors py-4">
@@ -691,23 +637,14 @@ export default function ShopCatalog() {
               <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">We couldn&apos;t quite find what you&apos;re looking for. Try a different search.</div>
             ) : (
               <>
-                <div className="flex justify-between items-center mb-8 border-b border-zinc-100 pb-3">
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">Your Matches</span>
-                  <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-mono">{searchResults.length} Match{searchResults.length !== 1 && 'es'}</span>
-                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {searchResults.map((product) => {
                     const inWishlist = wishlist.some(w => w.id === product.id);
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
-                          <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
-                            <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
-                          </div>
-                          {product.is_sold_out && ( <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div> )}
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
                           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
@@ -737,7 +674,7 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
+                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }} /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
