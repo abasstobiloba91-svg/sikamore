@@ -11,28 +11,27 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE INDESTRUCTIBLE EXTRACTOR: Scans the entire mess and plucks out perfectly clean links
+// THE INDESTRUCTIBLE EXTRACTOR: Un-glues text and perfectly isolates links
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    // 1. Force whatever the database gives us into a raw string
-    const raw = JSON.stringify(payload);
-    
-    // 2. Scan the string. Stop EXACTLY at .jpg, .jpeg, .png, or .webp
-    // The 'gi' flag means "Global & Case-Insensitive" so it grabs ALL of them, even if they are glued together!
+    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // Force a space before 'http' to break glued links apart
+    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
+    // Scan the string and stop EXACTLY at the image extension. 
     const matches = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/gi);
-    
     return matches || [];
   } catch (e) {
     return [];
   }
 };
 
-// For grids/tables: Just grab the first one from our perfect list
+// THE FIX: Properly grabs ONLY the first image in the array using
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
-  return urls.length > 0 ? urls : '';
+  return urls.length > 0 ? urls : ''; 
 };
+
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function AdminDashboard() {
