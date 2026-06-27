@@ -17,50 +17,53 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// RECURSIVE DATA UNWRAPPER: Safely breaks down nested arrays or stringified JSON arrays down to pure URLs
-const extractAllUrls = (data) => {
-  if (!data) return [];
+// RECURSIVE UNWRAPPER: Safely extracts pure URLs from double-nested arrays without using destructive Regex
+const extractPristineUrls = (data) => {
+  let urls = [];
   
-  let current = data;
-
-  // If it's a string, try to parse it in case it's double-stringified JSON
-  if (typeof current === 'string') {
-    let trimmed = current.trim();
-    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
-      try {
-        current = JSON.parse(trimmed);
-      } catch (e) {
-        // Fallback to raw string if parsing fails
+  const traverse = (item) => {
+    if (!item) return;
+    
+    if (typeof item === 'string') {
+      let str = item.trim();
+      
+      // 1. If it's a pure URL, save it immediately
+      if (str.startsWith('http')) {
+        urls.push(str);
+      } 
+      // 2. If it's a stringified array (JSON or Postgres), unpack it
+      else if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+        try {
+          let jsonStr = str;
+          // Convert Postgres { } arrays into parseable JSON [ ] arrays
+          if (str.startsWith('{') && str.endsWith('}')) {
+             jsonStr = '[' + str.slice(1, -1) + ']';
+          }
+          const parsed = JSON.parse(jsonStr);
+          traverse(parsed); // Loop back through the newly unpacked array
+        } catch (e) {
+          // Absolute fallback if JSON parsing fails
+          const match = str.match(/https?:\/\/[^"'\s\]\[{}]+/g);
+          if (match) urls.push(...match);
+        }
+      } else {
+         const match = str.match(/https?:\/\/[^"'\s\]\[{}]+/g);
+         if (match) urls.push(...match);
       }
+    } 
+    // 3. If it is already a Javascript Array, loop through its items
+    else if (Array.isArray(item)) {
+      item.forEach(traverse);
+    } 
+    else if (typeof item === 'object') {
+      Object.values(item).forEach(traverse);
     }
-  }
-
-  // Deep flatten nested arrays
-  const flatten = (val) => {
-    if (Array.isArray(val)) {
-      return val.reduce((acc, item) => acc.concat(flatten(item)), []);
-    }
-    if (typeof val === 'string') {
-      return [val.trim()];
-    }
-    return [];
   };
-
-  const flattenedList = flatten(current);
-
-  // Filter out and sanitize valid image URLs
-  return flattenedList
-    .map(url => {
-      if (typeof url !== 'string') return '';
-      // Clean any accidental leftover brackets or quotes
-      return url.replace(/[\[\]"']/g, '').trim();
-    })
-    .filter(url => url.startsWith('http'));
-};
-
-const getSingleImage = (data) => {
-  const urls = extractAllUrls(data);
-  return urls.length > 0 ? urls : '';
+  
+  traverse(data);
+  
+  // Return unique, clean URLs
+  return [...new Set(urls.filter(u => u && u.startsWith('http')))];
 };
 
 export default function ShopCatalog() {
@@ -233,7 +236,7 @@ export default function ShopCatalog() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const images = quickViewProduct ? extractAllUrls(quickViewProduct.image) : [];
+    const images = quickViewProduct ? extractPristineUrls(quickViewProduct.image) : [];
     
     if (images.length <= 1) return;
 
@@ -246,37 +249,24 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  const handlePopupSubscription = async (e) => {
-    e.preventDefault();
-    setSubmittingEmail(true);
-    try {
-      sessionStorage.setItem('sikamore_newsletter', 'true');
-      setShowNewsletter(false);
-      showToast('Thank you for joining our circle.');
-    } catch (err) {
-      showToast('Error joining newsletter.');
-    } finally {
-      setSubmittingEmail(false);
-    }
-  };
-
+  // 🚨 CRASH PROTECTOR: Flattens database arrays into primitives before adding to cart context
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    const cartItemPayload = {
+    const safeCartPayload = {
       id: String(product.id),
       name: String(product.name || ''),
       price: Number(product.price || 0),
-      image: getSingleImage(product.image),
+      image: extractPristineUrls(product.image) || '', // Guaranteed flat string
       is_sold_out: Boolean(product.is_sold_out)
     };
 
     try {
-      addToCart(cartItemPayload, overrideQty, overrideSize); 
-      setIsCartOpen(false); 
+      addToCart(safeCartPayload, overrideQty, overrideSize); 
+      setTimeout(() => { setIsCartOpen(false); }, 10);
       showToast('Added to your bag.');
     } catch (err) {
       console.error(err);
@@ -294,11 +284,28 @@ export default function ShopCatalog() {
       id: String(product.id),
       name: String(product.name || ''),
       price: Number(product.price || 0),
-      image: getSingleImage(product.image),
+      image: extractPristineUrls(product.image) || '', 
       is_sold_out: Boolean(product.is_sold_out)
     };
 
     toggleWishlist(wishlistPayload);
+  };
+
+  const handlePopupSubscription = async (e) => {
+    e.preventDefault();
+    if (!subscriberEmail.trim()) return;
+    setSubmittingEmail(true);
+    try {
+      const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
+      if (error && error.code !== '23505') throw error;
+      showToast('Thank you for joining our community.');
+      setShowNewsletter(false);
+      sessionStorage.setItem('sikamore_newsletter', 'true');
+    } catch (err) {
+      showToast(`Oops, there was an issue: ${err.message}`);
+    } finally {
+      setSubmittingEmail(false);
+    }
   };
 
   const calculateLiveDelivery = async () => {
@@ -458,7 +465,8 @@ export default function ShopCatalog() {
           <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
             {searchResults.map((product) => {
               const inWishlist = wishlist.some(w => w.id === product.id);
-              const gridPrimaryImage = getSingleImage(product.image);
+              // Recursively unwraps the nested arrays to find the single URL
+              const gridPrimaryImage = extractPristineUrls(product.image) || '';
 
               return (
                 <div key={product.id} className="group flex flex-col relative bg-white pb-4">
@@ -552,7 +560,7 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? getSingleImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+              <img src={products.length > 0 ? extractPristineUrls(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -587,9 +595,9 @@ export default function ShopCatalog() {
                 onTouchEnd={onTouchEnd}
               >
                 <div className="w-full h-full relative flex items-center justify-center">
-                  {extractAllUrls(quickViewProduct.image)[quickViewImgIndex] && (
+                  {extractPristineUrls(quickViewProduct.image)[quickViewImgIndex] && (
                     <img 
-                      src={extractAllUrls(quickViewProduct.image)[quickViewImgIndex]} 
+                      src={extractPristineUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
                     />
@@ -602,7 +610,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = extractAllUrls(quickViewProduct.image);
+                      const arr = extractPristineUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length);
                       }
@@ -617,7 +625,7 @@ export default function ShopCatalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const arr = extractAllUrls(quickViewProduct.image);
+                      const arr = extractPristineUrls(quickViewProduct.image);
                       if (arr.length > 0) {
                         setQuickViewImgIndex(prev => (prev + 1) % arr.length);
                       }
@@ -629,7 +637,7 @@ export default function ShopCatalog() {
                 </div>
 
                 <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30 bg-black/20 px-3 py-1.5 rounded-full">
-                  {extractAllUrls(quickViewProduct.image).map((_, idx) => (
+                  {extractPristineUrls(quickViewProduct.image).map((_, idx) => (
                     <button 
                       key={idx} 
                       type="button"
@@ -724,7 +732,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getSingleImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
+                          {product.image && ( <img src={extractPristineUrls(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                           <div className="absolute inset-x-0 bottom-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 z-30 pointer-events-none">
                             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
@@ -760,7 +768,8 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
+                  {/* PULLS THE SAFE STRING WE SAVED DURING THE CLICK INTERCEPTION */}
+                  {item.image && ( <img src={typeof item.image === 'string' ? item.image : (extractPristineUrls(item.image) || '')} alt={item.name} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
                   <div>
