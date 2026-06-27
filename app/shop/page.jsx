@@ -33,6 +33,7 @@ const extractPristineUrls = (imgPayload) => {
   }
 };
 
+
     // 3. If it is already a Javascript Array, loop through its items
     else if (Array.isArray(item)) {
       item.forEach(traverse);
