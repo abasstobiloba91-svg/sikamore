@@ -17,30 +17,36 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE NATIVE ARRAY EXTRACTOR: Reads the Supabase text[] column directly!
+// THE "KEEP IT SIMPLE" EXTRACTOR
+// Since your DB uses text[], Supabase already gives us a perfect Array!
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
-  
-  // 1. If Supabase hands us a native Array (which text[] does), just use it!
+
+  // 1. If it's already an array, just return it!
   if (Array.isArray(payload)) {
-    return payload.filter(url => typeof url === 'string' && url.includes('http'));
+    return payload.filter(url => typeof url === 'string' && url.startsWith('http'));
   }
-  
-  // 2. Fallback just in case there are any legacy string entries
+
+  // 2. Just in case it's a string, handle it gently
   if (typeof payload === 'string') {
-    try {
-      if (payload.startsWith('[') && payload.endsWith(']')) {
+    if (payload.startsWith('[') && payload.endsWith(']')) {
+      try {
         const parsed = JSON.parse(payload);
-        if (Array.isArray(parsed)) return parsed.filter(url => typeof url === 'string' && url.includes('http'));
-      }
-    } catch(e) {}
-    const matches = payload.match(/https?:\/\/[^\s"'\[\]{}]+/gi);
-    return matches || [];
+        if (Array.isArray(parsed)) {
+          return parsed.filter(url => typeof url === 'string' && url.startsWith('http'));
+        }
+      } catch (e) {}
+    }
+    if (payload.includes(',')) {
+      return payload.split(',').map(s => s.trim()).filter(s => s.startsWith('http'));
+    }
+    if (payload.startsWith('http')) return [payload];
   }
-  
+
   return [];
 };
 
+// Grabs exactly the first image from the perfect list, just like you suggested
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
@@ -452,7 +458,6 @@ export default function ShopCatalog() {
                   >
                     {gridPrimaryImage ? (
                       <img 
-                        key={gridPrimaryImage}
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
                         className="absolute inset-0 w-full h-full object-cover" 
@@ -568,7 +573,6 @@ export default function ShopCatalog() {
                 <div className="w-full h-full relative flex items-center justify-center">
                   {extractCleanUrls(quickViewProduct.image)[quickViewImgIndex] && (
                     <img 
-                      key={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
@@ -642,7 +646,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img key={getPrimaryImage(product.image)} src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
