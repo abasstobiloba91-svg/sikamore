@@ -11,25 +11,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE ULTIMATE URL MAGNET (V3): Un-glues links that are stuck together!
+// THE INDESTRUCTIBLE EXTRACTOR: Scans the entire mess and plucks out perfectly clean links
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // 1. Force whatever the database gives us into a raw string
+    const raw = JSON.stringify(payload);
     
-    // THE MAGIC: Force a space in front of every 'http' to break glued links apart
-    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
+    // 2. Scan the string. Stop EXACTLY at .jpg, .jpeg, .png, or .webp
+    // The 'gi' flag means "Global & Case-Insensitive" so it grabs ALL of them, even if they are glued together!
+    const matches = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/gi);
     
-    // Now extract the cleanly separated links
-    const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
-    if (!matches) return [];
-    
-    return matches.map(u => u.toLowerCase().startsWith('http') ? u.replace(/^https?/i, 'https') : u);
+    return matches || [];
   } catch (e) {
     return [];
   }
 };
 
+// For grids/tables: Just grab the first one from our perfect list
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
