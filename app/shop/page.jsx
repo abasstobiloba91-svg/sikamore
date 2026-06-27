@@ -17,22 +17,47 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE URL MAGNET: Flattens any nested arrays [[ ]] and extracts pure links.
+// RECURSIVE DATA UNWRAPPER: Safely breaks down nested arrays or stringified JSON arrays down to pure URLs
 const extractAllUrls = (data) => {
   if (!data) return [];
-  try {
-    // Convert whatever shape (string, array, nested array) into a flat string
-    const str = typeof data === 'string' ? data : JSON.stringify(data);
-    // Match only the URL part, stopping at quotes, spaces, or brackets
-    const matches = str.match(/https?:\/\/[^"'\s\\]+/g);
-    // Clean any trailing array characters that might have snuck in
-    return matches ? matches.map(url => url.replace(/[\]}]+$/, '')) : [];
-  } catch (e) {
-    return [];
+  
+  let current = data;
+
+  // If it's a string, try to parse it in case it's double-stringified JSON
+  if (typeof current === 'string') {
+    let trimmed = current.trim();
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+      try {
+        current = JSON.parse(trimmed);
+      } catch (e) {
+        // Fallback to raw string if parsing fails
+      }
+    }
   }
+
+  // Deep flatten nested arrays
+  const flatten = (val) => {
+    if (Array.isArray(val)) {
+      return val.reduce((acc, item) => acc.concat(flatten(item)), []);
+    }
+    if (typeof val === 'string') {
+      return [val.trim()];
+    }
+    return [];
+  };
+
+  const flattenedList = flatten(current);
+
+  // Filter out and sanitize valid image URLs
+  return flattenedList
+    .map(url => {
+      if (typeof url !== 'string') return '';
+      // Clean any accidental leftover brackets or quotes
+      return url.replace(/[\[\]"']/g, '').trim();
+    })
+    .filter(url => url.startsWith('http'));
 };
 
-// Gets strictly the first image for the grid
 const getSingleImage = (data) => {
   const urls = extractAllUrls(data);
   return urls.length > 0 ? urls : '';
@@ -221,15 +246,26 @@ export default function ShopCatalog() {
     setTouchEnd(null);
   };
 
-  // 🚨 THE CRASH FIX: Rebuilding a lightweight payload to prevent Context memory overflows
+  const handlePopupSubscription = async (e) => {
+    e.preventDefault();
+    setSubmittingEmail(true);
+    try {
+      sessionStorage.setItem('sikamore_newsletter', 'true');
+      setShowNewsletter(false);
+      showToast('Thank you for joining our circle.');
+    } catch (err) {
+      showToast('Error joining newsletter.');
+    } finally {
+      setSubmittingEmail(false);
+    }
+  };
+
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    // We strictly define what goes into the cart. 
-    // extractAllUrls ensures the nested DB array never reaches the cart state.
     const cartItemPayload = {
       id: String(product.id),
       name: String(product.name || ''),
@@ -240,7 +276,7 @@ export default function ShopCatalog() {
 
     try {
       addToCart(cartItemPayload, overrideQty, overrideSize); 
-      setIsCartOpen(false); // Synchronous state update to keep the drawer hidden
+      setIsCartOpen(false); 
       showToast('Added to your bag.');
     } catch (err) {
       console.error(err);
@@ -430,7 +466,6 @@ export default function ShopCatalog() {
                     className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
-                    {/* ONLY SHOWS 1 VALIDATED IMAGE LINK. NO BRACKETS. */}
                     {gridPrimaryImage ? (
                       <img 
                         src={gridPrimaryImage} 
@@ -725,7 +760,6 @@ export default function ShopCatalog() {
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
                 <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {/* PULLS THE SAFE STRING WE SAVED DURING THE CLICK INTERCEPTION */}
                   {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-1">
