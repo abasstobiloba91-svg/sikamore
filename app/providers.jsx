@@ -9,15 +9,16 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const AppContext = createContext();
 
-// HELPER: Safely extract the primary image to keep localStorage lean and prevent UI crashes
-const getPrimaryImage = (imgField) => {
-  if (!imgField) return '';
-  if (Array.isArray(imgField)) return imgField || '';
+// HELPER: The Brute Force Extractor to safely keep localStorage lean and prevent UI crashes
+const getPrimaryImage = (payload) => {
+  if (!payload) return '';
   try {
-    const parsed = JSON.parse(imgField);
-    if (Array.isArray(parsed)) return parsed || '';
-  } catch (e) {}
-  return imgField;
+    const raw = JSON.stringify(payload);
+    const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
+    return match ? match : '';
+  } catch (e) {
+    return '';
+  }
 };
 
 export function AppProvider({ children }) {
@@ -99,7 +100,7 @@ export function AppProvider({ children }) {
     }}>
       {children}
       
-      {/* MODERN EDITORIAL NOTIFICATION CANVAS */}
+      {/* MODERN EDITORIAL NOTIFICATION CANVAS WITH Z-INDEX 99999999 */}
       {toastMessage && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z- w-[90%] sm:max-w-md bg-white text-black px-5 py-4 rounded-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-neutral-200/80 text-center transition-all duration-300 ease-out animate-fade-in whitespace-normal break-words">
           <div className="flex flex-col items-center justify-center gap-1.5">
