@@ -17,36 +17,22 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE "KEEP IT SIMPLE" EXTRACTOR
-// Since your DB uses text[], Supabase already gives us a perfect Array!
+// THE NATIVE EXTRACTOR: Gracefully reads the text[] array directly from Supabase
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
-
-  // 1. If it's already an array, just return it!
   if (Array.isArray(payload)) {
-    return payload.filter(url => typeof url === 'string' && url.startsWith('http'));
+    return payload.filter(url => typeof url === 'string' && url.includes('http'));
   }
-
-  // 2. Just in case it's a string, handle it gently
   if (typeof payload === 'string') {
-    if (payload.startsWith('[') && payload.endsWith(']')) {
-      try {
-        const parsed = JSON.parse(payload);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(url => typeof url === 'string' && url.startsWith('http'));
-        }
-      } catch (e) {}
-    }
-    if (payload.includes(',')) {
-      return payload.split(',').map(s => s.trim()).filter(s => s.startsWith('http'));
-    }
-    if (payload.startsWith('http')) return [payload];
+    try {
+      const parsed = JSON.parse(payload);
+      if (Array.isArray(parsed)) return parsed.filter(url => typeof url === 'string' && url.includes('http'));
+    } catch(e) {}
+    return payload.split(',').map(s => s.trim().replace(/["'\[\]{}]/g, '')).filter(s => s.includes('http'));
   }
-
   return [];
 };
 
-// Grabs exactly the first image from the perfect list, just like you suggested
 const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
@@ -400,7 +386,10 @@ export default function ShopCatalog() {
           </div>
           
           <div className="flex-none flex items-center justify-center">
-            <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">S. SIKAMÒRE</Link>
+            {/* THE INVESTIGATION MARKER: This red text PROVES Vercel deployed the code */}
+            <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
+              S. SIKAMÒRE <span className="text-[8px] text-red-500 font-sans tracking-widest ml-2 align-top">SYS_V4</span>
+            </Link>
           </div>
           
           <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
