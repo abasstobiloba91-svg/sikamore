@@ -17,22 +17,21 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// MASTER EXTRACTOR: Safely pulls URLs and ignores iPhone commas, brackets, and Postgres formatting
-const extractCleanUrls = (imgPayload) => {
-  if (!imgPayload) return [];
-  try {
-    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Matches the link perfectly up until it hits a quote, space, or bracket.
-    // Explicitly ALLOWS commas because filenames sometimes contain them!
-    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{}]+/g);
-    
-    if (!matches) return [];
-    
-    // Removes any trailing commas that the database might have added at the very end
-    return matches.map(url => url.replace(/,+$/, '').trim());
-  } catch (e) {
-    return [];
-  }
+// BULLETPROOF EXTRACTOR: Recursively hunts down URLs no matter how the DB formats them
+const extractCleanUrls = (data) => {
+  const urls = [];
+  const traverse = (item) => {
+    if (typeof item === 'string') {
+      const matches = item.match(/https?:\/\/[^\s"'\[\]{}]+/g) || [];
+      matches.forEach(m => urls.push(m.replace(/,+$/, '')));
+    } else if (Array.isArray(item)) {
+      item.forEach(traverse);
+    } else if (typeof item === 'object' && item !== null) {
+      Object.values(item).forEach(traverse);
+    }
+  };
+  traverse(data);
+  return urls;
 };
 
 const getPrimaryImage = (imgPayload) => {
@@ -365,6 +364,7 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
+      {/* GLOBAL TOP ANNOUNCEMENT BAR */}
       <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative z-">
         <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
           {announcements.map((text, idx) => (
@@ -429,6 +429,7 @@ export default function ShopCatalog() {
         </div>
       </section>
 
+      {/* CATALOG GRID */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -445,11 +446,10 @@ export default function ShopCatalog() {
                     onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
                   >
                     {gridPrimaryImage ? (
-                      // COMPLETELY REMOVED loading="lazy", decoding="async", AND THE ERROR TRAP
                       <img 
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
-                        className="absolute inset-0 w-full h-full object-cover bg-zinc-100" 
+                        className="absolute inset-0 w-full h-full object-cover" 
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
@@ -635,7 +635,7 @@ export default function ShopCatalog() {
                     return (
                       <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
                         <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover bg-zinc-100" /> )}
+                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
                           <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                         </div>
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
