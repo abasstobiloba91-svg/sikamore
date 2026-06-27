@@ -17,27 +17,16 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE BULLETPROOF URL EXTRACTOR: Chops at commas and fixes Capital 'Https'
+// THE ULTIMATE URL MAGNET: Stops exactly at commas, quotes, and brackets. Fixes Capital 'Https'.
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    // 1. Force the database payload into a flat string
-    let str = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    
-    // 2. Erase ALL brackets, curly braces, and quotes
-    str = str.replace(/["'\[\]{}]/g, ''); 
-    
-    // 3. Forcefully split the string wherever there is a comma
-    const urls = str.split(',');
-    
-    // 4. Clean up the URLs and fix any Capital 'Https' from iPhones
-    return urls.map(u => {
-      let clean = u.trim();
-      if (clean.toLowerCase().startsWith('http')) {
-        return clean.replace(/^https?/i, 'https');
-      }
-      return clean;
-    }).filter(u => u.startsWith('http'));
+    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // The 'gi' flag ignores capital letters. The [^,..."'\s\[\]{}\\]+ forces it to stop the exact millisecond it sees a comma.
+    const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
+    if (!matches) return [];
+    // Ensure all links start with lowercase http so browsers don't panic
+    return matches.map(u => u.toLowerCase().startsWith('http') ? u.replace(/^https?/i, 'https') : u);
   } catch (e) {
     return [];
   }
@@ -47,6 +36,7 @@ const getPrimaryImage = (imgPayload) => {
   const urls = extractCleanUrls(imgPayload);
   return urls.length > 0 ? urls : '';
 };
+
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -464,9 +454,8 @@ export default function ShopCatalog() {
                             }
                           }}
                         />
-                        {/* THE TRUTH SERUM: Shows exact URL if the image breaks */}
                         <div style={{display: 'none'}} className="absolute inset-0 bg-black/95 flex-col items-center justify-center p-3 z-50 overflow-y-auto">
-                          <span className="text-[9px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">URL FAILED</span>
+                          <span className="text-[10px] text-red-500 font-bold mb-2 uppercase tracking-widest text-center">IMAGE BLOCKED (V2)</span>
                           <span className="text-[7.5px] text-green-400 break-all text-center leading-relaxed">
                             {gridPrimaryImage}
                           </span>
