@@ -17,22 +17,15 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE URL MAGNET: Prevents truncating valid URLs that contain brackets or commas
+// MASTER EXTRACTOR: Safely pulls URLs and ignores iPhone commas, brackets, and Postgres formatting
 const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
     const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // Extract everything until a quote or space
-    const matches = rawString.match(/https?:\/\/[^"'\s\\]+/g);
-    if (!matches) return [];
-    // Clean trailing database array characters from the very end only
-    return matches.map(url => {
-      let clean = url;
-      while (clean.endsWith(',') || clean.endsWith(']') || clean.endsWith('}')) {
-        clean = clean.slice(0, -1);
-      }
-      return clean;
-    });
+    // Matches the link perfectly up until it hits a quote or bracket
+    const matches = rawString.match(/https?:\/\/[^"'\s\}\]]+/g);
+    // Removes any trailing commas just in case
+    return matches ? matches.map(url => url.replace(/,+$/, '')) : [];
   } catch (e) {
     return [];
   }
@@ -456,7 +449,6 @@ export default function ShopCatalog() {
                         loading="lazy"
                         decoding="async"
                         className="absolute inset-0 w-full h-full object-cover" 
-                        onError={(e) => { e.target.onerror = null; e.target.src = fallbackSvg; }}
                       />
                     ) : (
                       <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
