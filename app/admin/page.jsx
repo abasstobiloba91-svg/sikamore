@@ -11,25 +11,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE INDESTRUCTIBLE EXTRACTOR: Un-glues text and perfectly isolates links
+// FOR PREVIEWS/EDITS: Separates the messy backend string
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    // Force a space before 'http' to break glued links apart
-    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
-    // Scan the string and stop EXACTLY at the image extension. 
-    const matches = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/gi);
-    return matches || [];
+    let raw = JSON.stringify(payload);
+    raw = raw.replace(/["'\[\]{}\s]/g, '');
+    return raw.split(',').filter(u => u.startsWith('http'));
   } catch (e) {
     return [];
   }
 };
 
-// THE FIX: Properly grabs ONLY the first image in the array using
-const getPrimaryImage = (imgPayload) => {
-  const urls = extractCleanUrls(imgPayload);
-  return urls.length > 0 ? urls : ''; 
+// FOR THE GRID (YOUR BRUTE FORCE IDEA): Snatches ONLY the first valid image
+const getPrimaryImage = (payload) => {
+  if (!payload) return '';
+  try {
+    const raw = JSON.stringify(payload);
+    const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
+    return match ? match : '';
+  } catch (e) {
+    return '';
+  }
 };
 
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -622,7 +625,7 @@ export default function AdminDashboard() {
           <h1 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h1>
           <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Admin Portal Access</p>
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
-            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base text-center tracking-widest text-black uppercase" />
+            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
             <button type="submit" className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 font-medium transition-colors">Unlock Dashboard</button>
           </form>
         </div>
@@ -677,34 +680,34 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                            <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" />
+                            <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
                           </div>
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
-                            <input type="number" value={editingProduct.price} onChange={(e)=>setEditingProduct({...editingProduct, price: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" />
+                            <input type="number" value={editingProduct.price} onChange={(e)=>setEditingProduct({...editingProduct, price: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                           </div>
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
-                            <input type="number" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" />
+                            <input type="number" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description</label>
-                            <textarea value={editingProduct.description || ''} onChange={(e)=>setEditingProduct({...editingProduct, description: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.description || ''} onChange={(e)=>setEditingProduct({...editingProduct, description: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info</label>
-                            <textarea value={editingProduct.additional_information || ''} onChange={(e)=>setEditingProduct({...editingProduct, additional_information: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.additional_information || ''} onChange={(e)=>setEditingProduct({...editingProduct, additional_information: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies</label>
-                            <textarea value={editingProduct.store_policies || ''} onChange={(e)=>setEditingProduct({...editingProduct, store_policies: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.store_policies || ''} onChange={(e)=>setEditingProduct({...editingProduct, store_policies: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries</label>
-                            <textarea value={editingProduct.inquiries || ''} onChange={(e)=>setEditingProduct({...editingProduct, inquiries: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.inquiries || ''} onChange={(e)=>setEditingProduct({...editingProduct, inquiries: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                         </div>
 
@@ -717,7 +720,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
-                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-base md:text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
                       </div>
@@ -779,34 +782,34 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                          <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
+                          <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
                         </div>
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
-                          <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 85000" />
+                          <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" placeholder="E.G. 85000" />
                         </div>
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
-                          <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black" placeholder="E.G. 15" />
+                          <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" placeholder="E.G. 15" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
-                          <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
+                          <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info (Optional)</label>
-                          <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
+                          <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
-                          <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
+                          <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
-                          <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
+                          <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
                         </div>
                       </div>
 
@@ -820,7 +823,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
-                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
                     </div>
@@ -851,7 +854,7 @@ export default function AdminDashboard() {
                     
                     {interceptedOrder === order.id ? (
                       <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
-                        <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-white border border-zinc-300 text-black p-2.5 outline-none text-xs uppercase tracking-widest w-full sm:w-48 placeholder-zinc-400 focus:border-black" />
+                        <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-white border border-zinc-300 text-black p-2.5 outline-none text-base md:text-xs uppercase tracking-widest w-full sm:w-48 placeholder-zinc-400 focus:border-black" />
                         <button onClick={() => confirmShipping(order)} className="bg-black text-white px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors">Confirm</button>
                         <button onClick={() => setInterceptedOrder(null)} className="text-zinc-400 hover:text-red-500 px-2 py-2 text-xs transition-colors">✕</button>
                       </div>
@@ -904,11 +907,11 @@ export default function AdminDashboard() {
                 <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
-                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
+                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
                   </div>
                   <button type="submit" disabled={sendingNewsletter} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
                     {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
@@ -997,7 +1000,7 @@ export default function AdminDashboard() {
                   </div>
                   
                   <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-200 bg-white flex gap-4 shrink-0">
-                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-xs text-black tracking-wide placeholder-zinc-400 rounded-sm transition-colors" />
+                    <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wide placeholder-zinc-400 rounded-sm transition-colors" />
                     <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-black text-white px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-30 rounded-sm">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
                   </form>
                 </>
