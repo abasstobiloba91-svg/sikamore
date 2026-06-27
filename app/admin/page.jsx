@@ -11,27 +11,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// THE BULLETPROOF URL EXTRACTOR: Chops at commas and fixes Capital 'Https'
+// THE ULTIMATE URL MAGNET (V3): Un-glues links that are stuck together!
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
-    // 1. Force the database payload into a flat string
-    let str = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
     
-    // 2. Erase ALL brackets, curly braces, and quotes
-    str = str.replace(/["'\[\]{}]/g, ''); 
+    // THE MAGIC: Force a space in front of every 'http' to break glued links apart
+    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
     
-    // 3. Forcefully split the string wherever there is a comma
-    const urls = str.split(',');
+    // Now extract the cleanly separated links
+    const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
+    if (!matches) return [];
     
-    // 4. Clean up the URLs and fix any Capital 'Https' from iPhones
-    return urls.map(u => {
-      let clean = u.trim();
-      if (clean.toLowerCase().startsWith('http')) {
-        return clean.replace(/^https?/i, 'https');
-      }
-      return clean;
-    }).filter(u => u.startsWith('http'));
+    return matches.map(u => u.toLowerCase().startsWith('http') ? u.replace(/^https?/i, 'https') : u);
   } catch (e) {
     return [];
   }
