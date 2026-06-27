@@ -11,21 +11,19 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// BULLETPROOF EXTRACTOR: Recursively hunts down URLs no matter how the DB formats them
-const extractCleanUrls = (data) => {
-  const urls = [];
-  const traverse = (item) => {
-    if (typeof item === 'string') {
-      const matches = item.match(/https?:\/\/[^\s"'\[\]{}]+/g) || [];
-      matches.forEach(m => urls.push(m.replace(/,+$/, '')));
-    } else if (Array.isArray(item)) {
-      item.forEach(traverse);
-    } else if (typeof item === 'object' && item !== null) {
-      Object.values(item).forEach(traverse);
-    }
-  };
-  traverse(data);
-  return urls;
+// THE TRUE URL MAGNET: Perfectly splits glued comma URLs 
+const extractCleanUrls = (imgPayload) => {
+  if (!imgPayload) return [];
+  try {
+    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
+    
+    // We put the comma ',' back into the stop-list!
+    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{},]+/g);
+    
+    return matches || [];
+  } catch (e) {
+    return [];
+  }
 };
 
 const getPrimaryImage = (imgPayload) => {
