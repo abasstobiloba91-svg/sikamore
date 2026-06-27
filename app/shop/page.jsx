@@ -17,13 +17,15 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE TRUE URL MAGNET: Perfectly splits glued comma URLs 
+// THE ULTIMATE URL MAGNET: Handles commas, arrays, and even capital H in Https!
 const extractCleanUrls = (imgPayload) => {
   if (!imgPayload) return [];
   try {
-    const rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
-    // We put the comma ',' back into the stop-list!
-    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{},]+/g);
+    let rawString = typeof imgPayload === 'string' ? imgPayload : JSON.stringify(imgPayload);
+    // Force commas to become spaces so the links separate perfectly
+    rawString = rawString.replace(/,/g, ' ');
+    // The 'gi' flag makes it case-insensitive to safely catch 'Https://'
+    const matches = rawString.match(/https?:\/\/[^"'\s\[\]{}]+/gi);
     return matches || [];
   } catch (e) {
     return [];
@@ -593,16 +595,6 @@ export default function ShopCatalog() {
                   </div>
                 </div>
                 <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
-                <div className="border-t border-zinc-100 pt-6 mt-4 space-y-2">
-                  {productTabs.map((tab) => (
-                    <div key={tab.id} className="border border-zinc-200 rounded-sm overflow-hidden">
-                      <button type="button" onClick={() => toggleAccordion(tab.id)} className="w-full bg-zinc-50 px-4 py-3 flex justify-between items-center text-[10px] tracking-widest uppercase text-zinc-700 font-medium transition-colors hover:bg-zinc-100">
-                        <span>{tab.title}</span><span className="text-zinc-400">{openAccordion === tab.id ? '—' : '+'}</span>
-                      </button>
-                      {openAccordion === tab.id && <div className="p-5 text-zinc-500 text-[10px] leading-relaxed uppercase tracking-wide bg-white border-t border-zinc-100 whitespace-pre-wrap animate-fade-in">{tab.content}</div>}
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
