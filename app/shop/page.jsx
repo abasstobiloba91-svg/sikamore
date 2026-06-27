@@ -17,35 +17,28 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// THE PERFECT EXTRACTOR: Chops glued links and uses native URL validation to strip invisible ghost characters.
+// THE NATIVE ARRAY EXTRACTOR: Reads the Supabase text[] column directly!
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
-  try {
-    let raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    
-    // Force a space before 'http' to un-glue concatenated strings
-    raw = raw.replace(/(https?:\/\/)/gi, ' $1');
-    
-    // Match everything up until a comma, quote, or bracket
-    const matches = raw.match(/https?:\/\/[^,;"'\s\[\]{}\\]+/gi); 
-    if (!matches) return [];
-    
-    return matches.map(u => {
-      let clean = u.trim();
-      // Ensure strict lowercase 'https'
-      if (clean.toLowerCase().startsWith('http')) {
-        clean = clean.replace(/^https?/i, 'https');
-      }
-      // THE SANITIZER: Pass it through JavaScript's native URL parser to strip hidden encoding bugs
-      try {
-        return new URL(clean).href;
-      } catch (err) {
-        return clean; // Fallback
-      }
-    });
-  } catch (e) {
-    return [];
+  
+  // 1. If Supabase hands us a native Array (which text[] does), just use it!
+  if (Array.isArray(payload)) {
+    return payload.filter(url => typeof url === 'string' && url.includes('http'));
   }
+  
+  // 2. Fallback just in case there are any legacy string entries
+  if (typeof payload === 'string') {
+    try {
+      if (payload.startsWith('[') && payload.endsWith(']')) {
+        const parsed = JSON.parse(payload);
+        if (Array.isArray(parsed)) return parsed.filter(url => typeof url === 'string' && url.includes('http'));
+      }
+    } catch(e) {}
+    const matches = payload.match(/https?:\/\/[^\s"'\[\]{}]+/gi);
+    return matches || [];
+  }
+  
+  return [];
 };
 
 const getPrimaryImage = (imgPayload) => {
@@ -459,7 +452,7 @@ export default function ShopCatalog() {
                   >
                     {gridPrimaryImage ? (
                       <img 
-                        key={gridPrimaryImage} // THE SILVER BULLET: Destroys the broken DOM node
+                        key={gridPrimaryImage}
                         src={gridPrimaryImage} 
                         alt={product.name || 'Product'} 
                         className="absolute inset-0 w-full h-full object-cover" 
@@ -575,7 +568,7 @@ export default function ShopCatalog() {
                 <div className="w-full h-full relative flex items-center justify-center">
                   {extractCleanUrls(quickViewProduct.image)[quickViewImgIndex] && (
                     <img 
-                      key={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} // SILVER BULLET FOR MODAL
+                      key={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       src={extractCleanUrls(quickViewProduct.image)[quickViewImgIndex]} 
                       alt={`${quickViewProduct.name} - Angle View ${quickViewImgIndex + 1}`} 
                       className="absolute inset-0 w-full h-full object-cover animate-fade-in"
