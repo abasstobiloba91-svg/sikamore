@@ -221,7 +221,7 @@ export default function AdminDashboard() {
     showToast('PORTAL LOCKED.');
   };
 
-  // ====================== INVENTORY: DEPLOY NEW (MULTI-IMAGE) ====================== //
+  // ====================== INVENTORY: DEPLOY NEW (SEQUENTIAL UPLOAD FIX) ====================== //
   const addProductRow = () => {
     setProductsList(prev => [...prev, { id: Date.now() + Math.random(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
   };
@@ -262,34 +262,52 @@ export default function AdminDashboard() {
         return showToast(`ERROR: ${detailedError}`);
       }
 
+      showToast('UPLOADING IMAGES SEQUENTIALLY... PLEASE WAIT.');
+
       for (const product of productsList) {
         let imageUrls = [];
         
-        // Concurrently upload all selected files for this product
-        await Promise.all(
-          product.files.map(async (file) => {
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const safeContentType = file.type || `image/jpeg`;
+        // SEQUENTIAL UPLOAD: Processes one by one to prevent mobile network timeouts
+        for (const file of product.files) {
+          const fileExt = file.name.split('.').pop().toLowerCase();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const safeContentType = file.type || `image/jpeg`;
 
-            const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
-            if (uploadError) throw new Error(uploadError.message);
-            
-            const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-            imageUrls.push(data.publicUrl);
-          })
-        );
+          const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { 
+            cacheControl: '3600', 
+            upsert: false, 
+            contentType: safeContentType 
+          });
+          
+          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Connection dropped.");
+          
+          const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+          imageUrls.push(data.publicUrl);
+        }
 
         const { error: dbError } = await supabase.from('products').insert([{ 
-          name: product.name.toUpperCase(), price: parseFloat(product.price), stock_quantity: parseInt(product.stock), description: product.description || null, additional_information: product.additional_information || null, store_policies: product.store_policies || null, inquiries: product.inquiries || null, image: imageUrls, is_sold_out: parseInt(product.stock) <= 0 
+          name: product.name.toUpperCase(), 
+          price: parseFloat(product.price), 
+          stock_quantity: parseInt(product.stock), 
+          description: product.description || null, 
+          additional_information: product.additional_information || null, 
+          store_policies: product.store_policies || null, 
+          inquiries: product.inquiries || null, 
+          image: imageUrls, 
+          is_sold_out: parseInt(product.stock) <= 0 
         }]);
+        
         if (dbError) throw new Error(dbError.message);
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
       setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
       setInventoryMode('manage'); 
-    } catch (error) { showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); } finally { setDisabled(false); }
+    } catch (error) { 
+      showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); 
+    } finally { 
+      setDisabled(false); 
+    }
   };
 
   const handleDeleteProduct = async (id) => {
@@ -322,24 +340,29 @@ export default function AdminDashboard() {
     setIsUpdating(true);
 
     try {
-      // Gracefully handle older products that had a single string instead of an array
       let finalImageUrls = Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean);
 
       if (editFiles.length > 0) {
-        finalImageUrls = []; // Clear old images if new ones are uploaded
-        await Promise.all(
-          editFiles.map(async (file) => {
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const safeContentType = file.type || `image/jpeg`;
+        finalImageUrls = []; 
+        showToast('UPDATING IMAGES SEQUENTIALLY... PLEASE WAIT.');
 
-            const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: safeContentType });
-            if (uploadError) throw new Error(uploadError.message);
-            
-            const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-            finalImageUrls.push(data.publicUrl);
-          })
-        );
+        // SEQUENTIAL UPLOAD FOR EDITS TO PREVENT TIMEOUTS
+        for (const file of editFiles) {
+          const fileExt = file.name.split('.').pop().toLowerCase();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const safeContentType = file.type || `image/jpeg`;
+
+          const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file, { 
+            cacheControl: '3600', 
+            upsert: false, 
+            contentType: safeContentType 
+          });
+          
+          if (uploadError) throw new Error(uploadError.message || "Failed to upload image. Connection dropped.");
+          
+          const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+          finalImageUrls.push(data.publicUrl);
+        }
       }
 
       const { error: dbError } = await supabase.from('products').update({
@@ -699,7 +722,7 @@ export default function AdminDashboard() {
                           <div className="flex gap-2">
                             {editPreviews.length > 0 
                               ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>) 
-                              : (Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean)).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
+                              : (Array.isArray(editingProduct.image) ? editingProduct.image : [editingProduct.image].filter(Boolean)).map((p, i) => <img key={i} src={getPrimaryImage(p)} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current"/>)
                             }
                           </div>
                           <div className="flex-1">
