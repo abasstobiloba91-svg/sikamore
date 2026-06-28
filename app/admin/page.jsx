@@ -390,7 +390,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
+ const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
       const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
@@ -401,10 +401,16 @@ export default function AdminDashboard() {
       setDeliveryDays('');
 
       if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
+        // DYNAMIC REGIONAL CURRENCY MATRIX
+        const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+        const orderCurrency = orderData.currency || 'NGN';
+        const symbol = currencySymbols[orderCurrency] || '$';
+        const decimalPlaces = orderCurrency === 'NGN' ? 0 : 2;
+
         const itemsHtml = orderData.items.map(i => `
           <tr>
             <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #E5E5E5;">${i.name.toUpperCase()} (${i.size}) x${i.quantity}</td>
-            <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">₦${(i.price * i.quantity).toLocaleString()}</td>
+            <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">${symbol}${(i.price * i.quantity).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}</td>
           </tr>
         `).join('');
         
@@ -427,11 +433,11 @@ export default function AdminDashboard() {
                 <tr><td align="center">
                   <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
                     <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h2></td></tr>
-                    <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; height:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
+                    <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; hEIGHT:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
                     <tr><td style="font-size:10px; color:#A3A3A3; text-align:center; padding-bottom:30px; tracking:0.1em; line-height:2.0;">${statusMessage}</td></tr>
                     <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; margin-bottom:20px;"><span style="font-size:8px; color:#A3A3A3; display:block; margin-bottom:5px;">ORDER TRACKING STAMP</span><span style="font-size:10px; color:#FFFFFF; font-family:monospace;">#${orderId.toUpperCase()}</span></td></tr>
                     <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
-                    <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>AGGREGATE TOTAL</td><td align="right" style="font-family:monospace;">₦${orderData.total_amount?.toLocaleString()}</td></tr></table></td></tr>
+                    <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>AGGREGATE TOTAL</td><td align="right" style="font-family:monospace;">${symbol}${orderData.total_amount?.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}</td></tr></table></td></tr>
                     <tr><td align="center" style="padding-top:50px; border-top:1px solid #1A1A1A; margin-top:40px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.2em;">S. SIKAMÒRE COLLECTIVES © 2026</p></td></tr>
                   </table>
                 </td></tr>
@@ -549,7 +555,7 @@ export default function AdminDashboard() {
         <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
           <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:60px 10px;">
             <tr><td align="center">
-              <table width="520" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1A1A1A; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+              <table width="522" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1A1A1A; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
                 <tr><td align="right" style="padding-bottom:15px;"><a href="https://ssikamore.com/shop" style="color:#525252; text-decoration:none; font-size:7.5px; tracking:0.2em;">VIEW IN BROWSER</a></td></tr>
                 <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:18px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h1></td></tr>
                 <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">${newsletterSubj.toUpperCase()}</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
