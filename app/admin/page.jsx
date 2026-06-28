@@ -646,7 +646,7 @@ export default function AdminDashboard() {
           </div>
           <h1 className="text-2xl font-normal tracking-[0.4em] uppercase mb-2 font-serif text-black">S. SIKAMÒRE</h1>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-8">
-            {['inventory', 'tracker', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
+            {['inventory', 'tracker', 'logistics', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[9px] tracking-[0.2em] uppercase transition-colors border ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black'}`}>
                 {tab}
               </button>
@@ -1091,7 +1091,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
+       {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1147,8 +1147,3 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-
-      </div>
-    </div>
-  );
-}
