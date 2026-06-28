@@ -304,44 +304,19 @@ export default function ShopCatalog() {
   };
 
 const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR NEAREST BUS STOP OR LANDMARK.");
+    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR COMPLETE DELIVERY ADDRESS.");
     setIsCalculating(true);
     try {
-      let finalFee = 0;
-      let zoneLabel = "";
-      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
-
-      // 1. Fetch Admin live toggle controls
-      const { data: rules } = await supabase.from('shipping_settings').select('*').limit(1).single();
-      
-      const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
-      const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
-      const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
-      const isInternationalFree = rules ? rules.international_free : true;
-
-      // 2. INTERNATIONAL SHIPPING DYNAMICS (Free shipping retail psychology!)
-      if (detectedCountryCode !== 'NG') {
-        finalFee = isInternationalFree ? 0 : (55 / exchangeRates['USD']); 
-        zoneLabel = isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`;
-        
-        if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
-        else if (isEuropeanUser) autoCurrency = 'EUR';
-        
-        setDeliveryFee(finalFee);
-        setDeliveryZone(zoneLabel);
-        if (autoCurrency !== currency) setCurrency(autoCurrency);
-        setIsCalculating(false);
-        showToast(isInternationalFree ? "Complimentary Shipping Applied." : `Dispatch Logged: ${zoneLabel}`);
-        return;
-      }
-
-      // 3. NIGERIAN SHIPPING DYNAMICS
-      showToast("SCANNING REGIONAL NETWORKS...");
+      showToast("VALIDATING SHIPPING DESTINATION...");
       
       const res = await fetch('/api/shipping-calc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: deliveryAddress }),
+        body: JSON.stringify({ 
+          address: deliveryAddress,
+          countryCode: detectedCountryCode,
+          countryName: detectedCountryName
+        }),
       });
 
       let data;
@@ -351,50 +326,79 @@ const calculateLiveDelivery = async () => {
         throw new Error("SYSTEM ROUTE MISSING.");
       }
 
-      // Live fallback system uses database metrics instead of old hardcoded figures
+      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
+      if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
+      else if (isEuropeanUser) autoCurrency = 'EUR';
+
+      // THE ULTIMATE GLOBAL FAILSAFE
       if (!data.success) {
-        let fallbackFee = mainlandRate;
-        let fallbackZone = "Lagos Mainland Flat Rate";
-        const lowerAddress = deliveryAddress.toLowerCase();
+        if (detectedCountryCode !== 'NG') {
+          // International Safety Net: If strict validation fails, accept their literal string so we NEVER block a global buyer's cash
+          const { data: rules } = await supabase.from('shipping_settings').select('international_free').limit(1).single();
+          const isFree = rules ? rules.international_free : true;
+          const fallbackFee = isFree ? 0 : (55 * usdToNgnRate);
+          
+          setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
+          setDeliveryFee(fallbackFee);
+          setDeliveryZone(isFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+          if (autoCurrency !== currency) setCurrency(autoCurrency);
+          showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
+          return;
+        } else {
+          // Nigerian Safety Net
+          const { data: rules } = await supabase.from('shipping_settings').select('*').limit(1).single();
+          const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
+          const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
+          const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
+          
+          let fallbackFee = mainlandRate;
+          let fallbackZone = "Lagos Mainland Flat Rate";
+          const lowerAddress = deliveryAddress.toLowerCase();
 
-        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ajah') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria')) {
-          fallbackFee = islandRate;
-          fallbackZone = "Lagos Island Flat Rate";
-        } else if (lowerAddress.includes('abuja') || lowerAddress.includes('port harcourt') || lowerAddress.includes('state') || lowerAddress.includes('delta')) {
-          fallbackFee = interstateRate;
-          fallbackZone = "Interstate Flat Rate";
+          if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ajah') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria')) {
+            fallbackFee = islandRate;
+            fallbackZone = "Lagos Island Flat Rate";
+          } else if (lowerAddress.includes('abuja') || lowerAddress.includes('port harcourt') || lowerAddress.includes('state') || lowerAddress.includes('delta')) {
+            fallbackFee = interstateRate;
+            fallbackZone = "Interstate Flat Rate";
+          }
+
+          setDeliveryAddress(deliveryAddress.toUpperCase() + " (ESTIMATED)");
+          setDeliveryFee(fallbackFee);
+          setDeliveryZone(fallbackZone);
+          if (autoCurrency !== currency) setCurrency(autoCurrency);
+          showToast(`EXACT ROUTE UNKNOWN. APPLIED ₦${fallbackFee.toLocaleString()} RATE.`);
+          return;
         }
-
-        setDeliveryAddress(deliveryAddress.toUpperCase() + " (ESTIMATED)");
-        setDeliveryFee(fallbackFee);
-        setDeliveryZone(fallbackZone);
-        if (autoCurrency !== currency) setCurrency(autoCurrency);
-        showToast(`EXACT ROUTE UNKNOWN. APPLIED ₦${fallbackFee.toLocaleString()} RATE.`);
-        return;
       }
 
-      const dist = data.distanceKm || 15;
-      const fee = data.shippingFee || mainlandRate;
-
-      if (dist <= 30) {
-        zoneLabel = `Lagos Mainland Dispatch (${dist}km)`;
-      } else if (dist <= 65) {
-        zoneLabel = `Lagos Island Dispatch (${dist}km)`;
+      // SATELLITE LOOKUP SUCCESSFUL
+      setDeliveryAddress(data.matchedAddress); // Auto-corrects text into pristine official global formatting
+      setDeliveryFee(data.shippingFee);
+      
+      if (data.isInternational) {
+        const { data: rules } = await supabase.from('shipping_settings').select('international_free').limit(1).single();
+        const isFree = rules ? rules.international_free : true;
+        setDeliveryZone(isFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+        showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
       } else {
-        zoneLabel = `Interstate Freight Delivery (${dist}km)`;
+        const dist = data.distanceKm || 15;
+        if (dist <= 30) {
+          setDeliveryZone(`Lagos Mainland Dispatch (${dist}km)`);
+        } else if (dist <= 65) {
+          setDeliveryZone(`Lagos Island Dispatch (${dist}km)`);
+        } else {
+          setDeliveryZone(`Interstate Freight Delivery (${dist}km)`);
+        }
+        showToast(`Route Calculated: ${dist}km layout validated.`);
       }
 
-      setDeliveryAddress(data.matchedAddress); 
-      setDeliveryFee(fee);
-      setDeliveryZone(zoneLabel);
       if (autoCurrency !== currency) setCurrency(autoCurrency);
 
-      showToast(`Route Calculated: ${dist}km layout validated.`);
-
     } catch (err) {
-      setDeliveryFee(5000);
-      setDeliveryZone("Lagos Delivery (Estimated)");
-      showToast("CONNECTION ERROR. APPLIED STANDARD RATE.");
+      setDeliveryFee(detectedCountryCode === 'NG' ? 5000 : 0);
+      setDeliveryZone(detectedCountryCode === 'NG' ? "Lagos Delivery (Estimated)" : "Complimentary Premium Dispatch");
+      showToast("CONNECTION TIMEOUT. STANDARD PROTOCOL ENGAGED.");
     } finally {
       setIsCalculating(false);
     }
