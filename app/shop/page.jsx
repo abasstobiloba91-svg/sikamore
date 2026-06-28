@@ -289,11 +289,19 @@ const calculateLiveDelivery = async () => {
       let zoneLabel = "";
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
 
-      // 1. INTERNATIONAL FLAT RATE
+      // 1. Fetch Admin live toggle controls
+      const { data: rules } = await supabase.from('shipping_settings').select('*').limit(1).single();
+      
+      const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
+      const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
+      const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
+      const isInternationalFree = rules ? rules.international_free : true;
+
+      // 2. INTERNATIONAL SHIPPING DYNAMICS (Free shipping retail psychology!)
       if (detectedCountryCode !== 'NG') {
-        const internationalBaseFee = 55 / exchangeRates['USD']; 
-        finalFee = internationalBaseFee; 
-        zoneLabel = `International Delivery (${detectedCountryName})`;
+        finalFee = isInternationalFree ? 0 : (55 / exchangeRates['USD']); 
+        zoneLabel = isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`;
+        
         if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
         else if (isEuropeanUser) autoCurrency = 'EUR';
         
@@ -301,11 +309,11 @@ const calculateLiveDelivery = async () => {
         setDeliveryZone(zoneLabel);
         if (autoCurrency !== currency) setCurrency(autoCurrency);
         setIsCalculating(false);
-        showToast(`Dispatch Logged: ${zoneLabel}`);
+        showToast(isInternationalFree ? "Complimentary Shipping Applied." : `Dispatch Logged: ${zoneLabel}`);
         return;
       }
 
-      // 2. NIGERIAN DYNAMIC API ROUTING
+      // 3. NIGERIAN SHIPPING DYNAMICS
       showToast("SCANNING REGIONAL NETWORKS...");
       
       const res = await fetch('/api/shipping-calc', {
@@ -318,31 +326,53 @@ const calculateLiveDelivery = async () => {
       try {
         data = await res.json();
       } catch (parseError) {
-        throw new Error("SYSTEM ROUTE MISSING. PLEASE ENSURE API FILE WAS CREATED.");
+        throw new Error("SYSTEM ROUTE MISSING.");
       }
 
+      // Live fallback system uses database metrics instead of old hardcoded figures
       if (!data.success) {
-        throw new Error(data.error || "LOCATION NOT FOUND. TRY A MAJOR BUS STOP OR CITY.");
+        let fallbackFee = mainlandRate;
+        let fallbackZone = "Lagos Mainland Flat Rate";
+        const lowerAddress = deliveryAddress.toLowerCase();
+
+        if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ajah') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria')) {
+          fallbackFee = islandRate;
+          fallbackZone = "Lagos Island Flat Rate";
+        } else if (lowerAddress.includes('abuja') || lowerAddress.includes('port harcourt') || lowerAddress.includes('state') || lowerAddress.includes('delta')) {
+          fallbackFee = interstateRate;
+          fallbackZone = "Interstate Flat Rate";
+        }
+
+        setDeliveryAddress(deliveryAddress.toUpperCase() + " (ESTIMATED)");
+        setDeliveryFee(fallbackFee);
+        setDeliveryZone(fallbackZone);
+        if (autoCurrency !== currency) setCurrency(autoCurrency);
+        showToast(`EXACT ROUTE UNKNOWN. APPLIED ₦${fallbackFee.toLocaleString()} RATE.`);
+        return;
       }
 
-      if (data.distanceKm < 30) {
-        zoneLabel = `Lagos Dispatch (${data.distanceKm}km)`;
+      const dist = data.distanceKm || 15;
+      const fee = data.shippingFee || mainlandRate;
+
+      if (dist <= 30) {
+        zoneLabel = `Lagos Mainland Dispatch (${dist}km)`;
+      } else if (dist <= 65) {
+        zoneLabel = `Lagos Island Dispatch (${dist}km)`;
       } else {
-        zoneLabel = `Regional Freight Delivery (${data.distanceKm}km)`;
+        zoneLabel = `Interstate Freight Delivery (${dist}km)`;
       }
 
-      // Unlocks the UI and updates the final Uber-style calculated fee
       setDeliveryAddress(data.matchedAddress); 
-      setDeliveryFee(data.shippingFee);
+      setDeliveryFee(fee);
       setDeliveryZone(zoneLabel);
       if (autoCurrency !== currency) setCurrency(autoCurrency);
 
-      showToast(`Route Calculated: ${data.distanceKm}km layout validated.`);
+      showToast(`Route Calculated: ${dist}km layout validated.`);
 
     } catch (err) {
-      showToast(err.message || "LOCATION NOT FOUND. SPECIFY YOUR NEAREST BUS STOP OR LANDMARK.");
-      setDeliveryFee(0);
-      setDeliveryZone('');
+      setDeliveryFee(5000);
+      setDeliveryZone("Lagos Delivery (Estimated)");
+      showToast("CONNECTION ERROR. APPLIED STANDARD RATE.");
     } finally {
       setIsCalculating(false);
     }
