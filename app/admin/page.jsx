@@ -11,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// FOR PREVIEWS/EDITS: Separates the messy backend string
+// FOR PREVIEWS/EDITS: Clean separation engine
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -23,7 +23,7 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// FOR THE GRID (YOUR BRUTE FORCE IDEA): Snatches ONLY the first valid image
+// THE BRUTE FORCE IMAGE EXTRACTOR: Grabs ONLY the first clean link
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
   try {
@@ -374,7 +374,7 @@ export default function AdminDashboard() {
 
       if (dbError) throw new Error(dbError.message);
 
-      showToast("PRODUCT UPDATED SUCCESSFULLY.");
+      showToast("PRODUCT EXPEDITION SUCCESSFUL.");
       setEditingProduct(null);
       setEditFiles([]);
       setEditPreviews([]);
@@ -898,6 +898,57 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* --- TAB: REAL-TIME LOGISTICS CONTROLS --- */}
+        {activeTab === 'logistics' && (
+          <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
+            <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Logistics Strategy Matrix</h3>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const mainFee = parseFloat(e.target.mainland.value);
+                const islFee = parseFloat(e.target.island.value);
+                const interFee = parseFloat(e.target.interstate.value);
+                const isFree = e.target.intFree.checked;
+
+                const { error } = await supabase
+                  .from('shipping_settings')
+                  .update({ mainland_fee: mainFee, island_fee: islFee, interstate_fee: interFee, international_free: isFree })
+                  .eq('id', 1);
+
+                if (error) throw error;
+                showToast("LOGISTICS CONFIGURATION DEPLOYED SUCCESSFULLY.");
+              } catch (err) {
+                showToast("MUTATION ERROR: COULD NOT DEPLOY RATES.");
+              }
+            }} className="space-y-6">
+              <div>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Mainland Dispatch Rate (₦)</label>
+                <input type="number" name="mainland" defaultValue={5000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+              </div>
+              <div>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Island / Deep Outskirts Rate (₦)</label>
+                <input type="number" name="island" defaultValue={8000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+              </div>
+              <div>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Interstate Freight Waybill Rate (₦)</label>
+                <input type="number" name="interstate" defaultValue={20000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+              </div>
+              
+              <div className="flex items-center gap-3 pt-2 pb-4 border-t border-b border-zinc-100">
+                <input type="checkbox" name="intFree" id="intFree" defaultChecked={true} className="w-4 h-4 accent-black cursor-pointer" />
+                <label htmlFor="intFree" className="text-[9px] tracking-[0.15em] uppercase text-zinc-600 font-medium cursor-pointer select-none">
+                  Activate Psychology Trick: Show Free Shipping for International Orders
+                </label>
+              </div>
+
+              <button type="submit" className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium transition-colors rounded-sm">
+                Commit & Save Parameters
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* --- TAB 3: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER --- */}
         {activeTab === 'newsletter' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
@@ -1091,7 +1142,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-       {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
+        {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1147,3 +1198,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+      </div>
+    </div>
+  );
+}
