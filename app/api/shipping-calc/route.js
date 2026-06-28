@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// Coordinates for Ikeja, Lagos (Your Business Base Hub)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const IKEJA_LAT = 6.5920;
 const IKEJA_LON = 3.3422;
 
-// Haversine Formula: Calculates absolute distance across the Earth's curve in KM
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in kilometers
+  const R = 6371; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   
@@ -15,7 +18,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Returns distance in Kilometers
+  return R * c; 
 }
 
 export async function POST(request) {
@@ -23,10 +26,22 @@ export async function POST(request) {
     const { address } = await request.json();
 
     if (!address || address.trim() === '') {
-      return NextResponse.json({ error: 'Address is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Address is required' });
     }
 
-    // Append "Nigeria" to ensure the satellite searches only within the country
+    // 1. Fetch live admin rules from database directory
+    const { data: settings } = await supabase
+      .from('shipping_settings')
+      .select('*')
+      .order('id', { ascending: true })
+      .limit(1)
+      .single();
+
+    // Secure fallback defaults if database query fails
+    const mainland = settings ? parseFloat(settings.mainland_fee) : 5000;
+    const island = settings ? parseFloat(settings.island_fee) : 8000;
+    const interstate = settings ? parseFloat(settings.interstate_fee) : 20000;
+
     const searchQuery = `${address}, Nigeria`;
     const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
 
@@ -39,53 +54,39 @@ export async function POST(request) {
 
     const data = await response.json();
 
-    if (!data || data.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Location not recognized. Please try a major Bus Stop or City.' 
-      });
+    if (!data || !Array.isArray(data) || data.length === 0 || !data.lat) {
+      return NextResponse.json({ success: false, error: 'Location not recognized.' });
     }
 
-    // Extract latitude and longitude of the buyer's destination
     const destinationLat = parseFloat(data.lat);
     const destinationLon = parseFloat(data.lon);
 
-    // Calculate straight-line distance from Ikeja
-    const straightLineDistance = calculateDistance(IKEJA_LAT, IKEJA_LON, destinationLat, destinationLon);
+    if (isNaN(destinationLat) || isNaN(destinationLon)) {
+        return NextResponse.json({ success: false, error: 'Coordinate mapping failed.' });
+    }
 
-    // --- UBER / INDRIVE DYNAMIC PRICING ALGORITHM ---
-    
-    // Satellites measure straight through buildings. Cars have to navigate roads.
-    // We multiply by 1.4 to convert satellite distance into accurate driving distance.
+    const straightLineDistance = calculateDistance(IKEJA_LAT, IKEJA_LON, destinationLat, destinationLon);
     const estimatedDrivingDistance = straightLineDistance * 1.4; 
     
-    const BASE_FARE = 1500;   // The fixed cost to initiate a dispatch rider
-    const PRICE_PER_KM = 200; // ₦200 per kilometer driven
-    
-    let shippingFee = BASE_FARE + (estimatedDrivingDistance * PRICE_PER_KM);
+    // 2. Compute dynamic fees based on admin's live parameters
+    let shippingFee = 0;
 
-    // FAILSAFE: We cap the distance at 100km for the "Uber" style. 
-    // If a customer orders from Abuja or Kano, a per-kilometer rider fee would be ₦150,000! 
-    // For interstate orders (over 100km away), we switch to standard interstate waybill flat rates.
-    if (estimatedDrivingDistance > 100) {
-       if (estimatedDrivingDistance < 300) shippingFee = 5500;      // South West Interstate
-       else if (estimatedDrivingDistance < 600) shippingFee = 7500; // East / South South
-       else shippingFee = 9500;                                     // Far North
+    if (estimatedDrivingDistance <= 30) {
+       shippingFee = mainland;
+    } else if (estimatedDrivingDistance <= 65) {
+       shippingFee = island;
     } else {
-       // Ensure there is a minimum delivery fee for extremely close places (e.g. 1km away)
-       if (shippingFee < 2500) shippingFee = 2500;
+       shippingFee = interstate;
     }
 
     return NextResponse.json({
       success: true,
-      distanceKm: Math.round(estimatedDrivingDistance),
-      // We round the final fee to the nearest 100 Naira so it looks clean (e.g., ₦3,400 instead of ₦3,432)
-      shippingFee: Math.round(shippingFee / 100) * 100, 
+      distanceKm: Math.round(estimatedDrivingDistance) || 15, 
+      shippingFee: shippingFee, 
       matchedAddress: data.display_name
     });
 
   } catch (error) {
-    console.error('Shipping calculation error:', error);
-    return NextResponse.json({ error: 'Internal calculation breakdown' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal breakdown.' });
   }
 }
