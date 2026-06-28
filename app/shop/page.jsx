@@ -579,7 +579,7 @@ const calculateLiveDelivery = async () => {
         </div>
       </footer>
 
-      {/* 1. NEWSLETTER POPUP */}
+   {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
@@ -587,7 +587,8 @@ const calculateLiveDelivery = async () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              <img src={products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+              {/* FIX: Targets index 0 to pull the image from the latest product entry */}
+              <img src={products && products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
