@@ -23,27 +23,34 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 export async function POST(request) {
   try {
-    const { address } = await request.json();
+    const { address, countryCode, countryName } = await request.json();
 
     if (!address || address.trim() === '') {
       return NextResponse.json({ success: false, error: 'Address is required' });
     }
 
+    const isInternational = countryCode && countryCode.toUpperCase() !== 'NG';
+
     // 1. Fetch live admin rules from database directory
     const { data: settings } = await supabase
       .from('shipping_settings')
       .select('*')
-      .order('id', { ascending: true })
-      .limit(1)
+      .eq('id', 1)
       .single();
 
-    // Secure fallback defaults if database query fails
     const mainland = settings ? parseFloat(settings.mainland_fee) : 5000;
     const island = settings ? parseFloat(settings.island_fee) : 8000;
     const interstate = settings ? parseFloat(settings.interstate_fee) : 20000;
+    const isInternationalFree = settings ? settings.international_free : true;
+    const usdToNgnRate = settings ? parseFloat(settings.usd_to_ngn_rate) : 1500;
 
-    const searchQuery = `${address}, Nigeria`;
-    const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+    let geoUrl = '';
+    if (isInternational) {
+      // SATELLITE RULE: Restrict search strictly to their geographical country code parameter
+      geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=${countryCode.toLowerCase()}&limit=1`;
+    } else {
+      geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}, Nigeria&limit=1`;
+    }
 
     const response = await fetch(geoUrl, {
       headers: {
@@ -55,9 +62,28 @@ export async function POST(request) {
     const data = await response.json();
 
     if (!data || !Array.isArray(data) || data.length === 0 || !data.lat) {
-      return NextResponse.json({ success: false, error: 'Location not recognized.' });
+      return NextResponse.json({ 
+        success: false, 
+        error: isInternational 
+          ? `COULD NOT VERIFY LOCATION INSIDE ${countryName?.toUpperCase()}. PLEASE CHECK POSTAL CODE.`
+          : 'LOCATION NOT RECOGNIZED.' 
+      });
     }
 
+    // 2. INTERNATIONAL SHORT-CIRCUIT
+    if (isInternational) {
+      // Computes international fee in Naira to sync with shop component currency filters
+      const intFeeInNgn = isInternationalFree ? 0 : (55 * usdToNgnRate);
+      return NextResponse.json({
+        success: true,
+        isInternational: true,
+        distanceKm: 0,
+        shippingFee: intFeeInNgn,
+        matchedAddress: data.display_name // Returns the pristine global address layout
+      });
+    }
+
+    // 3. DOMESTIC NIGERIAN CALCULATION MATRIX
     const destinationLat = parseFloat(data.lat);
     const destinationLon = parseFloat(data.lon);
 
@@ -68,9 +94,7 @@ export async function POST(request) {
     const straightLineDistance = calculateDistance(IKEJA_LAT, IKEJA_LON, destinationLat, destinationLon);
     const estimatedDrivingDistance = straightLineDistance * 1.4; 
     
-    // 2. Compute dynamic fees based on admin's live parameters
     let shippingFee = 0;
-
     if (estimatedDrivingDistance <= 30) {
        shippingFee = mainland;
     } else if (estimatedDrivingDistance <= 65) {
@@ -81,6 +105,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
+      isInternational: false,
       distanceKm: Math.round(estimatedDrivingDistance) || 15, 
       shippingFee: shippingFee, 
       matchedAddress: data.display_name
