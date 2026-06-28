@@ -63,6 +63,7 @@ export default function AdminDashboard() {
   const [vendors, setVendors] = useState([]);
   const [vendorOrders, setVendorOrders] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
+  const [logisticsSettings, setLogisticsSettings] = useState(null);
   
   const [activeVendor, setActiveVendor] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
@@ -96,6 +97,10 @@ export default function AdminDashboard() {
       try {
         const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
         if (oData) setOrders(oData);
+      } catch(e){}
+      try {
+        const { data: lData } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
+        if (lData) setLogisticsSettings(lData);
       } catch(e){}
 
       try {
@@ -898,57 +903,89 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB: REAL-TIME LOGISTICS CONTROLS --- */}
+      {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
         {activeTab === 'logistics' && (
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
-            <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Logistics Strategy Matrix</h3>
+            <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Global Logistics & Currency Matrix</h3>
             
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                const mainFee = parseFloat(e.target.mainland.value);
-                const islFee = parseFloat(e.target.island.value);
-                const interFee = parseFloat(e.target.interstate.value);
-                const isFree = e.target.intFree.checked;
+            <form 
+              key={logisticsSettings?.updated_at || 'loading'} 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const mainFee = parseFloat(e.target.mainland.value);
+                  const islFee = parseFloat(e.target.island.value);
+                  const interFee = parseFloat(e.target.interstate.value);
+                  const dynamicUsdRate = parseFloat(e.target.usdRate.value);
+                  const isFree = e.target.intFree.checked;
 
-                const { error } = await supabase
-                  .from('shipping_settings')
-                  .update({ mainland_fee: mainFee, island_fee: islFee, interstate_fee: interFee, international_free: isFree })
-                  .eq('id', 1);
+                  const { error } = await supabase
+                    .from('shipping_settings')
+                    .update({ 
+                      mainland_fee: mainFee, 
+                      island_fee: islFee, 
+                      interstate_fee: interFee, 
+                      international_free: isFree,
+                      usd_to_ngn_rate: dynamicUsdRate,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', 1);
 
-                if (error) throw error;
-                showToast("LOGISTICS CONFIGURATION DEPLOYED SUCCESSFULLY.");
-              } catch (err) {
-                showToast("MUTATION ERROR: COULD NOT DEPLOY RATES.");
-              }
-            }} className="space-y-6">
-              <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Mainland Dispatch Rate (₦)</label>
-                <input type="number" name="mainland" defaultValue={5000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  if (error) throw error;
+                  
+                  setLogisticsSettings({ 
+                    mainland_fee: mainFee, 
+                    island_fee: islFee, 
+                    interstate_fee: interFee, 
+                    international_free: isFree,
+                    usd_to_ngn_rate: dynamicUsdRate
+                  });
+                  
+                  showToast("GLOBAL RATES & CONVERSION FACTORS DEPLOYED LIVE.");
+                } catch (err) {
+                  showToast("MUTATION ERROR: MASTER LEDGER PUSH FAILED.");
+                }
+              }} 
+              className="space-y-6"
+            >
+              <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-sm space-y-4">
+                <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— International Currency Director —</span>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
+                  <input type="number" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" placeholder="e.g. 1500" />
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Adjusts how product prices scale into Dollars, Pounds, and Euros for global visitors.</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Island / Deep Outskirts Rate (₦)</label>
-                <input type="number" name="island" defaultValue={8000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
-              </div>
-              <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Interstate Freight Waybill Rate (₦)</label>
-                <input type="number" name="interstate" defaultValue={20000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+
+              <div className="space-y-4 pt-4">
+                <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— Domestic Freight Delivery Directories —</span>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Mainland Dispatch Rate (₦)</label>
+                  <input type="number" name="mainland" defaultValue={logisticsSettings?.mainland_fee || 5000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                </div>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Island / Deep Outskirts Rate (₦)</label>
+                  <input type="number" name="island" defaultValue={logisticsSettings?.island_fee || 8000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                </div>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Interstate Freight Waybill Rate (₦)</label>
+                  <input type="number" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 20000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                </div>
               </div>
               
-              <div className="flex items-center gap-3 pt-2 pb-4 border-t border-b border-zinc-100">
-                <input type="checkbox" name="intFree" id="intFree" defaultChecked={true} className="w-4 h-4 accent-black cursor-pointer" />
+              <div className="flex items-center gap-3 pt-4 pb-4 border-t border-b border-zinc-100">
+                <input type="checkbox" name="intFree" id="intFree" defaultChecked={logisticsSettings?.international_free ?? true} className="w-4 h-4 accent-black cursor-pointer" />
                 <label htmlFor="intFree" className="text-[9px] tracking-[0.15em] uppercase text-zinc-600 font-medium cursor-pointer select-none">
                   Activate Psychology Trick: Show Free Shipping for International Orders
                 </label>
               </div>
 
-              <button type="submit" className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium transition-colors rounded-sm">
+              <button type="submit" className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-bold transition-colors rounded-sm shadow-md">
                 Commit & Save Parameters
               </button>
             </form>
           </div>
         )}
-
         {/* --- TAB 3: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER --- */}
         {activeTab === 'newsletter' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
