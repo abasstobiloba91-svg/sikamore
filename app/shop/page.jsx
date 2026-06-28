@@ -11,7 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const exchangeRates = { NGN: 1, USD: 1 / 1360, GBP: 1 / 1820, EUR: 1 / 1570 };
 const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 
 const ATELIER_LONG = 3.4215;
@@ -43,6 +42,19 @@ const getPrimaryImage = (payload) => {
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
+  const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+
+  useEffect(() => {
+    async function loadDynamicExchangeRate() {
+      try {
+        const { data } = await supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single();
+        if (data && data.usd_to_ngn_rate) {
+          setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+        }
+      } catch (e) {}
+    }
+    loadDynamicExchangeRate();
+  }, []);
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
@@ -93,9 +105,18 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  const formatPrice = (ngnPrice, isShipping = false) => {
+ const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    const rate = exchangeRates[currency] || 1;
+    
+    // Dynamically computes international pricing bands relative to the admin's live dollar rate
+    const dynamicExchangeRates = { 
+      NGN: 1, 
+      USD: 1 / usdToNgnRate, 
+      GBP: 1 / (usdToNgnRate * 1.32), // cross rate calculations
+      EUR: 1 / (usdToNgnRate * 1.12) 
+    };
+    
+    const rate = dynamicExchangeRates[currency] || 1;
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
     const converted = Number(ngnPrice) * markupRate * rate;
     if (isNaN(converted)) return '';
@@ -103,10 +124,11 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getDisplayTotal = () => {
+ const getDisplayTotal = () => {
+    const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
-    const productsConverted = cartSubtotal * markupRate * (exchangeRates[currency] || 1);
-    const shippingConverted = deliveryFee * 1.0 * (exchangeRates[currency] || 1);
+    const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
+    const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
