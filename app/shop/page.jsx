@@ -603,7 +603,6 @@ const calculateLiveDelivery = async () => {
           </div>
         </div>
       )}
-
       {/* 2. SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
