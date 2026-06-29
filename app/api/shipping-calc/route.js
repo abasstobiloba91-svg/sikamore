@@ -38,11 +38,13 @@ export async function POST(request) {
       .eq('id', 1)
       .single();
 
+    // Secure fallback defaults if database query is momentarily delayed
     const mainland = settings ? parseFloat(settings.mainland_fee) : 5000;
     const island = settings ? parseFloat(settings.island_fee) : 8000;
     const interstate = settings ? parseFloat(settings.interstate_fee) : 20000;
     const isInternationalFree = settings ? settings.international_free : true;
     const usdToNgnRate = settings ? parseFloat(settings.usd_to_ngn_rate) : 1500;
+    const liveUsdFee = settings && settings.international_fee ? parseFloat(settings.international_fee) : 55;
 
     let geoUrl = '';
     if (isInternational) {
@@ -65,15 +67,16 @@ export async function POST(request) {
       return NextResponse.json({ 
         success: false, 
         error: isInternational 
-          ? `COULD NOT VERIFY LOCATION INSIDE ${countryName?.toUpperCase()}. PLEASE CHECK POSTAL CODE.`
+          ? `COULD NOT VERIFY LOCATION INSIDE ${countryName?.toUpperCase() || 'YOUR REGION'}. PLEASE CHECK POSTAL CODE.`
           : 'LOCATION NOT RECOGNIZED.' 
       });
     }
 
     // 2. INTERNATIONAL SHORT-CIRCUIT
     if (isInternational) {
-      // Computes international fee in Naira to sync with shop component currency filters
-      const intFeeInNgn = isInternationalFree ? 0 : (55 * usdToNgnRate);
+      // Computes international fee in Naira to sync flawlessly with the shop component's frontend currency filters
+      const intFeeInNgn = isInternationalFree ? 0 : (liveUsdFee * usdToNgnRate);
+      
       return NextResponse.json({
         success: true,
         isInternational: true,
