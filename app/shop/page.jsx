@@ -586,9 +586,30 @@ const calculateLiveDelivery = async () => {
             <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-100 relative shrink-0">
-              {/* FIX: Targets index 0 to pull the image from the latest product entry */}
-              <img src={products && products.length > 0 ? getPrimaryImage(products.image) : ''} alt="Join the Community" className="w-full h-full object-cover" />
+            <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-950 relative shrink-0 flex items-center justify-center">
+              
+              {/* THE ULTIMATE OBJECT BRUTE-FORCE: Scans the entire first object tree for image parameters */}
+              {products && products.length > 0 && (() => {
+                try {
+                  const rawProductDump = JSON.stringify(products);
+                  const match = rawProductDump.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
+                  const parsedUrl = match ? match : '';
+                  
+                  return parsedUrl ? (
+                    <img src={parsedUrl} alt="Sikamore Curated Acquisition" className="w-full h-full object-cover animate-fade-in" />
+                  ) : (
+                    <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Atelier</div>
+                  );
+                } catch (e) {
+                  return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Atelier</div>;
+                }
+              })()}
+              
+              {/* TIMING SHIELD: Renders an elegant luxury loader if network streams are delayed */}
+              {(!products || products.length === 0) && (
+                <div className="text-zinc-400 text-[8px] tracking-[0.3em] uppercase font-light animate-pulse">Loading Atelier Archives...</div>
+              )}
+
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
