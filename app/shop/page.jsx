@@ -45,7 +45,7 @@ export default function ShopCatalog() {
 const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
 
-  // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
+// --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
   const [internationalFee, setInternationalFee] = useState(55);
@@ -55,6 +55,7 @@ const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
+  // ... rest of your standard states stay right here
 
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
