@@ -909,7 +909,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-      {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
+     {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
         {activeTab === 'logistics' && (
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
             <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Global Logistics & Currency Matrix</h3>
@@ -923,6 +923,7 @@ export default function AdminDashboard() {
                   const islFee = parseFloat(e.target.island.value);
                   const interFee = parseFloat(e.target.interstate.value);
                   const dynamicUsdRate = parseFloat(e.target.usdRate.value);
+                  const customMarkup = parseFloat(e.target.intlMarkup.value);
                   const isFree = e.target.intFree.checked;
 
                   const { error } = await supabase
@@ -933,6 +934,7 @@ export default function AdminDashboard() {
                       interstate_fee: interFee, 
                       international_free: isFree,
                       usd_to_ngn_rate: dynamicUsdRate,
+                      intl_markup_multiplier: customMarkup,
                       updated_at: new Date().toISOString()
                     })
                     .eq('id', 1);
@@ -944,22 +946,30 @@ export default function AdminDashboard() {
                     island_fee: islFee, 
                     interstate_fee: interFee, 
                     international_free: isFree,
-                    usd_to_ngn_rate: dynamicUsdRate
+                    usd_to_ngn_rate: dynamicUsdRate,
+                    intl_markup_multiplier: customMarkup
                   });
                   
-                  showToast("GLOBAL RATES & CONVERSION FACTORS DEPLOYED LIVE.");
+                  showToast("GLOBAL RATES & MARKUPS DEPLOYED LIVE.");
                 } catch (err) {
                   showToast("MUTATION ERROR: MASTER LEDGER PUSH FAILED.");
                 }
               }} 
               className="space-y-6"
             >
-              <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-sm space-y-4">
+              <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-sm space-y-6">
                 <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— International Currency Director —</span>
+                
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
-                  <input type="number" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" placeholder="e.g. 1500" />
-                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Adjusts how product prices scale into Dollars, Pounds, and Euros for global visitors.</p>
+                  <input type="number" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Adjusts the fundamental conversion factor for global visitors.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">International Pricing Premium Multiplier (x)</label>
+                  <input type="number" step="0.1" name="intlMarkup" defaultValue={logisticsSettings?.intl_markup_multiplier || 1.5} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the premium inflation multiplier for international buyers (e.g., 1.5 means a 50% price markup to cover foreign card processing and hidden export operations).</p>
                 </div>
               </div>
 
@@ -992,28 +1002,6 @@ export default function AdminDashboard() {
             </form>
           </div>
         )}
-        {/* --- TAB 3: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER --- */}
-        {activeTab === 'newsletter' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            <div className="lg:col-span-2 bg-white text-black p-6 sm:p-8 border border-zinc-200 shadow-sm flex flex-col justify-between rounded-sm">
-              <div>
-                <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Create Registry Broadcast</h3>
-                <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
-                  <div>
-                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
-                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
-                  </div>
-                  <div>
-                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
-                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
-                  </div>
-                  <button type="submit" disabled={sendingNewsletter} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
-                    {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
-                  </button>
-                </form>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-6">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
                 <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Active Registry Size</span>
