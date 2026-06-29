@@ -45,18 +45,13 @@ export default function ShopCatalog() {
 const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
 
-  useEffect(() => {
-    async function loadDynamicExchangeRate() {
-      try {
-        const { data } = await supabase.from('shipping_settings').select('usd_to_ngn_rate, intl_markup_multiplier').eq('id', 1).single();
-        if (data) {
-          if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
-          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
-        }
-      } catch (e) {}
-    }
-    loadDynamicExchangeRate();
-  }, []);
+  // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
+  const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
+  const [internationalFee, setInternationalFee] = useState(55);
+  const [isInternationalFree, setIsInternationalFree] = useState(true);
+
+  // --- 2. STANDARD STOREFRONT CORE STATES ---
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
@@ -87,6 +82,38 @@ const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
   const [tickerIndex, setTickerIndex] = useState(0);
+
+  // --- 3. REAL-TIME MULTI-CURRENCY & LOGISTICS POSTGRES PIPELINE ---
+  useEffect(() => {
+    async function loadMasterLogistics() {
+      try {
+        const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
+        if (data) {
+          if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
+          if (data.international_fee) setInternationalFee(parseFloat(data.international_fee));
+          setIsInternationalFree(data.international_free);
+        }
+      } catch (e) {}
+    }
+    loadMasterLogistics();
+
+    // Live WebSocket connection catches pricing variations instantly without page updates
+    const logisticsLiveChannel = supabase.channel('realtime_logistics_flux')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shipping_settings', filter: 'id=eq.1' }, (payload) => {
+        const updatedMatrix = payload.new;
+        if (updatedMatrix.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(updatedMatrix.usd_to_ngn_rate));
+        if (updatedMatrix.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(updatedMatrix.intl_markup_multiplier));
+        if (updatedMatrix.international_fee) setInternationalFee(parseFloat(updatedMatrix.international_fee));
+        setIsInternationalFree(updatedMatrix.international_free);
+        showToast("LOGISTICS ENGINE UPDATED LIVE BY ATELIER.");
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(logisticsLiveChannel);
+    };
+  }, []);
 
   const announcements = [
     "JOIN OUR CIRCLE TO RECEIVE AMAZING UPDATES",
@@ -126,11 +153,22 @@ const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
- const getDisplayTotal = () => {
+const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
+    
+    // Aggregate product value subtotal with markup multiplier applied
     const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
-    const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
+    
+    // Shipping calculation wrapper
+    let shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
+    
+    // RETAIL PSYCHOLOGY CORE: If the admin hides the fee line but wants it charged, we bake the fee directly into the aggregated total sum!
+    if (detectedCountryCode !== 'NG' && isInternationalFree) {
+      const hiddenShippingNgnValue = internationalFee * usdToNgnRate;
+      shippingConverted = hiddenShippingNgnValue * (dynamicExchangeRates[currency] || 1);
+    }
+
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -332,23 +370,18 @@ const calculateLiveDelivery = async () => {
       if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
       else if (isEuropeanUser) autoCurrency = 'EUR';
 
-      // THE ULTIMATE GLOBAL FAILSAFE
+      // THE ULTIMATE GLOBAL FAILSAFE CRASH PROTOCOLS
       if (!data.success) {
         if (detectedCountryCode !== 'NG') {
-          // International Safety Net: If strict validation fails, accept their literal string so we NEVER block a global buyer's cash
-          const { data: rules } = await supabase.from('shipping_settings').select('international_free').limit(1).single();
-          const isFree = rules ? rules.international_free : true;
-          const fallbackFee = isFree ? 0 : (55 * usdToNgnRate);
-          
+          const fallbackFee = isInternationalFree ? 0 : (internationalFee * usdToNgnRate);
           setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
           setDeliveryFee(fallbackFee);
-          setDeliveryZone(isFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+          setDeliveryZone(isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
           if (autoCurrency !== currency) setCurrency(autoCurrency);
           showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
           return;
         } else {
-          // Nigerian Safety Net
-          const { data: rules } = await supabase.from('shipping_settings').select('*').limit(1).single();
+          const { data: rules } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
           const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
           const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
           const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
@@ -375,13 +408,11 @@ const calculateLiveDelivery = async () => {
       }
 
       // SATELLITE LOOKUP SUCCESSFUL
-      setDeliveryAddress(data.matchedAddress); // Auto-corrects text into pristine official global formatting
+      setDeliveryAddress(data.matchedAddress); 
       setDeliveryFee(data.shippingFee);
       
       if (data.isInternational) {
-        const { data: rules } = await supabase.from('shipping_settings').select('international_free').limit(1).single();
-        const isFree = rules ? rules.international_free : true;
-        setDeliveryZone(isFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+        setDeliveryZone(isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
         showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
       } else {
         const dist = data.distanceKm || 15;
