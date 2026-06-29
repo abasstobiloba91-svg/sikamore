@@ -42,14 +42,16 @@ const getPrimaryImage = (payload) => {
 
 export default function ShopCatalog() {
   const [products, setProducts] = useState([]);
-  const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
 
   useEffect(() => {
     async function loadDynamicExchangeRate() {
       try {
-        const { data } = await supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single();
-        if (data && data.usd_to_ngn_rate) {
-          setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+        const { data } = await supabase.from('shipping_settings').select('usd_to_ngn_rate, intl_markup_multiplier').eq('id', 1).single();
+        if (data) {
+          if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
         }
       } catch (e) {}
     }
@@ -117,7 +119,7 @@ export default function ShopCatalog() {
     };
     
     const rate = dynamicExchangeRates[currency] || 1;
-    const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : 1.5;
+    const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : intlMarkupMultiplier;
     const converted = Number(ngnPrice) * markupRate * rate;
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
@@ -126,7 +128,7 @@ export default function ShopCatalog() {
 
  const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    const markupRate = detectedCountryCode === 'NG' ? 1.0 : 1.5;
+    const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
     const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
     const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     const combinedTotal = productsConverted + shippingConverted;
