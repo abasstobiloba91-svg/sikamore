@@ -41,11 +41,7 @@ const getPrimaryImage = (payload) => {
 };
 
 export default function ShopCatalog() {
-  const [products, setProducts] = useState([]);
-const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
-  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
-
-// --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
+  // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
   const [internationalFee, setInternationalFee] = useState(55);
@@ -55,7 +51,6 @@ const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
-  // ... rest of your standard states stay right here
 
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
@@ -99,7 +94,6 @@ const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
     }
     loadMasterLogistics();
 
-    // Live WebSocket connection catches pricing variations instantly without page updates
     const logisticsLiveChannel = supabase.channel('realtime_logistics_flux')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shipping_settings', filter: 'id=eq.1' }, (payload) => {
         const updatedMatrix = payload.new;
