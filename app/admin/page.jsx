@@ -909,7 +909,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 3: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
+        {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
         {activeTab === 'logistics' && (
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
             <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Global Logistics & Currency Matrix</h3>
@@ -924,6 +924,7 @@ export default function AdminDashboard() {
                   const interFee = parseFloat(e.target.interstate.value);
                   const dynamicUsdRate = parseFloat(e.target.usdRate.value);
                   const customMarkup = parseFloat(e.target.intlMarkup.value);
+                  const internationalShippingUSD = parseFloat(e.target.intlShippingUSD.value);
                   const isFree = e.target.intFree.checked;
 
                   const { error } = await supabase
@@ -935,6 +936,7 @@ export default function AdminDashboard() {
                       international_free: isFree,
                       usd_to_ngn_rate: dynamicUsdRate,
                       intl_markup_multiplier: customMarkup,
+                      international_fee: internationalShippingUSD,
                       updated_at: new Date().toISOString()
                     })
                     .eq('id', 1);
@@ -947,10 +949,12 @@ export default function AdminDashboard() {
                     interstate_fee: interFee, 
                     international_free: isFree,
                     usd_to_ngn_rate: dynamicUsdRate,
-                    intl_markup_multiplier: customMarkup
+                    intl_markup_multiplier: customMarkup,
+                    international_fee: internationalShippingUSD,
+                    updated_at: new Date().toISOString()
                   });
                   
-                  showToast("GLOBAL RATES & MARKUPS DEPLOYED LIVE.");
+                  showToast("GLOBAL LOGISTICS CONFIGURATION BROADCASTED LIVE.");
                 } catch (err) {
                   showToast("MUTATION ERROR: MASTER LEDGER PUSH FAILED.");
                 }
@@ -958,7 +962,7 @@ export default function AdminDashboard() {
               className="space-y-6"
             >
               <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-sm space-y-6">
-                <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— International Currency Director —</span>
+                <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— International Currency & Price Director —</span>
                 
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
@@ -969,7 +973,13 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">International Pricing Premium Multiplier (x)</label>
                   <input type="number" step="0.1" name="intlMarkup" defaultValue={logisticsSettings?.intl_markup_multiplier || 1.5} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
-                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the premium inflation multiplier for international buyers (e.g., 1.5 means a 50% price markup).</p>
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the baseline premium inflation markup for international buyers.</p>
+                </div>
+
+                <div className="pt-2 border-t border-zinc-200">
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Global International Shipping Fee ($ USD)</label>
+                  <input type="number" name="intlShippingUSD" defaultValue={logisticsSettings?.international_fee || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Specify the shipping rate directly in Dollars. The checkout engine automatically re-calculates this into Pounds (£) or Euros (€) for users in those zones based on your set exchange rate parameters.</p>
                 </div>
               </div>
 
@@ -989,11 +999,14 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 pt-4 pb-4 border-t border-b border-zinc-100">
-                <input type="checkbox" name="intFree" id="intFree" defaultChecked={logisticsSettings?.international_free ?? true} className="w-4 h-4 accent-black cursor-pointer" />
-                <label htmlFor="intFree" className="text-[9px] tracking-[0.15em] uppercase text-zinc-600 font-medium cursor-pointer select-none">
-                  Activate Psychology Trick: Show Free Shipping for International Orders
-                </label>
+              <div className="flex flex-col gap-2 pt-4 pb-4 border-t border-b border-zinc-100">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" name="intFree" id="intFree" defaultChecked={logisticsSettings?.international_free ?? true} className="w-4 h-4 accent-black cursor-pointer" />
+                  <label htmlFor="intFree" className="text-[9px] tracking-[0.15em] uppercase text-zinc-600 font-bold cursor-pointer select-none">
+                    Hide international shipping line item & bake fee value directly into total sum
+                  </label>
+                </div>
+                <p className="text-[8px] text-zinc-400 normal-case pl-7 italic">When checked, international users see "Complimentary Premium Dispatch ($0.00)" on their screen, but the shipping fee you defined above is seamlessly added into their final total balance anyway.</p>
               </div>
 
               <button type="submit" className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-bold transition-colors rounded-sm shadow-md">
