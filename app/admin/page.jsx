@@ -1002,6 +1002,7 @@ export default function AdminDashboard() {
             </form>
           </div>
         )}
+        
             <div className="flex flex-col gap-6">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
                 <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Active Registry Size</span>
@@ -1009,7 +1010,7 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-zinc-50 text-black border border-zinc-200 p-6 flex-1 overflow-y-auto max-h-[360px] rounded-sm shadow-sm">
                 <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-200 pb-2 mb-4 font-medium">Broadcast Dispatch Log</h4>
-                {campaigns.length === 0 ? (
+                {campaiguns.length === 0 ? (
                   <p className="text-[8px] text-zinc-400 uppercase tracking-widest text-center py-6">No historical dispatches found.</p>
                 ) : (
                   <div className="space-y-4">
