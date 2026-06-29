@@ -49,6 +49,7 @@ export default function ShopCatalog() {
 
   // --- 2. STANDARD STOREFRONT CORE STATES ---
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]); // <--- ADD THIS EXACT LINE BACK!
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
 
