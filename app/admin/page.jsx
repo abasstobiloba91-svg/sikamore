@@ -23,7 +23,7 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// THE BRUTE FORCE IMAGE EXTRACTOR: Grabs ONLY the first clean link
+// THE BRUTE FORCE IMAGE EXTRACTOR: Grabs ONLY the first clean link string
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
   try {
@@ -390,7 +390,7 @@ export default function AdminDashboard() {
     }
   };
 
- const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
+  const handleUpdateOrderStatus = async (orderId, currentStatus, estDelivery = null, orderData = null) => {
     try {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
       const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
                 <tr><td align="center">
                   <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
                     <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h2></td></tr>
-                    <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; hEIGHT:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
+                    <tr><td align="center" style="padding:40px 0 10px 0;"><h3 style="color:#FFFFFF; font-size:13px; tracking:0.25em; margin:0;">${statusHeader}</h3><div style="width:30px; height:1px; background:#FFFFFF; margin:15px auto;"></div></td></tr>
                     <tr><td style="font-size:10px; color:#A3A3A3; text-align:center; padding-bottom:30px; tracking:0.1em; line-height:2.0;">${statusMessage}</td></tr>
                     <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; margin-bottom:20px;"><span style="font-size:8px; color:#A3A3A3; display:block; margin-bottom:5px;">ORDER TRACKING STAMP</span><span style="font-size:10px; color:#FFFFFF; font-family:monospace;">#${orderId.toUpperCase()}</span></td></tr>
                     <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px; border-collapse:collapse;">${itemsHtml}</table></td></tr>
@@ -909,7 +909,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-     {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
+        {/* --- TAB 3: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
         {activeTab === 'logistics' && (
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
             <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Global Logistics & Currency Matrix</h3>
@@ -969,7 +969,7 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">International Pricing Premium Multiplier (x)</label>
                   <input type="number" step="0.1" name="intlMarkup" defaultValue={logisticsSettings?.intl_markup_multiplier || 1.5} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
-                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the premium inflation multiplier for international buyers (e.g., 1.5 means a 50% price markup to cover foreign card processing and hidden export operations).</p>
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the premium inflation multiplier for international buyers (e.g., 1.5 means a 50% price markup).</p>
                 </div>
               </div>
 
@@ -1002,7 +1002,29 @@ export default function AdminDashboard() {
             </form>
           </div>
         )}
-        
+
+        {/* --- TAB 4: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER & REGISTRY --- */}
+        {activeTab === 'newsletter' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+            <div className="lg:col-span-2 bg-white text-black p-6 sm:p-8 border border-zinc-200 shadow-sm flex flex-col justify-between rounded-sm">
+              <div>
+                <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Create Registry Broadcast</h3>
+                <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
+                  <div>
+                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
+                    <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Editorial Content</label>
+                    <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
+                  </div>
+                  <button type="submit" disabled={sendingNewsletter} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
+                    {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
+                  </button>
+                </form>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-6">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
                 <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Active Registry Size</span>
@@ -1010,7 +1032,7 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-zinc-50 text-black border border-zinc-200 p-6 flex-1 overflow-y-auto max-h-[360px] rounded-sm shadow-sm">
                 <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-200 pb-2 mb-4 font-medium">Broadcast Dispatch Log</h4>
-                {campaiguns.length === 0 ? (
+                {campaigns.length === 0 ? (
                   <p className="text-[8px] text-zinc-400 uppercase tracking-widest text-center py-6">No historical dispatches found.</p>
                 ) : (
                   <div className="space-y-4">
@@ -1027,7 +1049,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 4: LIVE CUSTOMER CONCIERGE CHAT SUPPORT --- */}
+        {/* --- TAB 5: LIVE CUSTOMER CONCIERGE CHAT SUPPORT --- */}
         {activeTab === 'support' && (
           <div className="bg-white text-black p-0 flex flex-col md:flex-row h-[600px] border border-zinc-200 shadow-sm animate-fade-in relative overflow-hidden rounded-sm">
             
@@ -1096,7 +1118,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 5: VENDOR LEDGER --- */}
+        {/* --- TAB 6: VENDOR LEDGER --- */}
         {activeTab === 'vendors' && (
           <div className="bg-white text-black border border-zinc-200 shadow-sm flex flex-col md:flex-row h-[600px] animate-fade-in rounded-sm overflow-hidden">
             <div className="w-full md:w-1/3 border-r border-zinc-200 bg-zinc-50 overflow-y-auto h-full">
@@ -1174,7 +1196,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 6: REAL-TIME ANALYTICS --- */}
+        {/* --- TAB 7: REAL-TIME ANALYTICS --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
