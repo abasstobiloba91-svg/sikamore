@@ -18,7 +18,7 @@ const getPrimaryImage = (payload) => {
     const raw = JSON.stringify(payload);
     // Brutally snatches ONLY the first valid image it finds and ignores the rest
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-    return match ? match : '';
+    return match ? match[0] : '';
   } catch (e) {
     return '';
   }
@@ -49,25 +49,36 @@ export default function Dashboard() {
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchSecureSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const profile = {
-          name: session.user.user_metadata?.name || 'VALUED CLIENT',
-          email: session.user.email,
-          address: session.user.user_metadata?.address || ''
-        };
-        setUserProfile(profile);
-        setAddressInput(profile.address);
-      } else {
-        const localUser = localStorage.getItem('sikamore_user_profile');
-        if (localUser) {
-          setUserProfile(JSON.parse(localUser));
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const profile = {
+            name: session.user.user_metadata?.name || 'VALUED CLIENT',
+            email: session.user.email,
+            address: session.user.user_metadata?.address || ''
+          };
+          setUserProfile(profile);
+          setAddressInput(profile.address);
         } else {
-          window.location.href = '/shop';
+          // Fallback to local storage if strict session hook drops
+          const localUser = localStorage.getItem('sikamore_user_profile');
+          if (localUser) {
+            const parsedProfile = JSON.parse(localUser);
+            setUserProfile(parsedProfile);
+            setAddressInput(parsedProfile.address || '');
+          } else {
+            // Kick them back to the shop if completely unauthorized
+            window.location.href = '/shop';
+          }
         }
+      } catch (e) {
+        window.location.href = '/shop';
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchSecureSession();
@@ -307,6 +318,11 @@ export default function Dashboard() {
       if (error) throw error;
       userProfile.address = addressInput;
       setUserProfile({ ...userProfile });
+      
+      // Update local storage so data persists across refreshes
+      const localStore = JSON.parse(localStorage.getItem('sikamore_user_profile')) || {};
+      localStorage.setItem('sikamore_user_profile', JSON.stringify({ ...localStore, address: addressInput }));
+      
       setIsEditingAddress(false);
       showToast('ADDRESS BOOK REGISTRY SAVED.');
     } catch (err) {
@@ -330,6 +346,14 @@ export default function Dashboard() {
     }
     return [{ sender: 'user', text: activeChat.message || 'Ticket Opened', timestamp: activeChat.created_at || new Date().toISOString() }];
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans antialiased">
+        <p className="text-[9px] tracking-[0.3em] uppercase text-zinc-400 animate-pulse">Verifying Access Matrix...</p>
+      </div>
+    );
+  }
 
   if (!userProfile) return null;
 
@@ -402,7 +426,6 @@ export default function Dashboard() {
                 {wishlist.map((item) => (
                   <div key={item.id} className="group flex flex-col relative bg-white border border-zinc-100 p-2 shadow-sm">
                     <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative flex items-center justify-center rounded-sm">
-                      {/* WRAPPED ITEM IMAGE IN EXTRACTOR TO FIX BUG */}
                       <img key={getPrimaryImage(item.image)} src={getPrimaryImage(item.image)} alt={item.name} className="w-full h-full object-cover" />
                       <button onClick={() => toggleWishlist(item)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 z-10 bg-white/80 p-1.5 rounded-full backdrop-blur-sm shadow-sm">✕</button>
                     </div>
