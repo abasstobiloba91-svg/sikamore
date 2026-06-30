@@ -231,7 +231,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // 4. INITIATE CHECKOUT (Pre-Payment Gateway)
+ // 4. INITIATE CHECKOUT (Pre-Payment Gateway)
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
@@ -239,17 +239,22 @@ export default function CheckoutPage() {
 
     setIsProcessing(true);
 
-    // Auth Fallback execution
+    // BULLETPROOF PROFILE CREATION (Bypasses state delays)
     try {
       if (password.trim().length >= 6) {
-        if (accountStatus === 'new') {
+        // 1. Always attempt to sign them in first
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase().trim(),
+          password: password
+        });
+        
+        // 2. If sign-in fails (meaning they are truly a brand new user), force the profile creation instantly
+        if (signInError) {
           await supabase.auth.signUp({
             email: email.toLowerCase().trim(),
             password: password,
-            options: { data: { first_name: firstName, last_name: lastName, phone: phone, address: address, name: `${firstName} ${lastName}` } }
+            options: { data: { first_name: firstName, last_name: lastName, phone: phone, address: address, name: `${firstName} ${lastName}`.trim().toUpperCase() } }
           });
-        } else if (accountStatus === 'exists') {
-          await supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password: password });
         }
       }
     } catch (err) {
@@ -263,6 +268,7 @@ export default function CheckoutPage() {
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
         amount: Math.round(orderTotal * 100), 
+        currency: currency, // CRITICAL FIX: Forces Paystack to charge in exact USD/GBP/EUR instead of defaulting to Naira!
         reference: `SKM_${new Date().getTime().toString()}`,
         onSuccess: (transaction) => {
           finalizeOrderDatabase(transaction);
