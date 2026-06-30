@@ -12,12 +12,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const exchangeRates = { NGN: 1, USD: 1 / 1360, GBP: 1 / 1820, EUR: 1 / 1570 };
 const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart, showToast } = useApp();
+
+  // DYNAMIC PRICING STATES
+  const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
+  const [internationalFee, setInternationalFee] = useState(55);
+  const [isInternationalFree, setIsInternationalFree] = useState(true);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +43,7 @@ export default function CheckoutPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState('');
 
-  // 1. INJECT SECURE PAYSTACK INLINE SDK
+  // 1. INJECT SECURE PAYSTACK INLINE SDK & LOAD MASTER SETTINGS
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!window.PaystackPop) {
@@ -51,6 +56,19 @@ export default function CheckoutPage() {
         setIsScriptLoaded(true);
       }
     }
+
+    async function loadMasterLogistics() {
+      try {
+        const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
+        if (data) {
+          if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
+          if (data.international_fee) setInternationalFee(parseFloat(data.international_fee));
+          setIsInternationalFree(data.international_free);
+        }
+      } catch (e) {}
+    }
+    loadMasterLogistics();
   }, []);
 
   // 2. HYDRATION & SESSION MANAGEMENT
@@ -90,20 +108,35 @@ export default function CheckoutPage() {
     return () => clearTimeout(timeout);
   }, [cart, router, address, isSuccess]);
 
-  const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const shippingFee = deliveryData?.fee || 0; 
-  const orderTotal = cartSubtotal + shippingFee;
+  // MATH CORE: Perfectly syncs with Shop component
+  const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const shippingFeeNgn = deliveryData?.fee || 0; 
+  const isInternational = deliveryData?.countryCode && deliveryData.countryCode !== 'NG';
+  const markupRate = isInternational ? intlMarkupMultiplier : 1.0;
+  
+  const getDynamicExchangeRate = () => {
+    const rates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
+    return rates[currency] || 1;
+  };
 
-  const formatPrice = (amount) => {
-    const converted = amount * exchangeRates[currency];
-    if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
-    return `${currencySymbols[currency]}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const finalConvertedSubtotal = cartSubtotalNgn * markupRate * getDynamicExchangeRate();
+  let finalConvertedShipping = shippingFeeNgn * 1.0 * getDynamicExchangeRate();
+
+  if (isInternational && isInternationalFree) {
+    const hiddenShippingNgnValue = internationalFee * usdToNgnRate;
+    finalConvertedShipping = hiddenShippingNgnValue * getDynamicExchangeRate();
+  }
+
+  const finalNumericTotal = finalConvertedSubtotal + finalConvertedShipping;
+
+  const displayFormat = (amount) => {
+    if (currency === 'NGN') return `₦${Math.round(amount).toLocaleString()}`;
+    return `${currencySymbols[currency] || '$'}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const handleEmailCheck = async (e) => {
     const inputEmail = e.target.value;
     setEmail(inputEmail);
-    
     if (accountStatus === 'logged_in') return;
     if (inputEmail.includes('@') && inputEmail.includes('.')) {
       setIsScanningEmail(true);
@@ -132,14 +165,13 @@ export default function CheckoutPage() {
     try {
       showToast('PAYMENT SECURED. VERIFYING LEDGER...');
 
-      // A. Insert to DB (Auto-UUID, skipping schema error columns)
       const customerFullName = `${firstName} ${lastName}`.trim().toUpperCase();
       const { data: orderData, error: dbError } = await supabase.from('orders').insert([{
         customer_name: customerFullName,
         customer_email: email.toLowerCase().trim(),
         customer_phone: phone,
         shipping_address: address.toUpperCase(),
-        total_amount: orderTotal,
+        total_amount: cartSubtotalNgn + shippingFeeNgn, // Keep DB record in raw base value for local accounting
         items: cart,
         status: 'pending',
         payment_reference: transaction.reference
@@ -147,16 +179,17 @@ export default function CheckoutPage() {
 
       if (dbError) throw dbError;
 
-      // Capture and slice the auto-generated UUID
       const orderRefStamp = orderData.id.slice(0, 8).toUpperCase();
 
-      // B. Format HTML Emails
-      const orderItemsHtml = cart.map(i => `
+      // Email formatting upgraded to show the exact currency the user paid in!
+      const orderItemsHtml = cart.map(i => {
+        const itemConverted = i.price * markupRate * getDynamicExchangeRate();
+        return `
         <tr>
           <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #E5E5E5; text-transform: uppercase;">${i.name.toUpperCase()} (${i.size}) x${i.quantity}</td>
-          <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">₦${(i.price * i.quantity).toLocaleString()}</td>
+          <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">${displayFormat(itemConverted * i.quantity)}</td>
         </tr>
-      `).join('');
+      `}).join('');
 
       const buildEmailPayload = (statusHeader, isManagementLink = false) => `
         <!DOCTYPE html><html><head><meta charset="utf-8"></head>
@@ -181,17 +214,15 @@ export default function CheckoutPage() {
                 <tr><td style="padding:24px; background-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0;">${address.toUpperCase()}</td></tr>
                 
                 <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px; border-collapse:collapse;">${orderItemsHtml}</table></td></tr>
-                <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>TOTAL FUNDS REMITTED</td><td align="right" style="font-family:monospace;">₦${orderTotal.toLocaleString()}</td></tr></table></td></tr>
+                <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>TOTAL FUNDS REMITTED</td><td align="right" style="font-family:monospace;">${displayFormat(finalNumericTotal)}</td></tr></table></td></tr>
                 
                 <tr><td align="center" style="padding-top:40px;"><a href="${isManagementLink ? 'https://ssikamore.com/admin' : 'https://ssikamore.com/dashboard'}" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 30px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">${isManagementLink ? 'OPEN MANAGEMENT CONSOLE' : 'VIEW PRIVATE CONSOLE'}</a></td></tr>
-                <tr><td align="center" style="padding-top:50px; border-top:1px solid #1A1A1A; margin-top:40px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.2em;">S. SIKAMÒRE AUTOMATION DIRECTIVE © 2026</p></td></tr>
               </table>
             </td></tr>
           </table>
         </body></html>
       `;
 
-      // C. Concurrent Dispatch Emails
       await Promise.all([
         fetch('/api/send', {
           method: 'POST',
@@ -200,7 +231,7 @@ export default function CheckoutPage() {
             to: 'hello@ssikamore.com',
             fromEmail: 'shipping@ssikamore.com',
             fromName: 'S. SIKAMÒRE AUTOMATION',
-            subject: `NEW ORDER SECURED: #${orderRefStamp} (₦${orderTotal.toLocaleString()})`,
+            subject: `NEW ORDER SECURED: #${orderRefStamp} (${displayFormat(finalNumericTotal)})`,
             html: buildEmailPayload('NEW ACQUISITION SECURELY LOGGED', true)
           })
         }),
@@ -217,7 +248,6 @@ export default function CheckoutPage() {
         })
       ]).catch(e => console.error("Email pipeline delay:", e));
 
-      // D. Transition to Success View
       localStorage.removeItem('sikamore_delivery');
       setGeneratedOrderId(orderRefStamp);
       setIsSuccess(true);
@@ -231,7 +261,7 @@ export default function CheckoutPage() {
     }
   };
 
- // 4. INITIATE CHECKOUT (Pre-Payment Gateway)
+  // 4. INITIATE CHECKOUT (Pre-Payment Gateway)
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
@@ -239,16 +269,13 @@ export default function CheckoutPage() {
 
     setIsProcessing(true);
 
-    // BULLETPROOF PROFILE CREATION (Bypasses state delays)
     try {
       if (password.trim().length >= 6) {
-        // 1. Always attempt to sign them in first
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.toLowerCase().trim(),
           password: password
         });
         
-        // 2. If sign-in fails (meaning they are truly a brand new user), force the profile creation instantly
         if (signInError) {
           await supabase.auth.signUp({
             email: email.toLowerCase().trim(),
@@ -264,11 +291,12 @@ export default function CheckoutPage() {
     try {
       showToast('LAUNCHING SECURE PAYMENT COHORT...');
       const paystack = new window.PaystackPop();
+      
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
-        amount: Math.round(orderTotal * 100), 
-        currency: currency, // CRITICAL FIX: Forces Paystack to charge in exact USD/GBP/EUR instead of defaulting to Naira!
+        amount: Math.round(finalNumericTotal * 100), // PERFECTLY CONVERTED MATH FIX
+        currency: currency, // CHARGES EXACT DOLLARS, POUNDS OR EUROS
         reference: `SKM_${new Date().getTime().toString()}`,
         onSuccess: (transaction) => {
           finalizeOrderDatabase(transaction);
@@ -284,7 +312,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // VIEWS
   if (!isHydrated) {
     return (
       <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans uppercase tracking-[0.3em] text-[9px]">
@@ -328,13 +355,10 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         
-        {/* LEFT COLUMN: CLIENT DATA ENTRY */}
         <form onSubmit={handleCheckoutProcess} className="lg:col-span-7 space-y-10 bg-white border border-zinc-200 p-6 sm:p-10 rounded-sm shadow-sm">
-          
           <section>
             <h2 className="text-xs font-medium tracking-[0.25em] uppercase text-black border-b border-zinc-100 pb-3 mb-6">Digital Identity</h2>
             <div className="space-y-4 relative">
-              {/* text-base prevents iOS zoom */}
               <input type="email" value={email} onChange={handleEmailCheck} disabled={accountStatus === 'logged_in'} placeholder="EMAIL ADDRESS" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest disabled:opacity-50 transition-colors" />
               {isScanningEmail && <span className="absolute right-4 top-4 text-[9px] text-zinc-400 uppercase tracking-widest animate-pulse">Scanning Profile...</span>}
               
@@ -397,17 +421,18 @@ export default function CheckoutPage() {
           </section>
 
           <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
-            {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : `CONFIRM ACQUISITION • ${formatPrice(orderTotal)}`}
+            {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : `CONFIRM ACQUISITION • ${displayFormat(finalNumericTotal)}`}
           </button>
         </form>
 
-        {/* RIGHT COLUMN: MANIFEST SUMMARY */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 rounded-sm shadow-xl">
             <h3 className="text-[10px] tracking-[0.25em] uppercase font-medium border-b border-zinc-800 pb-3 mb-6 text-zinc-400">Acquisition Manifest</h3>
             
             <div className="divide-y divide-zinc-900 overflow-y-auto max-h-[260px] pr-2 mb-6">
-              {cart.map((item, idx) => (
+              {cart.map((item, idx) => {
+                const itemConverted = item.price * markupRate * getDynamicExchangeRate();
+                return (
                 <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                   <div className="w-14 h-20 bg-[#111] shrink-0 border border-zinc-800 overflow-hidden rounded-xs">
                     {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
@@ -419,25 +444,25 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-zinc-400 font-mono">Qty: {item.quantity}</span>
-                      <span className="font-mono text-zinc-200">{formatPrice(item.price * item.quantity)}</span>
+                      <span className="font-mono text-zinc-200">{displayFormat(itemConverted * item.quantity)}</span>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             <div className="border-t border-zinc-900 pt-5 space-y-2.5 text-[10px] tracking-widest uppercase text-zinc-500">
               <div className="flex justify-between">
                 <span>Items Subtotal:</span>
-                <span className="font-mono text-zinc-300">{formatPrice(cartSubtotal)}</span>
+                <span className="font-mono text-zinc-300">{displayFormat(finalConvertedSubtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Logistics Routing Fee:</span>
-                <span className="font-mono text-zinc-300">{shippingFee > 0 ? formatPrice(shippingFee) : 'FREE REF'}</span>
+                <span className="font-mono text-zinc-300">{isInternational && isInternationalFree ? 'COMPLIMENTARY' : (shippingFeeNgn > 0 ? displayFormat(finalConvertedShipping) : 'FREE REF')}</span>
               </div>
               <div className="flex justify-between font-bold text-white text-xs pt-4 border-t border-zinc-800 mt-4">
                 <span>Aggregate Total:</span>
-                <span className="font-mono text-white text-[13px]">{formatPrice(orderTotal)}</span>
+                <span className="font-mono text-white text-[13px]">{displayFormat(finalNumericTotal)}</span>
               </div>
             </div>
           </div>
