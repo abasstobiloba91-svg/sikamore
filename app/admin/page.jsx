@@ -967,7 +967,7 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
                   <input type="number" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
-                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Adjusts the fundamental conversion factor for global visitors.</p>
+                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Enter your desired conversion rate.</p>
                 </div>
 
                 <div>
