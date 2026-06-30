@@ -153,23 +153,16 @@ const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
     
-    // Aggregate product value subtotal with markup multiplier applied
     const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
+    const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     
-    // Shipping calculation wrapper
-    let shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
-    
-    // RETAIL PSYCHOLOGY CORE: If the admin hides the fee line but wants it charged, we bake the fee directly into the aggregated total sum!
-    if (detectedCountryCode !== 'NG' && isInternationalFree) {
-      const hiddenShippingNgnValue = internationalFee * usdToNgnRate;
-      shippingConverted = hiddenShippingNgnValue * (dynamicExchangeRates[currency] || 1);
-    }
-
+    // Honest Math: Total is strictly Subtotal + explicitly displayed Shipping Fee.
     const combinedTotal = productsConverted + shippingConverted;
+    
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
-
+  
   useEffect(() => {
     async function locateClientNetwork() {
       try {
