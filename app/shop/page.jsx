@@ -805,7 +805,7 @@ const calculateLiveDelivery = async () => {
               </div>
             ))
           )}
-        </div>
+       </div>
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
             <div className="mb-6 border-b border-zinc-800 pb-5">
@@ -817,17 +817,16 @@ const calculateLiveDelivery = async () => {
             </div>
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
               <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
-              {deliveryFee > 0 && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
+              {deliveryZone !== '' && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{deliveryFee === 0 ? 'COMPLIMENTARY' : formatPrice(deliveryFee, true)}</span></div> )}
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">Continue Shopping</button>
-              <button onClick={() => { if (deliveryFee <= '' || !deliveryAddress.trim()) return showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED."); localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); setIsCartOpen(false); window.location.href = '/checkout'; }} className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${deliveryFee <= 0 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}>{deliveryFee <= '' ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}</button>
+              <button onClick={() => { if (deliveryZone === '' || !deliveryAddress.trim()) return showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED."); localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); setIsCartOpen(false); window.location.href = '/checkout'; }} className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${deliveryZone === '' ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}>{deliveryZone === '' ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}</button>
             </div>
           </div>
         )}
       </div>
-
       {/* 5. MOBILE MENU INTERACTION EXPANSION (OVERLAY AT 9999900) */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
