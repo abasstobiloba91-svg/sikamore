@@ -365,7 +365,7 @@ const calculateLiveDelivery = async () => {
           const fallbackFee = isInternationalFree ? 0 : (internationalFee * usdToNgnRate);
           setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
           setDeliveryFee(fallbackFee);
-          setDeliveryZone(isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+          setDeliveryZone(isInternationalFree ? "Free Shipping" : `International Delivery (${detectedCountryName})`);
           if (autoCurrency !== currency) setCurrency(autoCurrency);
           showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
           return;
