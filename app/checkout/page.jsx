@@ -108,7 +108,7 @@ export default function CheckoutPage() {
     return () => clearTimeout(timeout);
   }, [cart, router, address, isSuccess]);
 
-  // MATH CORE: Perfectly syncs with Shop component
+// MATH CORE: Perfectly syncs with Shop component
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFeeNgn = deliveryData?.fee || 0; 
   const isInternational = deliveryData?.countryCode && deliveryData.countryCode !== 'NG';
@@ -120,13 +120,9 @@ export default function CheckoutPage() {
   };
 
   const finalConvertedSubtotal = cartSubtotalNgn * markupRate * getDynamicExchangeRate();
-  let finalConvertedShipping = shippingFeeNgn * 1.0 * getDynamicExchangeRate();
+  const finalConvertedShipping = shippingFeeNgn * 1.0 * getDynamicExchangeRate();
 
-  if (isInternational && isInternationalFree) {
-    const hiddenShippingNgnValue = internationalFee * usdToNgnRate;
-    finalConvertedShipping = hiddenShippingNgnValue * getDynamicExchangeRate();
-  }
-
+  // HONEST MATH: Total is strictly Subtotal + explicitly displayed Shipping Fee (No hidden inflation).
   const finalNumericTotal = finalConvertedSubtotal + finalConvertedShipping;
 
   const displayFormat = (amount) => {
