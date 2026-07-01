@@ -34,7 +34,7 @@ const getPrimaryImage = (payload) => {
   try {
     const raw = JSON.stringify(payload);
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-    return match ? match : '';
+    return match ? match[0] : '';
   } catch (e) {
     return '';
   }
@@ -49,7 +49,7 @@ export default function ShopCatalog() {
 
   // --- 2. STANDARD STOREFRONT CORE STATES ---
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState([]); // <--- ADD THIS EXACT LINE BACK!
+  const [products, setProducts] = useState([]);
   const [userSession, setUserSession] = useState(null);
   const [currency, setCurrency] = useState('NGN');
 
@@ -60,9 +60,12 @@ export default function ShopCatalog() {
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Search & Filter States
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState('newest');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   
@@ -132,7 +135,7 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
- const formatPrice = (ngnPrice, isShipping = false) => {
+  const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
     
     // Dynamically computes international pricing bands relative to the admin's live dollar rate
@@ -151,7 +154,7 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-const getDisplayTotal = () => {
+  const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
     
@@ -196,8 +199,8 @@ const getDisplayTotal = () => {
     });
   }, []);
 
+  // UPDATED SEARCH AND SORT LOGIC
   useEffect(() => {
-    useEffect(() => {
     let result = [...products];
 
     // 1. Apply Search
@@ -216,6 +219,7 @@ const getDisplayTotal = () => {
     } else if (activeSort === 'high_to_low') {
       result.sort((a, b) => Number(b.price) - Number(a.price));
     } else {
+      // 'newest'
       result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
@@ -345,7 +349,7 @@ const getDisplayTotal = () => {
     }
   };
 
-const calculateLiveDelivery = async () => {
+  const calculateLiveDelivery = async () => {
     if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR COMPLETE DELIVERY ADDRESS.");
     setIsCalculating(true);
     try {
@@ -438,6 +442,7 @@ const calculateLiveDelivery = async () => {
       setIsCalculating(false);
     }
   };
+  
   const toggleAccordion = (tabId) => {
     setOpenAccordion(openAccordion === tabId ? '' : tabId);
   };
@@ -487,8 +492,8 @@ const calculateLiveDelivery = async () => {
               <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block">
                 <option value="NGN">NGN ₦</option>
                 <option value="USD">USD $</option>
-                {isEuropeanUser && <option value="GBP">GBP £</option>}
-                {isEuropeanUser && <option value="EUR">EUR €</option>}
+                <option value="GBP">GBP £</option>
+                <option value="EUR">EUR €</option>
               </select>
 
               <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
@@ -507,7 +512,10 @@ const calculateLiveDelivery = async () => {
 
       <section className="bg-white border-b border-zinc-200 relative z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          
+          {/* THE FIXED BUTTON */}
           <button onClick={() => setIsFilterOpen(true)} className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
+          
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 md:hidden">
               <button onClick={() => setIsListView(true)} className={`p-1.5 border transition-all ${isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-500'}`}><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
@@ -614,7 +622,7 @@ const calculateLiveDelivery = async () => {
         </div>
       </footer>
 
-   {/* 1. NEWSLETTER POPUP */}
+      {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
@@ -628,7 +636,7 @@ const calculateLiveDelivery = async () => {
                 try {
                   const rawProductDump = JSON.stringify(products);
                   const match = rawProductDump.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-                  const parsedUrl = match ? match : '';
+                  const parsedUrl = match ? match[0] : '';
                   
                   return parsedUrl ? (
                     <img src={parsedUrl} alt="Sikamore Curated Acquisition" className="w-full h-full object-cover animate-fade-in" />
@@ -659,6 +667,7 @@ const calculateLiveDelivery = async () => {
           </div>
         </div>
       )}
+
       {/* 2. SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
@@ -840,6 +849,7 @@ const calculateLiveDelivery = async () => {
           </div>
         )}
       </div>
+
       {/* 4.5 SLIDING REFINE/FILTER DRAWER */}
       {isFilterOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsFilterOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-[350px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
@@ -872,6 +882,21 @@ const calculateLiveDelivery = async () => {
           <button onClick={() => { setActiveSort('newest'); setIsFilterOpen(false); }} className="flex-1 border border-zinc-200 text-black py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-50 transition-colors">Reset</button>
           <button onClick={() => setIsFilterOpen(false)} className="flex-1 bg-black text-white py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors">Apply</button>
         </div>
+      </div>
+
+      {/* 5. MOBILE MENU INTERACTION EXPANSION (OVERLAY AT 9999900) */}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsMenuOpen(false)}></div>}
+      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+        <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
+          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
+          <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
+          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
+          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
+          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
+        </nav>
+        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
 
       {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE */}
