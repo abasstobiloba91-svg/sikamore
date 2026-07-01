@@ -61,6 +61,8 @@ export default function ShopCatalog() {
   const [isListView, setIsListView] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeSort, setActiveSort] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   
@@ -195,19 +197,30 @@ const getDisplayTotal = () => {
   }, []);
 
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults(products);
-      return;
-    }
-    const lowerQ = searchQuery.toLowerCase();
-    setSearchResults(
-      products.filter(p => {
+    useEffect(() => {
+    let result = [...products];
+
+    // 1. Apply Search
+    if (searchQuery.trim()) {
+      const lowerQ = searchQuery.toLowerCase();
+      result = result.filter(p => {
         const n = p.name ? p.name.toLowerCase() : '';
         const d = p.description ? p.description.toLowerCase() : '';
         return n.includes(lowerQ) || d.includes(lowerQ);
-      })
-    );
-  }, [searchQuery, products]);
+      });
+    }
+
+    // 2. Apply Sorting
+    if (activeSort === 'low_to_high') {
+      result.sort((a, b) => Number(a.price) - Number(b.price));
+    } else if (activeSort === 'high_to_low') {
+      result.sort((a, b) => Number(b.price) - Number(a.price));
+    } else {
+      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    setSearchResults(result);
+  }, [searchQuery, products, activeSort]);
 
   useEffect(() => {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
@@ -494,7 +507,7 @@ const calculateLiveDelivery = async () => {
 
       <section className="bg-white border-b border-zinc-200 relative z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          <button className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
+          <button className="flex items-<button onClick={() => setIsFilterOpen(true)} className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 md:hidden">
               <button onClick={() => setIsListView(true)} className={`p-1.5 border transition-all ${isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-500'}`}><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
@@ -827,19 +840,38 @@ const calculateLiveDelivery = async () => {
           </div>
         )}
       </div>
-      {/* 5. MOBILE MENU INTERACTION EXPANSION (OVERLAY AT 9999900) */}
-      {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsMenuOpen(false)}></div>}
-      <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+      {/* 4.5 SLIDING REFINE/FILTER DRAWER */}
+      {isFilterOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsFilterOpen(false)}></div>}
+      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-[350px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
-          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
-          <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+          <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Refine Catalog</span>
+          <button onClick={() => setIsFilterOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
-        <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
-          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
-          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
-          <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
-        </nav>
-        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          <div>
+            <h3 className="text-[9px] tracking-[0.2em] text-zinc-400 uppercase font-medium mb-4">Sort By</h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input type="radio" name="sort" checked={activeSort === 'newest'} onChange={() => setActiveSort('newest')} className="w-4 h-4 accent-black" />
+                <span className="text-[10px] uppercase tracking-widest group-hover:text-zinc-500 transition-colors">Newest Arrivals</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input type="radio" name="sort" checked={activeSort === 'low_to_high'} onChange={() => setActiveSort('low_to_high')} className="w-4 h-4 accent-black" />
+                <span className="text-[10px] uppercase tracking-widest group-hover:text-zinc-500 transition-colors">Price: Low to High</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input type="radio" name="sort" checked={activeSort === 'high_to_low'} onChange={() => setActiveSort('high_to_low')} className="w-4 h-4 accent-black" />
+                <span className="text-[10px] uppercase tracking-widest group-hover:text-zinc-500 transition-colors">Price: High to Low</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-zinc-200 shrink-0 flex gap-3">
+          <button onClick={() => { setActiveSort('newest'); setIsFilterOpen(false); }} className="flex-1 border border-zinc-200 text-black py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-50 transition-colors">Reset</button>
+          <button onClick={() => setIsFilterOpen(false)} className="flex-1 bg-black text-white py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors">Apply</button>
+        </div>
       </div>
 
       {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE */}
