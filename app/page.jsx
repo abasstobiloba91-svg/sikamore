@@ -87,7 +87,7 @@ export default function HomePage() {
           The Collection
         </Link>
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors hidden sm:block">
+          <Link href="/login" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
             Client Login
           </Link>
           <Link href="/admin" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
