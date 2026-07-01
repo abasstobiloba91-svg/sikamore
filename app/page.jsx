@@ -103,7 +103,7 @@ export default function HomePage() {
             S. Sikamòre
           </h1>
           <p className="text-[9px] sm:text-[11px] tracking-[0.3em] uppercase text-zinc-200 mb-12 max-w-md leading-relaxed">
-            Beautifully crafted silhouettes. <br className="hidden sm:block" /> Designed for your effortless elegance.
+            Finely crafted for audacious women who carry light.
           </p>
           <Link 
             href="/shop" 
