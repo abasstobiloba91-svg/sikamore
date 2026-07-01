@@ -86,10 +86,17 @@ export default function HomePage() {
         <Link href="/shop" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
           The Collection
         </Link>
-        <div className="flex items-center gap-6">
-         <Link href="/login" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Client Login</Link>
-          <Link href="/admin" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
-            Atelier
+     <div className="flex items-center">
+    {userSession ? (
+      <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+        DASHBOARD
+      </Link>
+    ) : (
+      <Link href="/login" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+        LOGIN / SIGNUP
+      </Link>
+    )}
+  </div>
           </Link>
         </div>
       </header>
