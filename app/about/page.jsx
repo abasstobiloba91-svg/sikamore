@@ -48,14 +48,38 @@ export default function AboutPage() {
         </div>
       </header>
 
-      {/* ABOUT US CONTENT */}
+      {/* NEW ABOUT US CONTENT */}
       <main className="max-w-[1000px] mx-auto px-4 sm:px-8 py-20 sm:py-32 flex flex-col items-center text-center">
-        <h1 className="text-2xl sm:text-4xl font-normal tracking-[0.3em] uppercase mb-12 font-serif text-white">The House of Sikamòre</h1>
+        <h1 className="text-2xl sm:text-4xl font-normal tracking-[0.3em] uppercase mb-12 font-serif text-white">About Us</h1>
         
         <div className="space-y-8 text-zinc-400 text-xs sm:text-sm tracking-[0.2em] leading-loose max-w-2xl font-light">
-           <p>Born from a desire to bridge the gap between architectural forms and fluid textiles, S. SIKAMÒRE is a modern luxury house dedicated to the art of ready-to-wear fashion.</p>
-           <p>We believe that clothing is not merely worn; it is inhabited. Every garment in our archive is a meticulous study in precision, crafted from premium materials for those who dictate the cultural zeitgeist. We reject the fleeting trends of the season in favor of timeless, striking silhouettes that command the room.</p>
-           <p className="text-white font-medium tracking-[0.4em] uppercase pt-12">We do not simply follow the vanguard.<br/>We clothe it.</p>
+          <p>
+            <strong className="text-white font-medium tracking-[0.25em]">S. SIKAMÒRE</strong> was born from a desire to create more than accessories. We create pieces that feel like identity. Bold, intentional, feminine, and spiritually grounded.
+          </p>
+          
+          <p>
+            Inspired by the symbolism of the sycamore tree, S. Sikamòre stands for elevation, vision, and the pursuit of light. We exist for audacious women who carry light wherever they go. Every piece is designed to feel expressive yet timeless, artistic yet refined.
+          </p>
+          
+          <p>
+            Rooted in African craftsmanship and handcrafted in Lagos, Nigeria, our work celebrates texture, symbolism, storytelling, and detail. From handbeaded patterns inspired by indigenous markings and feminine strength, to silhouettes that feel both modern and soulful, every SIKAMÒRE piece is created with intention.
+          </p>
+          
+          {/* EDITORIAL QUOTE BLOCK */}
+          <div className="py-12 border-t border-b border-zinc-900 my-12 text-center">
+            <h2 className="text-lg sm:text-xl font-serif tracking-widest text-white italic leading-relaxed">
+              "We believe fashion should not only be worn.<br className="hidden sm:block" /> It should be felt."
+            </h2>
+          </div>
+
+          <p>
+            Founded by <span className="text-white font-medium tracking-[0.15em] uppercase text-[10px]">Stephanie C. Ajuluchukwu</span>, S. SIKAMÒRE represents a woman who embraces beauty boldly, moves with purpose, and understands that elegance can still carry depth and meaning.
+          </p>
+          
+          {/* CLOSING TAGLINE */}
+          <p className="text-white font-medium tracking-[0.4em] uppercase pt-16 pb-8 text-sm sm:text-base font-serif">
+            Climb to see the light.
+          </p>
         </div>
       </main>
 
