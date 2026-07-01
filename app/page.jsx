@@ -15,7 +15,7 @@ const getPrimaryImage = (payload) => {
   try {
     const raw = JSON.stringify(payload);
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-    return match ? match : '';
+    return match ? match[0] : '';
   } catch (e) {
     return '';
   }
@@ -24,6 +24,18 @@ const getPrimaryImage = (payload) => {
 export default function HomePage() {
   const [bgImages, setBgImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [userSession, setUserSession] = useState(null);
+
+  // Checks if user is logged in to toggle LOGIN/DASHBOARD text
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUserSession(session.user);
+      else {
+        const localUser = localStorage.getItem('sikamore_user_profile');
+        if (localUser) setUserSession(JSON.parse(localUser)); 
+      }
+    });
+  }, []);
 
   useEffect(() => {
     async function fetchLatestProducts() {
@@ -86,18 +98,17 @@ export default function HomePage() {
         <Link href="/shop" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
           The Collection
         </Link>
-     <div className="flex items-center">
-    {userSession ? (
-      <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
-        DASHBOARD
-      </Link>
-    ) : (
-      <Link href="/login" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
-        LOGIN / SIGNUP
-      </Link>
-    )}
-  </div>
-          </Link>
+        
+        <div className="flex items-center">
+          {userSession ? (
+            <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+              DASHBOARD
+            </Link>
+          ) : (
+            <Link href="/login" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+              LOGIN / SIGNUP
+            </Link>
+          )}
         </div>
       </header>
 
