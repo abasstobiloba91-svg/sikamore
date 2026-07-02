@@ -606,12 +606,12 @@ export default function ShopCatalog() {
             <p className="leading-relaxed text-[10px] text-zinc-400">Finely crafted pieces for audacious women who carry light.</p>
             <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
           </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Here to Help</h4>
-            <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">Contact Us</Link>
-            <Link href="/about" className="hover:text-black cursor-pointer transition-colors">About Us</Link>
-            <span className="hover:text-black cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Terms & Conditions</span>
+         <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
+            <Link href="/collections" className="hover:text-black cursor-pointer transition-colors">Collections View</Link>
+            <Link href="/shop?category=bags" className="hover:text-black cursor-pointer transition-colors">Bags</Link>
+            <Link href="/shop?category=accessories" className="hover:text-black cursor-pointer transition-colors">Accessories</Link>
+            <Link href="/shop?category=clothing" className="hover:text-black cursor-pointer transition-colors">Clothing</Link>
           </div>
           <div className="flex flex-col gap-2.5 text-[10px]">
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
@@ -900,11 +900,22 @@ export default function ShopCatalog() {
           <span className="text-[10px] tracking-[0.3em] font-serif uppercase">Explore</span>
           <button onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-black transition-colors p-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
-       <nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100">
-          <Link href="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">Home</Link>
-          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">Latest Arrivals</Link>
-          <Link href="/login" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">My Account</Link>
-          <Link href="/about" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-zinc-400 transition-colors">About Us</Link>
+<nav className="flex-1 px-6 py-8 space-y-6 text-xs font-normal tracking-[0.25em] uppercase border-b border-zinc-100 flex flex-col">
+          <Link href="/" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">Home</Link>
+          
+          <div className="flex flex-col gap-4">
+            <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">
+              Latest Arrivals
+            </Link>
+            <div className="pl-4 border-l border-zinc-200 flex flex-col gap-4">
+              <Link href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Bags</Link>
+              <Link href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Accessories</Link>
+              <Link href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Clothing</Link>
+            </div>
+          </div>
+
+          <Link href="/login" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">My Account</Link>
+          <Link href="/about" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">About Us</Link>
         </nav>
         <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
       </div>
