@@ -11,7 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// FOR PREVIEWS/EDITS: Clean separation engine
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -23,13 +22,12 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// THE BRUTE FORCE IMAGE EXTRACTOR: Grabs ONLY the first clean link string
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
   try {
     const raw = JSON.stringify(payload);
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-    return match ? match : '';
+    return match ? match[0] : '';
   } catch (e) {
     return '';
   }
@@ -52,7 +50,7 @@ export default function AdminDashboard() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [productsList, setProductsList] = useState([
-    { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }
+    { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }
   ]);
   const [disabled, setDisabled] = useState(false);
 
@@ -221,7 +219,7 @@ export default function AdminDashboard() {
   };
 
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
+    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
   };
 
   const removeProductRow = (id) => {
@@ -288,6 +286,7 @@ export default function AdminDashboard() {
           name: product.name.toUpperCase(), 
           price: parseFloat(product.price), 
           stock_quantity: parseInt(product.stock), 
+          category: product.category || 'bags',
           description: product.description || null, 
           additional_information: product.additional_information || null, 
           store_policies: product.store_policies || null, 
@@ -300,7 +299,7 @@ export default function AdminDashboard() {
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
-      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
+      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
       setInventoryMode('manage'); 
     } catch (error) { 
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); 
@@ -369,6 +368,7 @@ export default function AdminDashboard() {
         name: editingProduct.name.toUpperCase(),
         price: parseFloat(editingProduct.price),
         stock_quantity: parseInt(editingProduct.stock_quantity),
+        category: editingProduct.category || 'bags',
         description: editingProduct.description || null,
         additional_information: editingProduct.additional_information || null,
         store_policies: editingProduct.store_policies || null,
@@ -401,7 +401,6 @@ export default function AdminDashboard() {
       setDeliveryDays('');
 
       if (orderData && (currentStatus === 'shipped' || currentStatus === 'delivered')) {
-        // DYNAMIC REGIONAL CURRENCY MATRIX
         const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
         const orderCurrency = orderData.currency || 'NGN';
         const symbol = currencySymbols[orderCurrency] || '$';
@@ -517,8 +516,8 @@ export default function AdminDashboard() {
       let productGridHtml = '';
       
       if (gridProducts.length >= 2) {
-        const img1 = getPrimaryImage(gridProducts.image);
-        const img2 = getPrimaryImage(gridProducts.image);
+        const img1 = getPrimaryImage(gridProducts[0].image);
+        const img2 = getPrimaryImage(gridProducts[1].image);
 
         productGridHtml = `
           <tr>
@@ -529,8 +528,8 @@ export default function AdminDashboard() {
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${img1}" width="100%" style="display:block;" /></td></tr>
-                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts.name.toUpperCase()}</td></tr>
-                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts.price.toLocaleString()}</td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[0].name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[0].price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
                     </table>
                   </td>
@@ -538,8 +537,8 @@ export default function AdminDashboard() {
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr><td bgcolor="#111111" style="border:1px solid #1A1A1A; padding:10px; text-align:center;"><img src="${img2}" width="100%" style="display:block;" /></td></tr>
-                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts.name.toUpperCase()}</td></tr>
-                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts.price.toLocaleString()}</td></tr>
+                      <tr><td style="padding-top:12px; font-size:10px; color:#FFFFFF; font-weight:bold; tracking:0.15em;">${gridProducts[1].name.toUpperCase()}</td></tr>
+                      <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-top:4px;">₦${gridProducts[1].price.toLocaleString()}</td></tr>
                       <tr><td style="padding-top:10px;"><a href="https://ssikamore.com/shop" style="font-size:8px; color:#FFFFFF; text-decoration:none; tracking:0.2em; font-weight:bold;">EXPLORE PIECE &rarr;</a></td></tr>
                     </table>
                   </td>
@@ -688,7 +687,7 @@ export default function AdminDashboard() {
                     
                     <form onSubmit={submitEditProduct} className="flex flex-col gap-10">
                       <div className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
                             <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
@@ -700,6 +699,14 @@ export default function AdminDashboard() {
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
                             <input type="number" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Category</label>
+                            <select value={editingProduct.category || 'bags'} onChange={(e)=>setEditingProduct({...editingProduct, category: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase">
+                              <option value="bags">Bags</option>
+                              <option value="accessories">Accessories</option>
+                              <option value="clothing">Clothing</option>
+                            </select>
                           </div>
                         </div>
 
@@ -760,6 +767,7 @@ export default function AdminDashboard() {
                                 <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
                                 <p className="text-[9px] text-zinc-500 font-mono mt-1">₦{product.price.toLocaleString()}</p>
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Stock: {product.stock_quantity}</p>
+                                <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
@@ -790,7 +798,7 @@ export default function AdminDashboard() {
                       )}
                       <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
                           <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
@@ -802,6 +810,14 @@ export default function AdminDashboard() {
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
                           <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" placeholder="E.G. 15" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Category</label>
+                          <select value={product.category} onChange={(e)=>updateProductData(product.id, 'category', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase">
+                            <option value="bags">Bags</option>
+                            <option value="accessories">Accessories</option>
+                            <option value="clothing">Clothing</option>
+                          </select>
                         </div>
                       </div>
 
