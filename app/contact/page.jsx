@@ -53,15 +53,19 @@ export default function ContactPage() {
         
         <div className="space-y-12">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-normal tracking-[0.3em] uppercase mb-6 font-serif text-white">Client Concierge</h1>
-            <p className="text-zinc-400 text-xs tracking-widest leading-loose font-light">The S. SIKAMÒRE atelier operates with a dedication to absolute client discretion and service. For private inquiries, bespoke styling requests, or assistance with your current curation, our dedicated team is at your disposal.</p>
+            <h1 className="text-2xl sm:text-3xl font-normal tracking-[0.3em] uppercase mb-6 font-serif text-white">Get In Touch</h1>
+            <p className="text-zinc-400 text-xs tracking-widest leading-loose font-light">
+              Every S. Sikamore piece is handmade and crafted with care and dedication.<br/><br/>
+              For questions about our bags, collections, orders or shipping, we’re here to help.<br/><br/>
+              We respond within 24hours, Monday - Friday.
+            </p>
           </div>
           
-       <div className="space-y-6 text-[10px] tracking-widest uppercase text-zinc-500">
-             <div><span className="text-white block mb-1">General Inquiries</span>hello@ssikamore.com</div>
-             <div><span className="text-white block mb-1">Logistics & Shipping</span>shipping@ssikamore.com</div>
-             <div><span className="text-white block mb-1">Client Services</span>support@ssikamore.com</div>
-             <div><span className="text-white block mb-1">Atelier Hours</span>Mon – Fri | 10:00 AM – 6:00 PM (WAT)</div>
+          <div className="space-y-6 text-[10px] tracking-widest uppercase text-zinc-500">
+            <div><span className="text-white block mb-1">General Inquiries</span>hello@ssikamore.com</div>
+            <div><span className="text-white block mb-1">Logistics & Shipping</span>shipping@ssikamore.com</div>
+            <div><span className="text-white block mb-1">Client Services</span>support@ssikamore.com</div>
+            <div><span className="text-white block mb-1">Atelier Hours</span>Mon – Fri | 10:00 AM – 6:00 PM (WAT)</div>
           </div>
         </div>
 
