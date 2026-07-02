@@ -415,7 +415,7 @@ export default function AdminDashboard() {
         
         if (orderData.customer_email) {
           let statusHeader = 'ORDER PROCESSING';
-          let statusMessage = 'Your carefully curated acquisition is being prepared within our atelier.';
+          let statusMessage = 'Your exclusive acquisition is being prepared by our team.';
           
           if (currentStatus === 'shipped') {
             statusHeader = 'DISPATCH EN ROUTE';
@@ -464,7 +464,7 @@ export default function AdminDashboard() {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:40px 10px;">
                 <tr><td align="center">
                   <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; border:1px solid #1A1A1A; padding:40px; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
-                    <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">ATELIER DISPATCH</h2></td></tr>
+                    <tr><td align="center" style="padding-bottom:20px; border-bottom:1px solid #1A1A1A;"><h2 style="font-family:serif; letter-spacing:0.35em; font-size:16px; margin:0; color:#FFFFFF;">ORDER DISPATCH</h2></td></tr>
                     <tr><td style="font-size:11px; color:#FFFFFF; padding:35px 0 10px 0; font-weight:bold; tracking:0.2em; text-align:center;">PARCEL HANDED OVER TO COURIER PIPELINE</td></tr>
                     <tr><td style="font-size:9px; color:#A3A3A3; padding-bottom:20px; text-align:center;">ORDER REF: #${orderId.toUpperCase()}</td></tr>
                     <tr><td style="padding:20px; background:#111111; border:1px solid #1A1A1A; font-size:10px; color:#FFFFFF;"><span style="color:#525252; font-size:8px; display:block; margin-bottom:5px;">DELIVERY DESTINATION ITINERARY</span>${orderData.shipping_address || 'N/A'}</td></tr>
@@ -523,7 +523,7 @@ export default function AdminDashboard() {
           <tr>
             <td>
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top:40px; border-top:1px solid #1A1A1A; padding-top:40px;">
-                <tr><td colspan="3" style="font-size:11px; color:#FFFFFF; tracking:0.25em; padding-bottom:20px; font-weight:bold;">OUR LATEST CURATIONS</td></tr>
+                <tr><td colspan="3" style="font-size:11px; color:#FFFFFF; tracking:0.25em; padding-bottom:20px; font-weight:bold;">OUR LATEST ARRIVALS</td></tr>
                 <tr>
                   <td width="48%" valign="top">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
                 <tr>
                   <td align="center" style="padding-top:20px;">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#111111; border:1px solid #1A1A1A; padding:30px 20px; text-align:center;">
-                      <tr><td style="font-size:8px; color:#666; tracking:0.25em; padding-bottom:5px;">PRIVATE ATELIER DIRECTIVE</td></tr>
+                      <tr><td style="font-size:8px; color:#666; tracking:0.25em; padding-bottom:5px;">EXCLUSIVE BRAND DIRECTIVE</td></tr>
                       <tr><td style="font-size:13px; color:#FFFFFF; font-weight:bold; tracking:0.3em; padding-bottom:20px;">COMPLIMENTARY DROPS ACTIVE</td></tr>
                       <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ENTER STOREFRONT</a></td></tr>
                     </table>
