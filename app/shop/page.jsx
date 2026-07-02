@@ -908,9 +908,10 @@ export default function ShopCatalog() {
               Latest Arrivals
             </Link>
             <div className="pl-4 border-l border-zinc-200 flex flex-col gap-4">
-              <Link href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Bags</Link>
-              <Link href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Accessories</Link>
-              <Link href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Clothing</Link>
+              {/* Using standard <a> tags forces the shop to filter properly! */}
+              <a href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Bags</a>
+              <a href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Accessories</a>
+              <a href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Clothing</a>
             </div>
           </div>
 
