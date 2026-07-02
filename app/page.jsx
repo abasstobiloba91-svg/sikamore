@@ -169,25 +169,32 @@ export default function HomePage() {
       {/* 6. PROMO POPUP (SHOP NEW COLLECTION) */}
       {showPromoPopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#050505] border border-white/10 w-full max-w-md relative flex flex-col items-center text-center p-10 sm:p-14 shadow-2xl">
-            <button onClick={closePopup} className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-white transition-colors">
+          <div className="bg-[#050505] border border-white/10 w-full max-w-md relative flex flex-col items-center text-center p-8 sm:p-10 shadow-2xl overflow-hidden">
+            <button onClick={closePopup} className="absolute top-4 right-4 p-2 z-10 text-zinc-400 hover:text-white transition-colors bg-black/40 rounded-sm">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
+            
+            {/* DYNAMIC IMAGE: Grabs the absolute newest product image */}
+            {bgImages.length > 0 && (
+              <div className="w-full h-48 sm:h-56 mb-8 overflow-hidden border border-white/5 bg-zinc-900">
+                <img src={bgImages[0]} alt="Latest Arrival" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
+              </div>
+            )}
+
             <h3 className="font-serif text-2xl sm:text-3xl tracking-[0.1em] uppercase mb-4 text-white">The New Archives</h3>
-            <p className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase text-zinc-400 mb-10 leading-relaxed max-w-[250px]">
+            <p className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase text-zinc-400 mb-8 leading-relaxed max-w-[250px]">
               Discover our latest exclusive arrivals. Crafted for the vanguard.
             </p>
             <Link 
-              href="/shop" 
+              href="/collections" 
               onClick={closePopup}
               className="w-full border border-white text-white py-4 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-black transition-colors"
             >
-              Shop New Collection
+              Explore Collection
             </Link>
           </div>
         </div>
       )}
-
     </div>
   );
 }
