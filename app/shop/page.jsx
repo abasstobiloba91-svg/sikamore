@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from a'@supabase/supabase-js';
 import Link from 'next/link';
 import { useApp } from '../providers';
 
@@ -199,9 +199,18 @@ export default function ShopCatalog() {
     });
   }, []);
 
-  // UPDATED SEARCH AND SORT LOGIC
+ // UPDATED SEARCH, SORT, AND CATEGORY LOGIC
   useEffect(() => {
     let result = [...products];
+
+    // 0. Apply URL Category Filter
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) {
+        result = result.filter(p => (p.category || 'bags') === cat);
+      }
+    }
 
     // 1. Apply Search
     if (searchQuery.trim()) {
