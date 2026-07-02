@@ -653,7 +653,7 @@ export default function ShopCatalog() {
                     <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Collection</div>
                   );
                 } catch (e) {
-                  return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light"S. Sikamòre Collection</div>;
+                  return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Collection</div>;
                 }
               })()}
               
