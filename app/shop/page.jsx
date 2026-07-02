@@ -458,7 +458,7 @@ export default function ShopCatalog() {
 
   const productTabs = [
     { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in our atelier. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
+    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in-house. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
     { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
     { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
   ];
@@ -562,7 +562,7 @@ export default function ShopCatalog() {
                         className="absolute inset-0 w-full h-full object-cover" 
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Curation</div>
+                      <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Restock</div>
                     )}
                     
                     <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
@@ -602,8 +602,8 @@ export default function ShopCatalog() {
         </div>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
           <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Our Atelier</h4>
-            <p className="leading-relaxed text-[10px] text-zinc-400">Thoughtfully curated ready-to-wear luxury, designed to bring effortless elegance to your everyday life.</p>
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Us</h4>
+            <p className="leading-relaxed text-[10px] text-zinc-400">Finely crafted pieces for audacious women who carry light.</p>
             <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
           </div>
           <div className="flex flex-col gap-2.5 text-[10px]">
@@ -650,16 +650,16 @@ export default function ShopCatalog() {
                   return parsedUrl ? (
                     <img src={parsedUrl} alt="Sikamore Curated Acquisition" className="w-full h-full object-cover animate-fade-in" />
                   ) : (
-                    <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Atelier</div>
+                    <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Collection</div>
                   );
                 } catch (e) {
-                  return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Atelier</div>;
+                  return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light"S. Sikamòre Collection</div>;
                 }
               })()}
               
               {/* TIMING SHIELD: Renders an elegant luxury loader if network streams are delayed */}
               {(!products || products.length === 0) && (
-                <div className="text-zinc-400 text-[8px] tracking-[0.3em] uppercase font-light animate-pulse">Loading Atelier Archives...</div>
+                <div className="text-zinc-400 text-[8px] tracking-[0.3em] uppercase font-light animate-pulse">Loading Archives...</div>
               )}
 
             </div>
