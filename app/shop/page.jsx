@@ -613,13 +613,7 @@ export default function ShopCatalog() {
             <Link href="/shop?category=accessories" className="hover:text-black cursor-pointer transition-colors">Accessories</Link>
             <Link href="/shop?category=clothing" className="hover:text-black cursor-pointer transition-colors">Clothing</Link>
           </div>
-          <div className="flex flex-col gap-2.5 text-[10px]">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
-            <span className="hover:text-black cursor-pointer transition-colors">Dresses</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Bottoms</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Tops</span>
-            <span className="hover:text-black cursor-pointer transition-colors">Blazers</span>
-          </div>
+         
           <div className="flex flex-col gap-3">
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">Join Our Circle</h4>
             <p className="text-[10px] text-zinc-400 leading-relaxed">Sign up to receive styling inspiration, exclusive access to new arrivals, and a warm welcome to our community.</p>
