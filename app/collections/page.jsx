@@ -122,8 +122,6 @@ export default function CollectionsPage() {
 
   // REUSABLE 6-ITEM PRODUCT GRID COMPONENT
   const ProductGrid = ({ products, categoryName }) => {
-    if (!products || products.length === 0) return null;
-    
     // Take exactly up to 6 products to display just like before
     const displayProducts = products.slice(0, 6);
 
@@ -151,7 +149,7 @@ export default function CollectionsPage() {
             ))}
           </div>
 
-          {/* Optional link to view the full category if they have more than 6 items */}
+          {/* Link to view the full category if they have more than 6 items */}
           <div className="mt-16 text-center">
             <Link 
               href={`/shop?category=${categoryName}`} 
@@ -190,19 +188,31 @@ export default function CollectionsPage() {
         </div>
       </header>
 
-      {/* SCROLLING CONTENT: Hero -> Grid -> Hero -> Grid */}
+      {/* SCROLLING CONTENT */}
       
-      {/* BAGS */}
-      <HeroSection title="Bags" categoryName="bags" products={groupedProducts.bags} />
-      <ProductGrid products={groupedProducts.bags} categoryName="bags" />
+      {/* BAGS (Only shows if there are bag products) */}
+      {groupedProducts.bags.length > 0 && (
+        <>
+          <HeroSection title="Bags" categoryName="bags" products={groupedProducts.bags} />
+          <ProductGrid products={groupedProducts.bags} categoryName="bags" />
+        </>
+      )}
       
-      {/* ACCESSORIES */}
-      <HeroSection title="Accessories" categoryName="accessories" products={groupedProducts.accessories} />
-      <ProductGrid products={groupedProducts.accessories} categoryName="accessories" />
+      {/* ACCESSORIES (Only shows if there are accessory products) */}
+      {groupedProducts.accessories.length > 0 && (
+        <>
+          <HeroSection title="Accessories" categoryName="accessories" products={groupedProducts.accessories} />
+          <ProductGrid products={groupedProducts.accessories} categoryName="accessories" />
+        </>
+      )}
       
-      {/* CLOTHING */}
-      <HeroSection title="Clothing" categoryName="clothing" products={groupedProducts.clothing} />
-      <ProductGrid products={groupedProducts.clothing} categoryName="clothing" />
+      {/* CLOTHING (Only shows if there are clothing products) */}
+      {groupedProducts.clothing.length > 0 && (
+        <>
+          <HeroSection title="Clothing" categoryName="clothing" products={groupedProducts.clothing} />
+          <ProductGrid products={groupedProducts.clothing} categoryName="clothing" />
+        </>
+      )}
 
       {/* LUXURY FOOTER */}
       <div className="w-full bg-[#0A0A0A] flex flex-col items-center justify-center py-24 sm:py-32 px-6">
