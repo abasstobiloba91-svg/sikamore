@@ -65,18 +65,8 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [bgImages]);
 
-  // Trigger Popup after 3 seconds
-  useEffect(() => {
-    const hasSeenPopup = sessionStorage.getItem('sikamore_promo_seen');
-    if (!hasSeenPopup) {
-      const timer = setTimeout(() => setShowPromoPopup(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
   const closePopup = () => {
     setShowPromoPopup(false);
-    sessionStorage.setItem('sikamore_promo_seen', 'true');
   };
 
   return (
@@ -127,18 +117,18 @@ export default function HomePage() {
             S. Sikamòre
           </h1>
           <p className="text-[9px] sm:text-[11px] tracking-[0.3em] uppercase text-zinc-200 mb-12 max-w-md leading-relaxed">
-            Finely crafted for audacious women who carry light.
+            Finely crafted for audacious women who carry light and purpose.
           </p>
-          <Link 
-            href="/collections" 
+          <button 
+            onClick={() => setShowPromoPopup(true)}
             className="bg-white text-black px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-200 transition-colors shadow-2xl"
           >
             Explore Now
-          </Link>
+          </button>
         </div>
       </main>
 
-      {/* 5. NEW LUXURY FOOTER (SOCIALS + CATEGORIES) */}
+      {/* 5. NEW LUXURY FOOTER */}
       <footer className="relative z-20 w-full pb-8 pt-10 flex flex-col items-center text-center">
         
         {/* Social Icons */}
@@ -154,15 +144,8 @@ export default function HomePage() {
           </a>
         </div>
 
-        {/* Category Links */}
-        <div className="flex gap-6 text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-zinc-400 mb-6 font-medium">
-          <Link href="/collections?category=bags" className="hover:text-white transition-colors">Bags</Link>
-          <Link href="/collections?category=accessories" className="hover:text-white transition-colors">Accessories</Link>
-          <Link href="/collections?category=clothing" className="hover:text-white transition-colors">Clothing</Link>
-        </div>
-
         <p className="text-[7px] sm:text-[8px] tracking-[0.3em] text-zinc-500 uppercase">
-          S. Sikamore Collection © {new Date().getFullYear()}
+          S. Sikamore Collective © {new Date().getFullYear()}
         </p>
       </footer>
 
@@ -174,7 +157,6 @@ export default function HomePage() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             
-            {/* DYNAMIC IMAGE: Grabs the absolute newest product image */}
             {bgImages.length > 0 && (
               <div className="w-full h-48 sm:h-56 mb-8 overflow-hidden border border-white/5 bg-zinc-900">
                 <img src={bgImages[0]} alt="Latest Arrival" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
@@ -195,6 +177,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
