@@ -30,9 +30,6 @@ export default function CollectionsPage() {
     clothing: []
   });
 
-  // Global ticker to cycle through images in the hero banners
-  const [tick, setTick] = useState(0);
-
   // 1. Check Auth Status for Header
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,65 +65,24 @@ export default function CollectionsPage() {
     fetchProducts();
   }, []);
 
-  // 3. Start the motion timer for the hero backgrounds (Changes image every 4 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTick(prev => prev + 1);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // REUSABLE HERO BANNER COMPONENT
-  const HeroSection = ({ title, categoryName, products }) => {
-    // Extract up to 5 images for the background slideshow
-    const images = products
-      .map(p => getPrimaryImage(p.image))
-      .filter(img => img !== '')
-      .slice(0, 5);
-      
-    const currentImgIndex = images.length > 0 ? tick % images.length : 0;
-
-    return (
-      <div className="h-screen w-full relative flex flex-col items-center justify-center overflow-hidden bg-[#0A0A0A]">
-        {/* Motion Background */}
-        {images.length > 0 && images.map((img, index) => (
-          <div
-            key={`${categoryName}-hero-${index}`}
-            className={`absolute inset-0 transition-opacity duration-[2000ms] ease-in-out ${
-              index === currentImgIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <img src={img} alt={`${title} Collection`} className="w-full h-full object-cover scale-105" />
-          </div>
-        ))}
-
-        {/* Dark Overlays for Text Legibility */}
-        <div className="absolute inset-0 z-10 bg-black/40" />
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
-
-        {/* Content - Shop Button Removed */}
-        <div className="relative z-20 flex flex-col items-center text-center px-4 animate-fade-in">
-          <h2 className="text-4xl sm:text-6xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-lg pl-[0.2em]">
-            {title}
-          </h2>
-        </div>
-      </div>
-    );
-  };
-
   // REUSABLE 6-ITEM PRODUCT GRID COMPONENT
-  const ProductGrid = ({ products, categoryName }) => {
-    // Take exactly up to 6 products to display just like before
+  const ProductGrid = ({ products, categoryName, title, isLast }) => {
+    // Take exactly up to 6 products to display
     const displayProducts = products.slice(0, 6);
 
     return (
-      <div className="w-full bg-white text-black pt-16 pb-8 sm:pt-24 sm:pb-12 px-4 sm:px-8">
+      <div className="w-full bg-white text-black pt-16 sm:pt-24 pb-8 px-4 sm:px-8">
         <div className="max-w-[1400px] mx-auto flex flex-col">
           
+          {/* Clean Category Title */}
+          <h2 className="text-2xl sm:text-3xl font-serif tracking-[0.4em] uppercase mb-12 text-center text-black">
+            {title}
+          </h2>
+
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
             {displayProducts.map(product => (
               <Link href={`/shop?category=${categoryName}`} key={product.id} className="group flex flex-col cursor-pointer">
-                <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4">
+                <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4 border border-zinc-100">
                   <img
                     src={getPrimaryImage(product.image)}
                     alt={product.name}
@@ -149,12 +105,14 @@ export default function CollectionsPage() {
               href={`/shop?category=${categoryName}`} 
               className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase font-bold border-b border-black pb-1 hover:text-zinc-500 hover:border-zinc-500 transition-colors"
             >
-              View Full {categoryName} Archives
+              View Full {title} Archives
             </Link>
           </div>
 
-          {/* ELEGANT SECTION DIVIDER LINE */}
-          <div className="mt-20 mb-8 w-full max-w-sm mx-auto h-[1px] bg-zinc-200"></div>
+          {/* ELEGANT SECTION DIVIDER LINE (Hidden on the very last section) */}
+          {!isLast && (
+            <div className="mt-20 w-full max-w-sm mx-auto h-[1px] bg-zinc-200"></div>
+          )}
 
         </div>
       </div>
@@ -162,54 +120,58 @@ export default function CollectionsPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0A0A0A] font-sans antialiased text-white relative">
+    <div className="min-h-screen w-full bg-white font-sans antialiased text-black relative">
       
-      {/* FIXED TRANSPARENT HEADER */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full pt-8 px-6 sm:px-10 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pb-6">
-        <Link href="/shop" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
+      {/* FIXED SOLID HEADER */}
+      <header className="sticky top-0 left-0 right-0 z-50 w-full h-20 sm:h-24 px-6 sm:px-10 flex justify-between items-center bg-white border-b border-zinc-200 shadow-sm">
+        <Link href="/shop" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-black hover:text-zinc-500 transition-colors">
           The Collection
         </Link>
-        <Link href="/" className="absolute left-1/2 -translate-x-1/2 text-lg sm:text-xl font-normal tracking-[0.4em] uppercase font-serif text-white hidden sm:block">
+        <Link href="/" className="absolute left-1/2 -translate-x-1/2 text-lg sm:text-xl font-normal tracking-[0.4em] uppercase font-serif text-black hidden sm:block">
           S. SIKAMÒRE
         </Link>
         <div className="flex items-center">
           {userSession ? (
-            <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+            <Link href="/dashboard" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-black hover:text-zinc-500 transition-colors">
               DASHBOARD
             </Link>
           ) : (
-            <Link href="/login" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors">
+            <Link href="/login" className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-black hover:text-zinc-500 transition-colors">
               LOGIN / SIGNUP
             </Link>
           )}
         </div>
       </header>
 
-      {/* SCROLLING CONTENT */}
-      
-      {/* BAGS (Only shows if there are bag products) */}
-      {groupedProducts.bags.length > 0 && (
-        <>
-          <HeroSection title="Bags" categoryName="bags" products={groupedProducts.bags} />
-          <ProductGrid products={groupedProducts.bags} categoryName="bags" />
-        </>
-      )}
-      
-      {/* ACCESSORIES (Only shows if there are accessory products) */}
-      {groupedProducts.accessories.length > 0 && (
-        <>
-          <HeroSection title="Accessories" categoryName="accessories" products={groupedProducts.accessories} />
-          <ProductGrid products={groupedProducts.accessories} categoryName="accessories" />
-        </>
-      )}
-      
-      {/* CLOTHING (Only shows if there are clothing products) */}
-      {groupedProducts.clothing.length > 0 && (
-        <>
-          <HeroSection title="Clothing" categoryName="clothing" products={groupedProducts.clothing} />
-          <ProductGrid products={groupedProducts.clothing} categoryName="clothing" />
-        </>
-      )}
+      {/* SCROLLING CONTENT: Just the clean grids! */}
+      <main className="pb-16 bg-white">
+        {groupedProducts.bags.length > 0 && (
+          <ProductGrid 
+            products={groupedProducts.bags} 
+            categoryName="bags" 
+            title="Bags" 
+            isLast={groupedProducts.accessories.length === 0 && groupedProducts.clothing.length === 0} 
+          />
+        )}
+        
+        {groupedProducts.accessories.length > 0 && (
+          <ProductGrid 
+            products={groupedProducts.accessories} 
+            categoryName="accessories" 
+            title="Accessories" 
+            isLast={groupedProducts.clothing.length === 0} 
+          />
+        )}
+        
+        {groupedProducts.clothing.length > 0 && (
+          <ProductGrid 
+            products={groupedProducts.clothing} 
+            categoryName="clothing" 
+            title="Clothing" 
+            isLast={true} 
+          />
+        )}
+      </main>
 
       {/* LUXURY FOOTER */}
       <div className="w-full bg-[#0A0A0A] flex flex-col items-center justify-center py-24 sm:py-32 px-6">
