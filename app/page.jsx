@@ -115,7 +115,7 @@ export default function HomePage() {
             Finely crafted for audacious women who carry light and purpose.
           </p>
           <Link 
-            href="/collections"
+            href="/shop"
             className="bg-white text-black px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-200 transition-colors shadow-2xl"
           >
             Explore Now
