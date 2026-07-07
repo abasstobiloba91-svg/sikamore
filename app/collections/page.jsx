@@ -104,17 +104,11 @@ export default function CollectionsPage() {
         <div className="absolute inset-0 z-10 bg-black/40" />
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
 
-        {/* Content */}
+        {/* Content - Shop Button Removed */}
         <div className="relative z-20 flex flex-col items-center text-center px-4 animate-fade-in">
-          <h2 className="text-4xl sm:text-6xl tracking-[0.4em] font-serif font-light mb-8 uppercase text-white drop-shadow-lg pl-[0.2em]">
+          <h2 className="text-4xl sm:text-6xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-lg pl-[0.2em]">
             {title}
           </h2>
-          <Link 
-            href={`/shop?category=${categoryName}`} 
-            className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
-          >
-            Shop {title}
-          </Link>
         </div>
       </div>
     );
@@ -126,8 +120,8 @@ export default function CollectionsPage() {
     const displayProducts = products.slice(0, 6);
 
     return (
-      <div className="w-full bg-white text-black py-16 sm:py-24 px-4 sm:px-8">
-        <div className="max-w-[1400px] mx-auto">
+      <div className="w-full bg-white text-black pt-16 pb-8 sm:pt-24 sm:pb-12 px-4 sm:px-8">
+        <div className="max-w-[1400px] mx-auto flex flex-col">
           
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
             {displayProducts.map(product => (
@@ -158,6 +152,9 @@ export default function CollectionsPage() {
               View Full {categoryName} Archives
             </Link>
           </div>
+
+          {/* ELEGANT SECTION DIVIDER LINE */}
+          <div className="mt-20 mb-8 w-full max-w-sm mx-auto h-[1px] bg-zinc-200"></div>
 
         </div>
       </div>
