@@ -843,13 +843,16 @@ export default function ShopCatalog() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
                   </div>
+                  
                   <h3 className="text-[9px] sm:text-[10px] tracking-widest uppercase font-medium text-black mb-1">
                     {product.name}
                   </h3>
+                  
                   <p className="text-[9px] text-zinc-500 font-mono">
                     ₦{product.price.toLocaleString()}
                   </p>
                   
+                  {/* Add to Cart / View Product Buttons */}
                   <div className="mt-4 flex flex-col gap-2">
                     <button className="w-full bg-black text-white text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-800 transition-colors">
                       Add to Cart
@@ -862,22 +865,6 @@ export default function ShopCatalog() {
               ))}
             </div>
           )}
-                        <div className="flex flex-col gap-1 mt-4 text-left px-1">
-                          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black">
-                          ₦{product.price.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 4. SLIDING MINI BAG DRAWER GRID (Z-INDEX 9999999) WITH OVERLAY AT 9999900 */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
