@@ -608,11 +608,12 @@ export default function ShopCatalog() {
                   }
                 `}} />
 
-                <img 
-                  src="https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop" 
-                  alt="Accessories Collection" 
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 animate-subtle-zoom"
-                />
+                {/* --- CHANGE THIS SRC TO YOUR ACTUAL BRAND IMAGE LATER --- */}
+<img 
+  src="https://images.unsplash.com/photo-1606760227091-3dd870d97f1d?q=80&w=2000&auto=format&fit=crop" 
+  alt="Accessories Collection" 
+  className="absolute inset-0 w-full h-full object-cover opacity-60 animate-subtle-zoom"
+/>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
                 
                 <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
