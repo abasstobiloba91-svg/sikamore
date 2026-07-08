@@ -589,13 +589,25 @@ export default function ShopCatalog() {
               {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
             </div>
 
-            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
+           {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
             {searchResults.length > 4 && (
               <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
+                
+                {/* Custom inline animation for continuous luxury slow-zoom */}
+                <style dangerouslySetInnerHTML={{__html: `
+                  @keyframes subtleZoom {
+                    0% { transform: scale(1); }
+                    100% { transform: scale(1.15); }
+                  }
+                  .animate-subtle-zoom {
+                    animation: subtleZoom 25s ease-in-out infinite alternate;
+                  }
+                `}} />
+
                 <img 
                   src="https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop" 
                   alt="Accessories Collection" 
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 hover:scale-105 transition-transform duration-[2000ms] ease-out"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 animate-subtle-zoom"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
                 
@@ -603,16 +615,16 @@ export default function ShopCatalog() {
                   <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
                     Accessories
                   </h2>
-                  <Link 
+                  {/* Changed to a standard <a> tag to force the category refresh! */}
+                  <a 
                     href="/shop?category=accessories" 
                     className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
                   >
                     Shop Accessories
-                  </Link>
+                  </a>
                 </div>
               </div>
             )}
-
             {/* 3. THE REMAINING PRODUCTS */}
             {searchResults.length > 4 && (
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
