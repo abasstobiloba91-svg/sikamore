@@ -774,15 +774,94 @@ export default function ShopCatalog() {
               <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">We couldn&apos;t quite find what you&apos;re looking for. Try a different search.</div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {searchResults.map((product) => {
-                    const inWishlist = wishlist.some(w => w.id === product.id);
-                    return (
-                      <div key={`search-${product.id}`} className="group flex flex-col relative bg-white pb-4">
-                        <div className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer" onClick={() => { if (!product.is_sold_out) { setIsSearchOpen(false); setSearchQuery(''); openQuickView(product); } }}>
-                          {product.image && ( <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" /> )}
-                          <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform"><svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
-                        </div>
+                {/* 1. THE FIRST 4 PRODUCTS */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
+            {searchResults.slice(0, 4).map((product) => (
+              <Link href={`/shop/${product.id}`} key={product.id} className="group flex flex-col cursor-pointer">
+                <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4 border border-zinc-100">
+                  {/* Note: Ensure your image variable here matches what you currently use! */}
+                  <img
+                    src={product.image ? JSON.parse(product.image)[0] : ''}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
+                </div>
+                <h3 className="text-[9px] sm:text-[10px] tracking-widest uppercase font-medium text-black mb-1">
+                  {product.name}
+                </h3>
+                <p className="text-[9px] text-zinc-500 font-mono">
+                  ₦{product.price.toLocaleString()}
+                </p>
+                
+                {/* Add to Cart / View Product Buttons */}
+                <div className="mt-4 flex flex-col gap-2">
+                  <button className="w-full bg-black text-white text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-800 transition-colors">
+                    Add to Cart
+                  </button>
+                  <button className="w-full bg-white text-black border border-zinc-300 text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-50 transition-colors">
+                    View Product
+                  </button>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* 2. THE ACCESSORIES HERO BANNER */}
+          {searchResults.length > 4 && (
+            <div className="w-full h-[80vh] sm:h-screen relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-24 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-[#050505]">
+              {/* Fallback luxury placeholder image - you can change this URL later! */}
+              <img 
+                src="https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop" 
+                alt="Accessories Collection" 
+                className="absolute inset-0 w-full h-full object-cover opacity-70"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/60" />
+              
+              <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
+                <h2 className="text-4xl sm:text-6xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-lg pl-[0.2em] mb-8">
+                  Accessories
+                </h2>
+                <a 
+                  href="/shop?category=accessories" 
+                  className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
+                >
+                  Shop Accessories
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* 3. THE REMAINING PRODUCTS */}
+          {searchResults.length > 4 && (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
+              {searchResults.slice(4).map((product) => (
+                <Link href={`/shop/${product.id}`} key={product.id} className="group flex flex-col cursor-pointer">
+                  <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4 border border-zinc-100">
+                    <img
+                      src={product.image ? JSON.parse(product.image)[0] : ''}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
+                  </div>
+                  <h3 className="text-[9px] sm:text-[10px] tracking-widest uppercase font-medium text-black mb-1">
+                    {product.name}
+                  </h3>
+                  <p className="text-[9px] text-zinc-500 font-mono">
+                    ₦{product.price.toLocaleString()}
+                  </p>
+                  
+                  <div className="mt-4 flex flex-col gap-2">
+                    <button className="w-full bg-black text-white text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-800 transition-colors">
+                      Add to Cart
+                    </button>
+                    <button className="w-full bg-white text-black border border-zinc-300 text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-50 transition-colors">
+                      View Product
+                    </button>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
                           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
                           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
