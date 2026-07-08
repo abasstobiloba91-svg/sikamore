@@ -138,11 +138,10 @@ export default function ShopCatalog() {
   const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
     
-    // Dynamically computes international pricing bands relative to the admin's live dollar rate
     const dynamicExchangeRates = { 
       NGN: 1, 
       USD: 1 / usdToNgnRate, 
-      GBP: 1 / (usdToNgnRate * 1.32), // cross rate calculations
+      GBP: 1 / (usdToNgnRate * 1.32),
       EUR: 1 / (usdToNgnRate * 1.12) 
     };
     
@@ -161,7 +160,6 @@ export default function ShopCatalog() {
     const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
     const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     
-    // Honest Math: Total is strictly Subtotal + explicitly displayed Shipping Fee.
     const combinedTotal = productsConverted + shippingConverted;
     
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
@@ -199,11 +197,9 @@ export default function ShopCatalog() {
     });
   }, []);
 
- // UPDATED SEARCH, SORT, AND CATEGORY LOGIC
   useEffect(() => {
     let result = [...products];
 
-    // 0. Apply URL Category Filter
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const cat = params.get('category');
@@ -212,7 +208,6 @@ export default function ShopCatalog() {
       }
     }
 
-    // 1. Apply Search
     if (searchQuery.trim()) {
       const lowerQ = searchQuery.toLowerCase();
       result = result.filter(p => {
@@ -222,13 +217,11 @@ export default function ShopCatalog() {
       });
     }
 
-    // 2. Apply Sorting
     if (activeSort === 'low_to_high') {
       result.sort((a, b) => Number(a.price) - Number(b.price));
     } else if (activeSort === 'high_to_low') {
       result.sort((a, b) => Number(b.price) - Number(a.price));
     } else {
-      // 'newest'
       result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
@@ -385,7 +378,6 @@ export default function ShopCatalog() {
       if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
       else if (isEuropeanUser) autoCurrency = 'EUR';
 
-      // THE ULTIMATE GLOBAL FAILSAFE CRASH PROTOCOLS
       if (!data.success) {
         if (detectedCountryCode !== 'NG') {
           const fallbackFee = isInternationalFree ? 0 : (internationalFee * usdToNgnRate);
@@ -422,7 +414,6 @@ export default function ShopCatalog() {
         }
       }
 
-      // SATELLITE LOOKUP SUCCESSFUL
       setDeliveryAddress(data.matchedAddress); 
       setDeliveryFee(data.shippingFee);
       
@@ -463,12 +454,59 @@ export default function ShopCatalog() {
     { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
   ];
 
+  // Helper function to render a product card exactly as you have it
+  const renderProductCard = (product) => {
+    const inWishlist = wishlist.some(w => w.id === product.id);
+    const gridPrimaryImage = getPrimaryImage(product.image);
+
+    return (
+      <div key={product.id} className="group flex flex-col relative bg-white pb-4">
+        <div 
+          className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
+          onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
+        >
+          {gridPrimaryImage ? (
+            <img 
+              key={gridPrimaryImage} 
+              src={gridPrimaryImage} 
+              alt={product.name || 'Product'} 
+              className="absolute inset-0 w-full h-full object-cover" 
+            />
+          ) : (
+            <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Restock</div>
+          )}
+          
+          <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
+            <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+          </button>
+
+          <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
+            <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
+          </div>
+
+          {product.is_sold_out && (
+            <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1 mt-4 text-left px-1">
+          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
+          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
+          <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
+            <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* THE HEADER FIX: Wraps BOTH the announcement bar and header in ONE sticky container */}
+      {/* THE HEADER */}
       <div className="sticky top-0 w-full" style={{ zIndex: 9999950 }}>
-        
         <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative">
           <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
             {announcements.map((text, idx) => (
@@ -521,8 +559,6 @@ export default function ShopCatalog() {
 
       <section className="bg-white border-b border-zinc-200 relative z-">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          
-          {/* THE FIXED BUTTON */}
           <button onClick={() => setIsFilterOpen(true)} className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
           
           <div className="flex items-center gap-3">
@@ -539,57 +575,51 @@ export default function ShopCatalog() {
         </div>
       </section>
 
+      {/* --- THE MAIN SHOP GRID WITH THE SPLIT BANNER LOGIC --- */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
+        ) : searchResults.length === 0 ? (
+          <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">No items found in this category.</div>
         ) : (
-          <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
-            {searchResults.map((product) => {
-              const inWishlist = wishlist.some(w => w.id === product.id);
-              const gridPrimaryImage = getPrimaryImage(product.image);
+          <div className="w-full flex flex-col">
+            
+            {/* 1. THE FIRST 4 PRODUCTS */}
+            <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+              {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
+            </div>
 
-              return (
-                <div key={product.id} className="group flex flex-col relative bg-white pb-4">
-                  <div 
-                    className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
-                    onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
+            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
+            {searchResults.length > 4 && (
+              <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
+                <img 
+                  src="https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop" 
+                  alt="Accessories Collection" 
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 hover:scale-105 transition-transform duration-[2000ms] ease-out"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
+                
+                <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
+                  <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
+                    Accessories
+                  </h2>
+                  <Link 
+                    href="/shop?category=accessories" 
+                    className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
                   >
-                    {gridPrimaryImage ? (
-                      <img 
-                        key={gridPrimaryImage} 
-                        src={gridPrimaryImage} 
-                        alt={product.name || 'Product'} 
-                        className="absolute inset-0 w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Restock</div>
-                    )}
-                    
-                    <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
-                      <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                    </button>
-
-                    <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
-                      <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
-                    </div>
-
-                    {product.is_sold_out && (
-                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1 mt-4 text-left px-1">
-                    <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                    <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
-                    <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
-                      <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
-                    </div>
-                  </div>
+                    Shop Accessories
+                  </Link>
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* 3. THE REMAINING PRODUCTS */}
+            {searchResults.length > 4 && (
+              <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+                {searchResults.slice(4).map((product) => renderProductCard(product))}
+              </div>
+            )}
+
           </div>
         )}
       </main>
@@ -633,14 +663,11 @@ export default function ShopCatalog() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-950 relative shrink-0 flex items-center justify-center">
-              
-              {/* THE ULTIMATE OBJECT BRUTE-FORCE: Scans the entire first object tree for image parameters */}
               {products && products.length > 0 && (() => {
                 try {
                   const rawProductDump = JSON.stringify(products);
                   const match = rawProductDump.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
                   const parsedUrl = match ? match[0] : '';
-                  
                   return parsedUrl ? (
                     <img src={parsedUrl} alt="Sikamore Curated Acquisition" className="w-full h-full object-cover animate-fade-in" />
                   ) : (
@@ -650,12 +677,9 @@ export default function ShopCatalog() {
                   return <div className="text-zinc-500 text-[8px] tracking-[0.3em] uppercase font-light">S. Sikamòre Collection</div>;
                 }
               })()}
-              
-              {/* TIMING SHIELD: Renders an elegant luxury loader if network streams are delayed */}
               {(!products || products.length === 0) && (
                 <div className="text-zinc-400 text-[8px] tracking-[0.3em] uppercase font-light animate-pulse">Loading Archives...</div>
               )}
-
             </div>
             <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center text-center bg-white">
               <div className="animate-fade-in">
@@ -726,7 +750,6 @@ export default function ShopCatalog() {
                 </div>
                 <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
 
-                {/* THE RESTORED ACCORDION TABS */}
                 <div className="mt-8 border-t border-zinc-200">
                   {productTabs.map((tab) => (
                     <div key={tab.id} className="border-b border-zinc-200">
@@ -773,99 +796,9 @@ export default function ShopCatalog() {
             ) : searchResults.length === 0 ? (
               <div className="text-center pt-10 text-[10px] tracking-[0.2em] text-zinc-400 uppercase">We couldn&apos;t quite find what you&apos;re looking for. Try a different search.</div>
             ) : (
-              <>
-                {/* 1. THE FIRST 4 PRODUCTS */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
-                  {searchResults.slice(0, 4).map((product) => (
-                    <Link href={`/shop/${product.id}`} key={product.id} className="group flex flex-col cursor-pointer">
-                      <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4 border border-zinc-100">
-                        {/* Note: Ensure your image variable here matches what you currently use! */}
-                        <img
-                          src={product.image ? JSON.parse(product.image)[0] : ''}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                        />
-                      </div>
-                      <h3 className="text-[9px] sm:text-[10px] tracking-widest uppercase font-medium text-black mb-1">
-                        {product.name}
-                      </h3>
-                      <p className="text-[9px] text-zinc-500 font-mono">
-                        ₦{product.price.toLocaleString()}
-                      </p>
-                      
-                      {/* Add to Cart / View Product Buttons */}
-                      <div className="mt-4 flex flex-col gap-2">
-                        <button className="w-full bg-black text-white text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-800 transition-colors">
-                          Add to Cart
-                        </button>
-                        <button className="w-full bg-white text-black border border-zinc-300 text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-50 transition-colors">
-                          View Product
-                        </button>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* 2. THE ACCESSORIES HERO BANNER */}
-                {searchResults.length > 4 && (
-                  <div className="w-full h-[80vh] sm:h-screen relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-24 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-[#050505]">
-                    {/* Fallback luxury placeholder image - you can change this URL later! */}
-                    <img 
-                      src="https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop" 
-                      alt="Accessories Collection" 
-                      className="absolute inset-0 w-full h-full object-cover opacity-70"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/60" />
-                    
-                    <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
-                      <h2 className="text-4xl sm:text-6xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-lg pl-[0.2em] mb-8">
-                        Accessories
-                      </h2>
-                      <a 
-                        href="/shop?category=accessories" 
-                        className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
-                      >
-                        Shop Accessories
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. THE REMAINING PRODUCTS */}
-                {searchResults.length > 4 && (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
-                    {searchResults.slice(4).map((product) => (
-                      <Link href={`/shop/${product.id}`} key={product.id} className="group flex flex-col cursor-pointer">
-                        <div className="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-4 border border-zinc-100">
-                          <img
-                            src={product.image ? JSON.parse(product.image)[0] : ''}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                          />
-                        </div>
-                        
-                        <h3 className="text-[9px] sm:text-[10px] tracking-widest uppercase font-medium text-black mb-1">
-                          {product.name}
-                        </h3>
-                        
-                        <p className="text-[9px] text-zinc-500 font-mono">
-                          ₦{product.price.toLocaleString()}
-                        </p>
-                        
-                        {/* Add to Cart / View Product Buttons */}
-                        <div className="mt-4 flex flex-col gap-2">
-                          <button className="w-full bg-black text-white text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-800 transition-colors">
-                            Add to Cart
-                          </button>
-                          <button className="w-full bg-white text-black border border-zinc-300 text-[9px] tracking-widest uppercase py-3 hover:bg-zinc-50 transition-colors">
-                            View Product
-                          </button>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-10 sm:gap-x-8 sm:gap-y-16">
+                {searchResults.map((product) => renderProductCard(product))}
+              </div>
             )}
           </div>
         </div>
@@ -976,7 +909,6 @@ export default function ShopCatalog() {
               Latest Arrivals
             </Link>
             <div className="pl-4 border-l border-zinc-200 flex flex-col gap-4">
-              {/* Using standard <a> tags forces the shop to filter properly! */}
               <a href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Bags</a>
               <a href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Accessories</a>
               <a href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Clothing</a>
