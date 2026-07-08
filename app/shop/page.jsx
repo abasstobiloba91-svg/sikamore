@@ -40,14 +40,6 @@ const getPrimaryImage = (payload) => {
   }
 };
 
-// HIGH-END JEWELRY IMAGES FOR THE BANNER
-const luxuryJewelryImages = [
-  "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2000&auto=format&fit=crop", // Diamond elegance
-  "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=2000&auto=format&fit=crop", // Gold tones
-  "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop", // Luxury pearls/chains
-  "https://images.unsplash.com/photo-1580902394724-b08ef9a62558?q=80&w=2000&auto=format&fit=crop"  // Fine rings/bracelets
-];
-
 export default function ShopCatalog() {
   // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
@@ -76,6 +68,7 @@ export default function ShopCatalog() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [currentCategory, setCurrentCategory] = useState(null);
   
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
@@ -95,6 +88,7 @@ export default function ShopCatalog() {
   // Animation states
   const [tickerIndex, setTickerIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [accessoryImages, setAccessoryImages] = useState([]);
 
   // --- 3. REAL-TIME MULTI-CURRENCY & LOGISTICS POSTGRES PIPELINE ---
   useEffect(() => {
@@ -208,20 +202,44 @@ export default function ShopCatalog() {
     });
   }, []);
 
-  // UPDATED SEARCH, SORT, AND CATEGORY LOGIC
+  // --- DYNAMICALLY EXTRACT ACCESSORIES IMAGES FOR THE SLIDESHOW ---
+  useEffect(() => {
+    if (products.length > 0) {
+      const accProducts = products.filter(p => p.category && p.category.toLowerCase() === 'accessories');
+      let extractedImgs = [];
+      
+      accProducts.forEach(p => {
+        const urls = extractCleanUrls(p.image);
+        urls.forEach(u => {
+          if (u && !extractedImgs.includes(u)) extractedImgs.push(u);
+        });
+      });
+
+      if (extractedImgs.length > 0) {
+        setAccessoryImages(extractedImgs.slice(0, 5)); // Take top 5 for slides
+      } else {
+        // Safe fallback just in case no accessories are uploaded yet
+        setAccessoryImages(["https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"]);
+      }
+    }
+  }, [products]);
+
+  // --- BULLETPROOF FILTERING LOGIC ---
   useEffect(() => {
     let result = [...products];
-
-    // Grab Category from URL cleanly
     let cat = null;
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       cat = params.get('category');
+      setCurrentCategory(cat);
     }
 
-    // Apply Filter if present
     if (cat) {
-      result = result.filter(p => (p.category || 'bags') === cat);
+      result = result.filter(p => {
+        const productCat = p.category ? p.category.toLowerCase() : 'bags';
+        return productCat === cat.toLowerCase(); // Case-insensitive exact match
+      });
     }
 
     if (searchQuery.trim()) {
@@ -268,11 +286,12 @@ export default function ShopCatalog() {
 
   // BANNER SLIDESHOW ANIMATION
   useEffect(() => {
+    if (accessoryImages.length <= 1) return;
     const bannerTimer = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % luxuryJewelryImages.length);
+      setBannerIndex((prev) => (prev + 1) % accessoryImages.length);
     }, 5000);
     return () => clearInterval(bannerTimer);
-  }, []);
+  }, [accessoryImages.length]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -609,59 +628,56 @@ export default function ShopCatalog() {
         ) : (
           <div className="w-full flex flex-col">
             
-            {/* 1. THE FIRST 4 PRODUCTS */}
-            <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
-              {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
-            </div>
-
-            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER WITH ANIMATED SLIDESHOW */}
-            {searchResults.length > 4 && (
-              <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
-                
-                {/* Custom inline animation for continuous luxury slow-zoom */}
-                <style dangerouslySetInnerHTML={{__html: `
-                  @keyframes subtleZoom {
-                    0% { transform: scale(1); }
-                    100% { transform: scale(1.15); }
-                  }
-                  .animate-subtle-zoom {
-                    animation: subtleZoom 25s ease-in-out infinite alternate;
-                  }
-                `}} />
-
-                {luxuryJewelryImages.map((img, idx) => (
-                  <img 
-                    key={idx}
-                    src={img} 
-                    alt="Fine Jewelry Accessories" 
-                    className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
-                    onError={(e) => { 
-                      // THE BRUTE FORCE FIX: If any image breaks, instantly swap to a guaranteed working luxury fallback
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop"; 
-                    }}
-                  />
-                ))}
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
-                
-                <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
-                  <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
-                    Accessories
-                  </h2>
-                  <a 
-                    href="/shop?category=accessories" 
-                    className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
-                  >
-                    Shop Accessories
-                  </a>
+            {/* If NO category is selected (Main Shop View), show the split layout with the banner */}
+            {!currentCategory && searchResults.length > 4 ? (
+              <>
+                <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+                  {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
                 </div>
-              </div>
-            )}
 
-            {/* 3. THE REMAINING PRODUCTS */}
-            {searchResults.length > 4 && (
+                <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
+                  <style dangerouslySetInnerHTML={{__html: `
+                    @keyframes subtleZoom {
+                      0% { transform: scale(1); }
+                      100% { transform: scale(1.15); }
+                    }
+                    .animate-subtle-zoom {
+                      animation: subtleZoom 25s ease-in-out infinite alternate;
+                    }
+                  `}} />
+
+                  {accessoryImages.map((img, idx) => (
+                    <img 
+                      key={idx}
+                      src={img} 
+                      alt="Fine Jewelry Accessories" 
+                      className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
+                    />
+                  ))}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
+                  
+                  <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
+                    <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
+                      Accessories
+                    </h2>
+                    <a 
+                      href="/shop?category=accessories" 
+                      className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
+                    >
+                      Shop Accessories
+                    </a>
+                  </div>
+                </div>
+
+                <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+                  {searchResults.slice(4).map((product) => renderProductCard(product))}
+                </div>
+              </>
+            ) : (
+              /* If a specific category IS selected (like "Bags"), just show a normal clean grid! */
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
-                {searchResults.slice(4).map((product) => renderProductCard(product))}
+                {searchResults.map((product) => renderProductCard(product))}
               </div>
             )}
 
@@ -684,9 +700,9 @@ export default function ShopCatalog() {
          <div className="flex flex-col gap-2.5 text-[10px]">
             <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Explore</h4>
             <Link href="/collections" className="hover:text-black cursor-pointer transition-colors">Collections View</Link>
-            <Link href="/shop?category=bags" className="hover:text-black cursor-pointer transition-colors">Bags</Link>
-            <Link href="/shop?category=accessories" className="hover:text-black cursor-pointer transition-colors">Accessories</Link>
-            <Link href="/shop?category=clothing" className="hover:text-black cursor-pointer transition-colors">Clothing</Link>
+            <a href="/shop?category=bags" className="hover:text-black cursor-pointer transition-colors block">Bags</a>
+            <a href="/shop?category=accessories" className="hover:text-black cursor-pointer transition-colors block">Accessories</a>
+            <a href="/shop?category=clothing" className="hover:text-black cursor-pointer transition-colors block">Clothing</a>
           </div>
          
           <div className="flex flex-col gap-3">
@@ -950,13 +966,13 @@ export default function ShopCatalog() {
           <Link href="/" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">Home</Link>
           
           <div className="flex flex-col gap-4">
-            <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium">
+            <a href="/shop" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors border-b border-zinc-900 pb-2 text-black font-medium block">
               Latest Arrivals
-            </Link>
+            </a>
             <div className="pl-4 border-l border-zinc-200 flex flex-col gap-4">
-              <a href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Bags</a>
-              <a href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Accessories</a>
-              <a href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors">Shop Clothing</a>
+              <a href="/shop?category=bags" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors block">Shop Bags</a>
+              <a href="/shop?category=accessories" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors block">Shop Accessories</a>
+              <a href="/shop?category=clothing" onClick={() => setIsMenuOpen(false)} className="text-[10px] text-zinc-500 hover:text-black transition-colors block">Shop Clothing</a>
             </div>
           </div>
 
