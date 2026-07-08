@@ -200,12 +200,16 @@ export default function ShopCatalog() {
   useEffect(() => {
     let result = [...products];
 
+    // Grab Category from URL cleanly
+    let cat = null;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const cat = params.get('category');
-      if (cat) {
-        result = result.filter(p => (p.category || 'bags') === cat);
-      }
+      cat = params.get('category');
+    }
+
+    // Apply Filter if present
+    if (cat) {
+      result = result.filter(p => (p.category || 'bags') === cat);
     }
 
     if (searchQuery.trim()) {
@@ -589,7 +593,7 @@ export default function ShopCatalog() {
               {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
             </div>
 
-           {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
+            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
             {searchResults.length > 4 && (
               <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
                 
@@ -615,7 +619,6 @@ export default function ShopCatalog() {
                   <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
                     Accessories
                   </h2>
-                  {/* Changed to a standard <a> tag to force the category refresh! */}
                   <a 
                     href="/shop?category=accessories" 
                     className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
@@ -625,6 +628,7 @@ export default function ShopCatalog() {
                 </div>
               </div>
             )}
+
             {/* 3. THE REMAINING PRODUCTS */}
             {searchResults.length > 4 && (
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
