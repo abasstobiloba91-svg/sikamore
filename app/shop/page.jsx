@@ -69,6 +69,7 @@ export default function ShopCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [currentCategory, setCurrentCategory] = useState(null);
+  const [isViewAll, setIsViewAll] = useState(false); // Track if user wants to see EVERY product
   
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
@@ -224,15 +225,19 @@ export default function ShopCatalog() {
     }
   }, [products]);
 
-  // --- BULLETPROOF FILTERING LOGIC ---
+  // --- BULLETPROOF FILTERING LOGIC WITH "VIEW ALL" HANDLING ---
   useEffect(() => {
     let result = [...products];
     let cat = null;
+    let viewParam = null;
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       cat = params.get('category');
+      viewParam = params.get('view');
+      
       setCurrentCategory(cat);
+      setIsViewAll(viewParam === 'all');
     }
 
     if (cat) {
@@ -628,54 +633,73 @@ export default function ShopCatalog() {
         ) : (
           <div className="w-full flex flex-col">
             
-            {/* If NO category is selected (Main Shop View), show the split layout with the banner */}
-            {!currentCategory && searchResults.length > 4 ? (
+            {/* SCENARIO 1: DEFAULT LATEST ARRIVALS PAGE (Curated Magazine Layout) */}
+            {!currentCategory && !isViewAll ? (
               <>
+                {/* TOP 4 PRODUCTS */}
                 <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                   {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
                 </div>
 
-                <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
-                  <style dangerouslySetInnerHTML={{__html: `
-                    @keyframes subtleZoom {
-                      0% { transform: scale(1); }
-                      100% { transform: scale(1.15); }
-                    }
-                    .animate-subtle-zoom {
-                      animation: subtleZoom 25s ease-in-out infinite alternate;
-                    }
-                  `}} />
+                {/* THE ACCESSORIES BANNER */}
+                {searchResults.length > 4 && (
+                  <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
+                    <style dangerouslySetInnerHTML={{__html: `
+                      @keyframes subtleZoom {
+                        0% { transform: scale(1); }
+                        100% { transform: scale(1.15); }
+                      }
+                      .animate-subtle-zoom {
+                        animation: subtleZoom 25s ease-in-out infinite alternate;
+                      }
+                    `}} />
 
-                  {accessoryImages.map((img, idx) => (
-                    <img 
-                      key={idx}
-                      src={img} 
-                      alt="Fine Jewelry Accessories" 
-                      className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
-                    />
-                  ))}
+                    {accessoryImages.map((img, idx) => (
+                      <img 
+                        key={idx}
+                        src={img} 
+                        alt="Fine Jewelry Accessories" 
+                        className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
+                      />
+                    ))}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
-                  
-                  <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
-                    <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
-                      Accessories
-                    </h2>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
+                    
+                    <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
+                      <h2 className="text-4xl sm:text-6xl md:text-7xl tracking-[0.4em] font-serif font-light uppercase text-white drop-shadow-2xl pl-[0.2em] mb-10">
+                        Accessories
+                      </h2>
+                      <a 
+                        href="/shop?category=accessories" 
+                        className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
+                      >
+                        Shop Accessories
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTTOM 4 PRODUCTS */}
+                {searchResults.length > 4 && (
+                  <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+                    {searchResults.slice(4, 8).map((product) => renderProductCard(product))}
+                  </div>
+                )}
+
+                {/* VIEW ALL BUTTON */}
+                {searchResults.length > 8 && (
+                  <div className="flex justify-center mt-16 sm:mt-24 w-full">
                     <a 
-                      href="/shop?category=accessories" 
-                      className="bg-white/10 backdrop-blur-md border border-white/30 text-white px-10 py-4 sm:px-14 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold hover:bg-white hover:text-black transition-all shadow-2xl"
+                      href="/shop?view=all" 
+                      className="border border-black text-black px-12 py-4 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.25em] uppercase hover:bg-black hover:text-white transition-colors"
                     >
-                      Shop Accessories
+                      View All Products
                     </a>
                   </div>
-                </div>
-
-                <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
-                  {searchResults.slice(4).map((product) => renderProductCard(product))}
-                </div>
+                )}
               </>
             ) : (
-              /* If a specific category IS selected (like "Bags"), just show a normal clean grid! */
+              /* SCENARIO 2: CATEGORY SELECTED OR "VIEW ALL" (Clean Grid, Every Product) */
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                 {searchResults.map((product) => renderProductCard(product))}
               </div>
