@@ -635,6 +635,10 @@ export default function ShopCatalog() {
                     src={img} 
                     alt="Fine Jewelry Accessories" 
                     className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
+                    onError={(e) => { 
+                      // THE BRUTE FORCE FIX: If any image breaks, instantly swap to a guaranteed working luxury fallback
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1599643478524-fb66f70d00f0?q=80&w=2000&auto=format&fit=crop"; 
+                    }}
                   />
                 ))}
 
