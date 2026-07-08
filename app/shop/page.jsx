@@ -40,6 +40,14 @@ const getPrimaryImage = (payload) => {
   }
 };
 
+// HIGH-END JEWELRY IMAGES FOR THE BANNER
+const luxuryJewelryImages = [
+  "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2000&auto=format&fit=crop", // Diamond elegance
+  "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=2000&auto=format&fit=crop", // Gold tones
+  "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop", // Luxury pearls/chains
+  "https://images.unsplash.com/photo-1580902394724-b08ef9a62558?q=80&w=2000&auto=format&fit=crop"  // Fine rings/bracelets
+];
+
 export default function ShopCatalog() {
   // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
@@ -83,7 +91,10 @@ export default function ShopCatalog() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
+  
+  // Animation states
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   // --- 3. REAL-TIME MULTI-CURRENCY & LOGISTICS POSTGRES PIPELINE ---
   useEffect(() => {
@@ -197,6 +208,7 @@ export default function ShopCatalog() {
     });
   }, []);
 
+  // UPDATED SEARCH, SORT, AND CATEGORY LOGIC
   useEffect(() => {
     let result = [...products];
 
@@ -248,10 +260,19 @@ export default function ShopCatalog() {
     fetchProducts();
   }, []);
 
+  // HEADER TEXT ANIMATION
   useEffect(() => {
     const tickerTimer = setInterval(() => setTickerIndex((prev) => (prev + 1) % announcements.length), 5000);
     return () => clearInterval(tickerTimer);
   }, [announcements.length]);
+
+  // BANNER SLIDESHOW ANIMATION
+  useEffect(() => {
+    const bannerTimer = setInterval(() => {
+      setBannerIndex((prev) => (prev + 1) % luxuryJewelryImages.length);
+    }, 5000);
+    return () => clearInterval(bannerTimer);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -593,7 +614,7 @@ export default function ShopCatalog() {
               {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
             </div>
 
-            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER */}
+            {/* 2. THE FULL-WIDTH ACCESSORIES BANNER WITH ANIMATED SLIDESHOW */}
             {searchResults.length > 4 && (
               <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
                 
@@ -608,12 +629,15 @@ export default function ShopCatalog() {
                   }
                 `}} />
 
-                {/* --- CHANGE THIS SRC TO YOUR ACTUAL BRAND IMAGE LATER --- */}
-<img 
-  src="https://images.unsplash.com/photo-1606760227091-3dd870d97f1d?q=80&w=2000&auto=format&fit=crop" 
-  alt="Accessories Collection" 
-  className="absolute inset-0 w-full h-full object-cover opacity-60 animate-subtle-zoom"
-/>
+                {luxuryJewelryImages.map((img, idx) => (
+                  <img 
+                    key={idx}
+                    src={img} 
+                    alt="Fine Jewelry Accessories" 
+                    className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
+                  />
+                ))}
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70" />
                 
                 <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fade-in">
