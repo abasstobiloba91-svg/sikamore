@@ -864,7 +864,9 @@ export default function ShopCatalog() {
           )}
                         <div className="flex flex-col gap-1 mt-4 text-left px-1">
                           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
+                          <p className="text-[11px] sm:text-[13px] tracking-widest text-black">
+                          ₦{product.price.toLocaleString()}
+                          </p>
                         </div>
                       </div>
                     );
