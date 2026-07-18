@@ -16,7 +16,6 @@ const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 const ATELIER_LONG = 3.4215;
 const ATELIER_LAT = 6.4281;
 
-// FOR QUICK VIEW: Separates the messy backend string for the popup
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -28,7 +27,6 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// FOR THE GRID: Brutally snatch ONLY the first valid image and ignore the rest
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
   try {
@@ -41,13 +39,14 @@ const getPrimaryImage = (payload) => {
 };
 
 export default function ShopCatalog() {
-  // --- 1. GLOBAL CURRENCY & REAL-TIME LOGISTICS STATES ---
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
-  const [internationalFee, setInternationalFee] = useState(55);
   const [isInternationalFree, setIsInternationalFree] = useState(true);
+  
+  // NEW: Split International Fees mapped to backend
+  const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
+  const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
 
-  // --- 2. STANDARD STOREFRONT CORE STATES ---
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [userSession, setUserSession] = useState(null);
@@ -55,13 +54,13 @@ export default function ShopCatalog() {
 
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
+  const [detectedContinentCode, setDetectedContinentCode] = useState('AF');
   const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Search & Filter States
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState('newest');
@@ -69,7 +68,7 @@ export default function ShopCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [currentCategory, setCurrentCategory] = useState(null);
-  const [isViewAll, setIsViewAll] = useState(false); // Track if user wants to see EVERY product
+  const [isViewAll, setIsViewAll] = useState(false); 
   
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [openAccordion, setOpenAccordion] = useState('description');
@@ -86,12 +85,10 @@ export default function ShopCatalog() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
   
-  // Animation states
   const [tickerIndex, setTickerIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
   const [accessoryImages, setAccessoryImages] = useState([]);
 
-  // --- 3. REAL-TIME MULTI-CURRENCY & LOGISTICS POSTGRES PIPELINE ---
   useEffect(() => {
     async function loadMasterLogistics() {
       try {
@@ -99,7 +96,8 @@ export default function ShopCatalog() {
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
           if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
-          if (data.international_fee) setInternationalFee(parseFloat(data.international_fee));
+          if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
+          if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
           setIsInternationalFree(data.international_free);
         }
       } catch (e) {}
@@ -111,9 +109,9 @@ export default function ShopCatalog() {
         const updatedMatrix = payload.new;
         if (updatedMatrix.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(updatedMatrix.usd_to_ngn_rate));
         if (updatedMatrix.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(updatedMatrix.intl_markup_multiplier));
-        if (updatedMatrix.international_fee) setInternationalFee(parseFloat(updatedMatrix.international_fee));
+        if (updatedMatrix.international_fee_africa) setIntlFeeAfrica(parseFloat(updatedMatrix.international_fee_africa));
+        if (updatedMatrix.international_fee_global) setIntlFeeGlobal(parseFloat(updatedMatrix.international_fee_global));
         setIsInternationalFree(updatedMatrix.international_free);
-        showToast("LOGISTICS ENGINE UPDATED LIVE BY ATELIER.");
       })
       .subscribe();
 
@@ -143,14 +141,7 @@ export default function ShopCatalog() {
 
   const formatPrice = (ngnPrice, isShipping = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    
-    const dynamicExchangeRates = { 
-      NGN: 1, 
-      USD: 1 / usdToNgnRate, 
-      GBP: 1 / (usdToNgnRate * 1.32),
-      EUR: 1 / (usdToNgnRate * 1.12) 
-    };
-    
+    const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const rate = dynamicExchangeRates[currency] || 1;
     const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : intlMarkupMultiplier;
     const converted = Number(ngnPrice) * markupRate * rate;
@@ -162,12 +153,9 @@ export default function ShopCatalog() {
   const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
-    
     const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
     const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
-    
     const combinedTotal = productsConverted + shippingConverted;
-    
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -180,6 +168,7 @@ export default function ShopCatalog() {
         if (data && data.country_code) {
           setDetectedCountryCode(data.country_code);
           setDetectedCountryName(data.country_name);
+          setDetectedContinentCode(data.continent_code);
           const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
           setIsEuropeanUser(checkEurope);
           if (data.country_code === 'NG') setCurrency('NGN');
@@ -203,29 +192,19 @@ export default function ShopCatalog() {
     });
   }, []);
 
-  // --- DYNAMICALLY EXTRACT ACCESSORIES IMAGES FOR THE SLIDESHOW ---
   useEffect(() => {
     if (products.length > 0) {
       const accProducts = products.filter(p => p.category && p.category.toLowerCase() === 'accessories');
       let extractedImgs = [];
-      
       accProducts.forEach(p => {
         const urls = extractCleanUrls(p.image);
-        urls.forEach(u => {
-          if (u && !extractedImgs.includes(u)) extractedImgs.push(u);
-        });
+        urls.forEach(u => { if (u && !extractedImgs.includes(u)) extractedImgs.push(u); });
       });
-
-      if (extractedImgs.length > 0) {
-        setAccessoryImages(extractedImgs.slice(0, 5)); // Take top 5 for slides
-      } else {
-        // Safe fallback just in case no accessories are uploaded yet
-        setAccessoryImages(["https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"]);
-      }
+      if (extractedImgs.length > 0) setAccessoryImages(extractedImgs.slice(0, 5));
+      else setAccessoryImages(["https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"]);
     }
   }, [products]);
 
-  // --- BULLETPROOF FILTERING LOGIC WITH "VIEW ALL" HANDLING ---
   useEffect(() => {
     let result = [...products];
     let cat = null;
@@ -235,7 +214,6 @@ export default function ShopCatalog() {
       const params = new URLSearchParams(window.location.search);
       cat = params.get('category');
       viewParam = params.get('view');
-      
       setCurrentCategory(cat);
       setIsViewAll(viewParam === 'all');
     }
@@ -243,7 +221,7 @@ export default function ShopCatalog() {
     if (cat) {
       result = result.filter(p => {
         const productCat = p.category ? p.category.toLowerCase() : 'bags';
-        return productCat === cat.toLowerCase(); // Case-insensitive exact match
+        return productCat === cat.toLowerCase(); 
       });
     }
 
@@ -256,13 +234,9 @@ export default function ShopCatalog() {
       });
     }
 
-    if (activeSort === 'low_to_high') {
-      result.sort((a, b) => Number(a.price) - Number(b.price));
-    } else if (activeSort === 'high_to_low') {
-      result.sort((a, b) => Number(b.price) - Number(a.price));
-    } else {
-      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
+    if (activeSort === 'low_to_high') result.sort((a, b) => Number(a.price) - Number(b.price));
+    else if (activeSort === 'high_to_low') result.sort((a, b) => Number(b.price) - Number(a.price));
+    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     setSearchResults(result);
   }, [searchQuery, products, activeSort]);
@@ -283,18 +257,14 @@ export default function ShopCatalog() {
     fetchProducts();
   }, []);
 
-  // HEADER TEXT ANIMATION
   useEffect(() => {
     const tickerTimer = setInterval(() => setTickerIndex((prev) => (prev + 1) % announcements.length), 5000);
     return () => clearInterval(tickerTimer);
   }, [announcements.length]);
 
-  // BANNER SLIDESHOW ANIMATION
   useEffect(() => {
     if (accessoryImages.length <= 1) return;
-    const bannerTimer = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % accessoryImages.length);
-    }, 5000);
+    const bannerTimer = setInterval(() => setBannerIndex((prev) => (prev + 1) % accessoryImages.length), 5000);
     return () => clearInterval(bannerTimer);
   }, [accessoryImages.length]);
 
@@ -330,56 +300,30 @@ export default function ShopCatalog() {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
-    
     if (images.length <= 1) return;
 
-    if (distance > minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev + 1) % images.length);
-    } else if (distance < -minSwipeDistance) {
-      setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
-    }
+    if (distance > minSwipeDistance) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
+    else if (distance < -minSwipeDistance) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
+    
     setTouchStart(null);
     setTouchEnd(null);
   };
 
   const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    const cartItemPayload = {
-      id: String(product.id),
-      name: String(product.name || ''),
-      price: Number(product.price || 0),
-      image: getPrimaryImage(product.image),
-      is_sold_out: Boolean(product.is_sold_out)
-    };
-
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const cartItemPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
     try {
       addToCart(cartItemPayload, overrideQty, overrideSize); 
       setIsCartOpen(false); 
       showToast('Added to your bag.');
     } catch (err) {
-      console.error(err);
       showToast('Error adding to bag.');
     }
   };
 
   const handleWishlistClick = (e, product) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    const wishlistPayload = {
-      id: String(product.id),
-      name: String(product.name || ''),
-      price: Number(product.price || 0),
-      image: getPrimaryImage(product.image),
-      is_sold_out: Boolean(product.is_sold_out)
-    };
-
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const wishlistPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
     toggleWishlist(wishlistPayload);
   };
 
@@ -409,19 +353,11 @@ export default function ShopCatalog() {
       const res = await fetch('/api/shipping-calc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          address: deliveryAddress,
-          countryCode: detectedCountryCode,
-          countryName: detectedCountryName
-        }),
+        body: JSON.stringify({ address: deliveryAddress, countryCode: detectedCountryCode, countryName: detectedCountryName }),
       });
 
       let data;
-      try {
-        data = await res.json();
-      } catch (parseError) {
-        throw new Error("SYSTEM ROUTE MISSING.");
-      }
+      try { data = await res.json(); } catch (parseError) { throw new Error("SYSTEM ROUTE MISSING."); }
 
       let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
       if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
@@ -429,7 +365,9 @@ export default function ShopCatalog() {
 
       if (!data.success) {
         if (detectedCountryCode !== 'NG') {
-          const fallbackFee = isInternationalFree ? 0 : (internationalFee * usdToNgnRate);
+          // NEW DYNAMIC INTERNATIONAL PRICING LOGIC
+          const actualIntlFee = detectedContinentCode === 'AF' ? intlFeeAfrica : intlFeeGlobal;
+          const fallbackFee = isInternationalFree ? 0 : (actualIntlFee * usdToNgnRate);
           setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
           setDeliveryFee(fallbackFee);
           setDeliveryZone(isInternationalFree ? "Free Shipping" : `International Delivery (${detectedCountryName})`);
@@ -437,6 +375,7 @@ export default function ShopCatalog() {
           showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
           return;
         } else {
+          // LOCAL SHIPPING REMAINS TIED TO ADMIN BACKEND SETTINGS
           const { data: rules } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
           const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
           const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
@@ -471,13 +410,9 @@ export default function ShopCatalog() {
         showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
       } else {
         const dist = data.distanceKm || 15;
-        if (dist <= 30) {
-          setDeliveryZone(`Lagos Mainland Dispatch (${dist}km)`);
-        } else if (dist <= 65) {
-          setDeliveryZone(`Lagos Island Dispatch (${dist}km)`);
-        } else {
-          setDeliveryZone(`Interstate Freight Delivery (${dist}km)`);
-        }
+        if (dist <= 30) setDeliveryZone(`Lagos Mainland Dispatch (${dist}km)`);
+        else if (dist <= 65) setDeliveryZone(`Lagos Island Dispatch (${dist}km)`);
+        else setDeliveryZone(`Interstate Freight Delivery (${dist}km)`);
         showToast(`Route Calculated: ${dist}km layout validated.`);
       }
 
@@ -503,7 +438,6 @@ export default function ShopCatalog() {
     { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
   ];
 
-  // Helper function to render a product card exactly as you have it
   const renderProductCard = (product) => {
     const inWishlist = wishlist.some(w => w.id === product.id);
     const gridPrimaryImage = getPrimaryImage(product.image);
@@ -554,6 +488,19 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
+      {/* WhatsApp Floating Button */}
+      <a 
+        href="https://wa.me/YOUR_PHONE_NUMBER" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 bg-green-500 text-white p-3.5 sm:p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center" 
+        style={{ zIndex: 9999900 }}
+      >
+        <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+        </svg>
+      </a>
+
       {/* THE HEADER */}
       <div className="sticky top-0 w-full" style={{ zIndex: 9999950 }}>
         <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative">
@@ -624,7 +571,6 @@ export default function ShopCatalog() {
         </div>
       </section>
 
-      {/* --- THE MAIN SHOP GRID WITH THE SPLIT BANNER LOGIC --- */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
@@ -636,12 +582,10 @@ export default function ShopCatalog() {
             {/* SCENARIO 1: DEFAULT LATEST ARRIVALS PAGE (Curated Magazine Layout) */}
             {!currentCategory && !isViewAll ? (
               <>
-                {/* TOP 4 PRODUCTS */}
                 <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                   {searchResults.slice(0, 4).map((product) => renderProductCard(product))}
                 </div>
 
-                {/* THE ACCESSORIES BANNER */}
                 {searchResults.length > 4 && (
                   <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
                     <style dangerouslySetInnerHTML={{__html: `
@@ -679,14 +623,12 @@ export default function ShopCatalog() {
                   </div>
                 )}
 
-                {/* BOTTOM 4 PRODUCTS */}
                 {searchResults.length > 4 && (
                   <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                     {searchResults.slice(4, 8).map((product) => renderProductCard(product))}
                   </div>
                 )}
 
-                {/* VIEW ALL BUTTON */}
                 {searchResults.length > 8 && (
                   <div className="flex justify-center mt-16 sm:mt-24 w-full">
                     <a 
@@ -699,12 +641,11 @@ export default function ShopCatalog() {
                 )}
               </>
             ) : (
-              /* SCENARIO 2: CATEGORY SELECTED OR "VIEW ALL" (Clean Grid, Every Product) */
+              /* SCENARIO 2: CATEGORY SELECTED OR "VIEW ALL" (Clean Grid) */
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                 {searchResults.map((product) => renderProductCard(product))}
               </div>
             )}
-
           </div>
         )}
       </main>
@@ -737,10 +678,16 @@ export default function ShopCatalog() {
               <button type="submit" className="text-[9px] font-medium tracking-widest text-black uppercase hover:text-zinc-500 transition-colors">Join Us</button>
             </form>
           </div>
+
+          <div className="flex flex-col gap-2.5 text-[10px]">
+            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase mb-1">Socials</h4>
+            <a href="https://instagram.com/ssikamore" target="_blank" rel="noopener noreferrer" className="hover:text-black cursor-pointer transition-colors block">Instagram</a>
+            <a href="https://tiktok.com/@ssikamore" target="_blank" rel="noopener noreferrer" className="hover:text-black cursor-pointer transition-colors block">TikTok</a>
+            <a href="https://facebook.com/ssikamore" target="_blank" rel="noopener noreferrer" className="hover:text-black cursor-pointer transition-colors block">Facebook</a>
+          </div>
         </div>
       </footer>
 
-      {/* 1. NEWSLETTER POPUP */}
       {showNewsletter && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
@@ -780,7 +727,6 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 2. SWIPEABLE QUICK VIEW MODAL */}
       {quickViewProduct && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
@@ -858,7 +804,6 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 3. DYNAMIC SEARCH PORTAL */}
       {isSearchOpen && (
         <div className="fixed inset-0 bg-white flex flex-col overflow-y-auto animate-fade-in" style={{ zIndex: 9999999 }}>
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-6 flex justify-between items-center shrink-0">
@@ -889,7 +834,6 @@ export default function ShopCatalog() {
         </div>
       )}
 
-      {/* 4. SLIDING MINI BAG DRAWER GRID (Z-INDEX 9999999) WITH OVERLAY AT 9999900 */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
@@ -945,7 +889,6 @@ export default function ShopCatalog() {
         )}
       </div>
 
-      {/* 4.5 SLIDING REFINE/FILTER DRAWER */}
       {isFilterOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsFilterOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-[350px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -979,7 +922,6 @@ export default function ShopCatalog() {
         </div>
       </div>
 
-      {/* 5. MOBILE MENU INTERACTION EXPANSION (OVERLAY AT 9999900) */}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsMenuOpen(false)}></div>}
       <div className={`fixed inset-y-0 left-0 w-[280px] bg-white text-black shadow-2xl transform transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="p-6 border-b border-zinc-200 flex justify-between items-center">
@@ -1003,10 +945,9 @@ export default function ShopCatalog() {
           <Link href="/login" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">My Account</Link>
           <Link href="/about" onClick={() => setIsMenuOpen(false)} className="py-1 hover:text-zinc-400 transition-colors">About Us</Link>
         </nav>
-        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIVES © 2026</div>
+        <div className="p-6 text-[8px] tracking-[0.2em] uppercase text-zinc-400">S. SIKAMÒRE COLLECTIBLES © 2026</div>
       </div>
 
-      {/* 6. COMPACT FLOATING BAG PILL FOR MOBILE */}
       {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
