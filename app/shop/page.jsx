@@ -490,7 +490,7 @@ export default function ShopCatalog() {
       
       {/* WhatsApp Floating Button */}
       <a 
-        href="https://wa.me/YOUR_PHONE_NUMBER" 
+        href="https://wa.me/+2348164953670" 
         target="_blank" 
         rel="noopener noreferrer" 
         className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 bg-green-500 text-white p-3.5 sm:p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center" 
