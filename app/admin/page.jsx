@@ -939,7 +939,6 @@ export default function AdminDashboard() {
                   const islFee = parseFloat(e.target.island.value);
                   const interFee = parseFloat(e.target.interstate.value);
                   const dynamicUsdRate = parseFloat(e.target.usdRate.value);
-                  const customMarkup = parseFloat(e.target.intlMarkup.value);
                   const feeAfrica = parseFloat(e.target.intlShippingAfricaUSD.value);
                   const feeGlobal = parseFloat(e.target.intlShippingGlobalUSD.value);
                   const isFree = e.target.intFree.checked;
@@ -952,7 +951,6 @@ export default function AdminDashboard() {
                       interstate_fee: interFee, 
                       international_free: isFree,
                       usd_to_ngn_rate: dynamicUsdRate,
-                      intl_markup_multiplier: customMarkup,
                       international_fee_africa: feeAfrica,
                       international_fee_global: feeGlobal,
                       updated_at: new Date().toISOString()
@@ -967,7 +965,6 @@ export default function AdminDashboard() {
                     interstate_fee: interFee, 
                     international_free: isFree,
                     usd_to_ngn_rate: dynamicUsdRate,
-                    intl_markup_multiplier: customMarkup,
                     international_fee_africa: feeAfrica,
                     international_fee_global: feeGlobal,
                     updated_at: new Date().toISOString()
@@ -989,12 +986,6 @@ export default function AdminDashboard() {
                   <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Enter your desired conversion rate.</p>
                 </div>
 
-                <div>
-                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">International Pricing Premium Multiplier (x)</label>
-                  <input type="number" step="0.1" name="intlMarkup" defaultValue={logisticsSettings?.intl_markup_multiplier || 1.5} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
-                  <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Sets the baseline premium inflation markup for international buyers.</p>
-                </div>
-
                 <div className="pt-4 border-t border-zinc-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Africa Shipping Fee ($ USD)</label>
@@ -1005,7 +996,7 @@ export default function AdminDashboard() {
                     <input type="number" name="intlShippingGlobalUSD" defaultValue={logisticsSettings?.international_fee_global || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   </div>
                 </div>
-                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location[cite: 1]. The checkout engine will automatically route customers to the correct tier.</p>
+                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location. The checkout engine will automatically route customers to the correct tier.</p>
               </div>
 
               <div className="space-y-4 pt-4">
