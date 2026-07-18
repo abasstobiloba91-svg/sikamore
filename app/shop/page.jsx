@@ -40,10 +40,9 @@ const getPrimaryImage = (payload) => {
 
 export default function ShopCatalog() {
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
-  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
   const [isInternationalFree, setIsInternationalFree] = useState(true);
   
-  // NEW: Split International Fees mapped to backend
+  // Split International Fees mapped to backend
   const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
   const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
 
@@ -95,7 +94,6 @@ export default function ShopCatalog() {
         const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
-          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
           if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
           if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
           setIsInternationalFree(data.international_free);
@@ -108,7 +106,6 @@ export default function ShopCatalog() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shipping_settings', filter: 'id=eq.1' }, (payload) => {
         const updatedMatrix = payload.new;
         if (updatedMatrix.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(updatedMatrix.usd_to_ngn_rate));
-        if (updatedMatrix.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(updatedMatrix.intl_markup_multiplier));
         if (updatedMatrix.international_fee_africa) setIntlFeeAfrica(parseFloat(updatedMatrix.international_fee_africa));
         if (updatedMatrix.international_fee_global) setIntlFeeGlobal(parseFloat(updatedMatrix.international_fee_global));
         setIsInternationalFree(updatedMatrix.international_free);
@@ -139,12 +136,17 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  const formatPrice = (ngnPrice, isShipping = false) => {
+  // COMPLETELY REMOVED THE MULTIPLIER FROM THIS MATH
+  const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
+    const dynamicExchangeRates = { 
+      NGN: 1, 
+      USD: 1 / usdToNgnRate, 
+      GBP: 1 / (usdToNgnRate * 1.32),
+      EUR: 1 / (usdToNgnRate * 1.12) 
+    };
     const rate = dynamicExchangeRates[currency] || 1;
-    const markupRate = (detectedCountryCode === 'NG' || isShipping) ? 1.0 : intlMarkupMultiplier;
-    const converted = Number(ngnPrice) * markupRate * rate;
+    const converted = Number(ngnPrice) * rate; // PURE 1-TO-1 MATH
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -152,8 +154,7 @@ export default function ShopCatalog() {
 
   const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    const markupRate = detectedCountryCode === 'NG' ? 1.0 : intlMarkupMultiplier;
-    const productsConverted = cartSubtotal * markupRate * (dynamicExchangeRates[currency] || 1);
+    const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); // PURE 1-TO-1 MATH
     const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
@@ -365,7 +366,6 @@ export default function ShopCatalog() {
 
       if (!data.success) {
         if (detectedCountryCode !== 'NG') {
-          // NEW DYNAMIC INTERNATIONAL PRICING LOGIC
           const actualIntlFee = detectedContinentCode === 'AF' ? intlFeeAfrica : intlFeeGlobal;
           const fallbackFee = isInternationalFree ? 0 : (actualIntlFee * usdToNgnRate);
           setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
@@ -375,7 +375,6 @@ export default function ShopCatalog() {
           showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
           return;
         } else {
-          // LOCAL SHIPPING REMAINS TIED TO ADMIN BACKEND SETTINGS
           const { data: rules } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
           const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
           const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
@@ -488,9 +487,8 @@ export default function ShopCatalog() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
       
-      {/* WhatsApp Floating Button */}
       <a 
-        href="https://wa.me/+2348164953670" 
+        href="https://wa.me/YOUR_PHONE_NUMBER" 
         target="_blank" 
         rel="noopener noreferrer" 
         className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 bg-green-500 text-white p-3.5 sm:p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center" 
@@ -501,7 +499,6 @@ export default function ShopCatalog() {
         </svg>
       </a>
 
-      {/* THE HEADER */}
       <div className="sticky top-0 w-full" style={{ zIndex: 9999950 }}>
         <div className="w-full bg-[#0A0A0A] text-white h-9 overflow-hidden border-b border-zinc-900 relative">
           <div className="transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1) h-full w-full" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
@@ -579,7 +576,6 @@ export default function ShopCatalog() {
         ) : (
           <div className="w-full flex flex-col">
             
-            {/* SCENARIO 1: DEFAULT LATEST ARRIVALS PAGE (Curated Magazine Layout) */}
             {!currentCategory && !isViewAll ? (
               <>
                 <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
@@ -641,7 +637,6 @@ export default function ShopCatalog() {
                 )}
               </>
             ) : (
-              /* SCENARIO 2: CATEGORY SELECTED OR "VIEW ALL" (Clean Grid) */
               <div className={"grid gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-12 w-full " + (isListView ? "grid-cols-1 gap-y-6 max-w-xl mx-auto" : viewCols === 2 ? "grid-cols-2 md:grid-cols-2" : viewCols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
                 {searchResults.map((product) => renderProductCard(product))}
               </div>
