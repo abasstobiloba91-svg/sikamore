@@ -79,6 +79,11 @@ export default function AboutPage() {
           {/* CLOSING TAGLINE */}
           <p className="text-white font-medium tracking-[0.4em] uppercase pt-16 pb-8 text-sm sm:text-base font-serif">
             Climb to see the light.
+            <div className="flex gap-6 mt-6 border-t border-zinc-200 pt-6">
+  <a href="https://instagram.com/ssikamore" target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-[0.2em] hover:text-zinc-500 transition-colors">Instagram</a>
+  <a href="https://tiktok.com/@ssikamore" target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-[0.2em] hover:text-zinc-500 transition-colors">TikTok</a>
+  <a href="https://facebook.com/ssikamore" target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-[0.2em] hover:text-zinc-500 transition-colors">Facebook</a>
+</div>
           </p>
         </div>
       </main>
