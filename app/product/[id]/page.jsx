@@ -17,11 +17,24 @@ const extractCleanUrls = (payload) => {
   }
 };
 
+const generateSlug = (name) => {
+  if (!name) return '';
+  return name.toString().toLowerCase().trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
+
 // Generates the WhatsApp / Social Media Link Previews
 export async function generateMetadata(props) {
-  const params = await props.params; // Safely unpack the ID promise (Fixes Next.js bugs)
+  const params = await props.params; 
+  const slug = params.id; // This is now the product name with dashes
+
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  const { data: product } = await supabase.from('products').select('*').eq('id', params.id).single();
+  
+  // Fetch products to find the one matching our URL slug
+  const { data: products } = await supabase.from('products').select('*');
+  const product = products?.find(p => generateSlug(p.name) === slug);
   
   if (!product) {
     return { title: 'Piece Not Found | S. SIKAMÒRE' };
@@ -36,7 +49,7 @@ export async function generateMetadata(props) {
     openGraph: {
       title: `${product.name} | S. SIKAMÒRE`,
       description: product.description || 'Discover this exclusive piece in the S. Sikamòre Archive.',
-      url: `https://ssikamore.com/product/${params.id}`,
+      url: `https://ssikamore.com/product/${slug}`,
       images: [
         {
           url: primaryImage,
@@ -58,14 +71,14 @@ export async function generateMetadata(props) {
 
 // Renders the actual page content
 export default async function ProductPage(props) {
-  const params = await props.params; // Safely unpack the ID promise
+  const params = await props.params; 
+  const slug = params.id;
+
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
-  const { data: product } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', params.id)
-    .single();
+  // Search database for the product matching the slug
+  const { data: products } = await supabase.from('products').select('*');
+  const product = products?.find(p => generateSlug(p.name) === slug);
   
   if (!product) {
     return (
