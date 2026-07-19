@@ -35,6 +35,15 @@ const getPrimaryImage = (payload) => {
   }
 };
 
+// Generates URL friendly names
+const generateSlug = (name) => {
+  if (!name) return '';
+  return name.toString().toLowerCase().trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
+
 export default function ShopCatalog() {
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   
@@ -448,6 +457,7 @@ export default function ShopCatalog() {
   const renderProductCard = (product) => {
     const inWishlist = wishlist.some(w => w.id === product.id);
     const gridPrimaryImage = getPrimaryImage(product.image);
+    const productSlug = generateSlug(product.name); // Using the clean URL slug
 
     return (
       <div key={product.id} className="group flex flex-col relative bg-white pb-4">
@@ -472,7 +482,7 @@ export default function ShopCatalog() {
 
           <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <Link href={`/product/${product.id}`} onClick={(e) => e.stopPropagation()} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</Link>
+            <Link href={`/product/${productSlug}`} onClick={(e) => e.stopPropagation()} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</Link>
           </div>
 
           {product.is_sold_out && (
@@ -485,7 +495,7 @@ export default function ShopCatalog() {
           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
           <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <Link href={`/product/${product.id}`} className="w-full text-center bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors block">View Product</Link>
+            <Link href={`/product/${productSlug}`} className="w-full text-center bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors block">View Product</Link>
           </div>
         </div>
       </div>
@@ -767,7 +777,11 @@ export default function ShopCatalog() {
                 <div className="flex justify-between items-start mb-1">
                   <h2 className="text-base font-normal tracking-[0.2em] uppercase font-serif pr-4 text-black">{quickViewProduct.name}</h2>
                   <div className="flex items-center gap-3 mt-0.5 z-10 pointer-events-auto">
-                    <button onClick={() => { navigator.clipboard.writeText(`https://ssikamore.com/product/${quickViewProduct.id}`); showToast('Product Link Copied!'); }} className="text-zinc-400 hover:text-black transition-colors" title="Copy Link">
+                    <button onClick={() => { 
+                      const slug = generateSlug(quickViewProduct.name);
+                      navigator.clipboard.writeText(`https://ssikamore.com/product/${slug}`); 
+                      showToast('Product Link Copied!'); 
+                    }} className="text-zinc-400 hover:text-black transition-colors" title="Copy Link">
                       <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
                     </button>
                     <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
