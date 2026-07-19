@@ -26,6 +26,15 @@ const getPrimaryImage = (payload) => {
   return urls.length > 0 ? urls[0] : '';
 };
 
+// Generates URL friendly names
+const generateSlug = (name) => {
+  if (!name) return '';
+  return name.toString().toLowerCase().trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
+
 export default function ClientView({ product }) {
   const { addToCart, wishlist, toggleWishlist, setIsCartOpen, showToast } = useApp();
   
@@ -64,7 +73,8 @@ export default function ClientView({ product }) {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(`https://ssikamore.com/product/${product.id}`);
+    const slug = generateSlug(product.name);
+    navigator.clipboard.writeText(`https://ssikamore.com/product/${slug}`);
     showToast('Link copied! Ready to share.');
   };
 
