@@ -274,41 +274,40 @@ export default function ShopCatalog() {
   const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
   const cartItemCount = cart ? cart.reduce((acc, curr) => acc + curr.quantity, 0) : 0;
 
-  const openQuickView = (product) => {
+  const openQuickView = async (product) => {
     if (!product) return;
     setQty(1);
     setSelectedSize('M');
     setOpenAccordion('description');
     setQuickViewImgIndex(0); 
     setQuickViewProduct(product);
+
+    // Track product click/view interaction
+    try {
+      await supabase.from('page_analytics').insert([{ 
+        event_type: 'click', 
+        action_type: 'view_details',
+        product_name: product.name.toUpperCase(),
+        page_path: `/shop?item=${product.id}`
+      }]);
+    } catch (e) {}
   };
 
-  const minSwipeDistance = 30;
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches.clientX);
-  };
-  const onTouchMove = (e) => setTouchEnd(e.targetTouches.clientX);
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
-    if (images.length <= 1) return;
-
-    if (distance > minSwipeDistance) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
-    else if (distance < -minSwipeDistance) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
-    
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  const handleAddToCart = (e, product, overrideQty = 1, overrideSize = 'M') => {
+  const handleAddToCart = async (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     const cartItemPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
     try {
       addToCart(cartItemPayload, overrideQty, overrideSize); 
       setIsCartOpen(false); 
       showToast('Added to your bag.');
+
+      // Track add-to-cart click interaction
+      await supabase.from('page_analytics').insert([{ 
+        event_type: 'click', 
+        action_type: 'add_to_cart',
+        product_name: product.name.toUpperCase(),
+        page_path: `/shop?item=${product.id}`
+      }]);
     } catch (err) {
       showToast('Error adding to bag.');
     }
