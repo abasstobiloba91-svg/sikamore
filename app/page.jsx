@@ -89,8 +89,8 @@ export default function HomePage() {
 
       {/* 3. HEADER */}
       <header className="relative z-20 w-full pt-8 px-6 sm:px-10 flex justify-between items-center">
-        <Link href="/shop" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
-          The Collection
+        <Link href="/about" className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white hover:text-zinc-300 transition-colors">
+          About Us
         </Link>
         <div className="flex items-center">
           {userSession ? (
@@ -118,7 +118,7 @@ export default function HomePage() {
             href="/shop"
             className="bg-white text-black px-10 py-4 sm:px-12 sm:py-5 text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-200 transition-colors shadow-2xl"
           >
-            New In
+            Explore Now
           </Link>
         </div>
       </main>
@@ -140,7 +140,7 @@ export default function HomePage() {
         </div>
 
         <p className="text-[7px] sm:text-[8px] tracking-[0.3em] text-zinc-500 uppercase">
-          S. Sikamore Collective © {new Date().getFullYear()}
+          S. Sikamore Collectibles © {new Date().getFullYear()}
         </p>
       </footer>
     </div>
