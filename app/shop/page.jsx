@@ -282,7 +282,6 @@ export default function ShopCatalog() {
     setQuickViewImgIndex(0); 
     setQuickViewProduct(product);
 
-    // Track product click/view interaction
     try {
       await supabase.from('page_analytics').insert([{ 
         event_type: 'click', 
@@ -293,6 +292,25 @@ export default function ShopCatalog() {
     } catch (e) {}
   };
 
+  const minSwipeDistance = 30;
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches.clientX);
+  };
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches.clientX);
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
+    if (images.length <= 1) return;
+
+    if (distance > minSwipeDistance) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
+    else if (distance < -minSwipeDistance) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   const handleAddToCart = async (e, product, overrideQty = 1, overrideSize = 'M') => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     const cartItemPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
@@ -301,7 +319,6 @@ export default function ShopCatalog() {
       setIsCartOpen(false); 
       showToast('Added to your bag.');
 
-      // Track add-to-cart click interaction
       await supabase.from('page_analytics').insert([{ 
         event_type: 'click', 
         action_type: 'add_to_cart',
@@ -455,7 +472,6 @@ export default function ShopCatalog() {
 
           <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</button>
           </div>
 
           {product.is_sold_out && (
@@ -466,9 +482,8 @@ export default function ShopCatalog() {
         <div className="flex flex-col gap-1 mt-4 text-left px-1">
           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
-          <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
+          <div className="flex lg:hidden flex-col mt-3 w-full">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); openQuickView(product); }} className="w-full bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors">View Product</button>
           </div>
         </div>
       </div>
