@@ -2,7 +2,6 @@ import './globals.css';
 import { AppProvider } from './providers';
 
 export const metadata = {
-  metadataBase: new URL('https://ssikamore.com'), // This forces the absolute URL
   title: 'S. SIKAMÒRE | Official Store',
   description: 'Finely crafted for audacious women who carry light and purpose.',
   
@@ -14,7 +13,7 @@ export const metadata = {
     siteName: 'S. SIKAMÒRE',
     images: [
       {
-        url: '/client-logo.jpeg',
+        url: 'https://ssikamore.com/client-logo.jpeg', // <-- BRUTE FORCE FULL URL
         width: 1200,
         height: 630,
         alt: 'S. SIKAMÒRE Luxury Brand Preview',
@@ -29,7 +28,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'S. SIKAMÒRE | Official Store',
     description: 'Finely crafted for audacious women who carry light and purpose.',
-    images: ['/client-logo.jpeg'],
+    images: ['https://ssikamore.com/client-logo.jpeg'], // <-- BRUTE FORCE FULL URL
   },
 
   // Browser Icons
