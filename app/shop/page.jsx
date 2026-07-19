@@ -13,9 +13,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 
-const ATELIER_LONG = 3.4215;
-const ATELIER_LAT = 6.4281;
-
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -40,9 +37,7 @@ const getPrimaryImage = (payload) => {
 
 export default function ShopCatalog() {
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
-  const [isInternationalFree, setIsInternationalFree] = useState(true);
   
-  // Split International Fees mapped to backend
   const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
   const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
 
@@ -96,7 +91,6 @@ export default function ShopCatalog() {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
           if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
           if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
-          setIsInternationalFree(data.international_free);
         }
       } catch (e) {}
     }
@@ -108,7 +102,6 @@ export default function ShopCatalog() {
         if (updatedMatrix.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(updatedMatrix.usd_to_ngn_rate));
         if (updatedMatrix.international_fee_africa) setIntlFeeAfrica(parseFloat(updatedMatrix.international_fee_africa));
         if (updatedMatrix.international_fee_global) setIntlFeeGlobal(parseFloat(updatedMatrix.international_fee_global));
-        setIsInternationalFree(updatedMatrix.international_free);
       })
       .subscribe();
 
@@ -120,7 +113,7 @@ export default function ShopCatalog() {
   const announcements = [
     "JOIN OUR CIRCLE TO RECEIVE AMAZING UPDATES",
     "DISCOVER OUR LATEST COLLECTION OF EFFORTLESS LUXURY",
-    "BEAUTIFULLY CRAFTED SILHOUETTES • DESIGNED FOR YOU",
+    "BEAUTIFULLY CRAFTED CREATIONS • DESIGNED FOR YOU",
   ];
 
   const appContext = useApp() || {};
@@ -136,7 +129,6 @@ export default function ShopCatalog() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
 
-  // COMPLETELY REMOVED THE MULTIPLIER FROM THIS MATH
   const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
     const dynamicExchangeRates = { 
@@ -146,7 +138,7 @@ export default function ShopCatalog() {
       EUR: 1 / (usdToNgnRate * 1.12) 
     };
     const rate = dynamicExchangeRates[currency] || 1;
-    const converted = Number(ngnPrice) * rate; // PURE 1-TO-1 MATH
+    const converted = Number(ngnPrice) * rate; 
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -154,7 +146,7 @@ export default function ShopCatalog() {
 
   const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); // PURE 1-TO-1 MATH
+    const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); 
     const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
@@ -367,10 +359,10 @@ export default function ShopCatalog() {
       if (!data.success) {
         if (detectedCountryCode !== 'NG') {
           const actualIntlFee = detectedContinentCode === 'AF' ? intlFeeAfrica : intlFeeGlobal;
-          const fallbackFee = isInternationalFree ? 0 : (actualIntlFee * usdToNgnRate);
+          const explicitFee = (actualIntlFee * usdToNgnRate);
           setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
-          setDeliveryFee(fallbackFee);
-          setDeliveryZone(isInternationalFree ? "Free Shipping" : `International Delivery (${detectedCountryName})`);
+          setDeliveryFee(explicitFee);
+          setDeliveryZone(`International Delivery (${detectedCountryName})`);
           if (autoCurrency !== currency) setCurrency(autoCurrency);
           showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
           return;
@@ -405,7 +397,7 @@ export default function ShopCatalog() {
       setDeliveryFee(data.shippingFee);
       
       if (data.isInternational) {
-        setDeliveryZone(isInternationalFree ? "Complimentary Premium Dispatch" : `International Delivery (${detectedCountryName})`);
+        setDeliveryZone(`International Delivery (${detectedCountryName})`);
         showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
       } else {
         const dist = data.distanceKm || 15;
@@ -419,7 +411,7 @@ export default function ShopCatalog() {
 
     } catch (err) {
       setDeliveryFee(detectedCountryCode === 'NG' ? 5000 : 0);
-      setDeliveryZone(detectedCountryCode === 'NG' ? "Lagos Delivery (Estimated)" : "Complimentary Premium Dispatch");
+      setDeliveryZone(detectedCountryCode === 'NG' ? "Lagos Delivery (Estimated)" : "International Delivery");
       showToast("CONNECTION TIMEOUT. STANDARD PROTOCOL ENGAGED.");
     } finally {
       setIsCalculating(false);
@@ -433,7 +425,7 @@ export default function ShopCatalog() {
   const productTabs = [
     { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
     { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in-house. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer complimentary worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
+    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer explicitly stated worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
     { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
   ];
 
@@ -653,7 +645,7 @@ export default function ShopCatalog() {
         </div>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 text-zinc-500 font-light tracking-widest">
           <div className="flex flex-col gap-3">
-            <h4 className="text-black text-[10px] tracking-[0.2em] font-medium uppercase">About Us</h4>
+            <Link href="/about" className="text-black text-[10px] tracking-[0.2em] font-medium uppercase hover:text-zinc-500 transition-colors">About Us</Link>
             <p className="leading-relaxed text-[10px] text-zinc-400">Finely crafted pieces for audacious women who carry light.</p>
             <p className="text-[9px] text-zinc-600 pt-1">Email: hello@ssikamore.com</p>
           </div>
@@ -832,7 +824,7 @@ export default function ShopCatalog() {
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
-          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Shopping Bag ({cartItemCount})</h2>
+          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Bag ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -867,13 +859,13 @@ export default function ShopCatalog() {
             <div className="mb-6 border-b border-zinc-800 pb-5">
               <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
               <div className="flex gap-2">
-                <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="ENTER NEAREST BUS STOP OR LANDMARK..." className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" />
+                <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="ENTER NEAREST BUS STOP, LANDMARK, OR ZIP CODE..." className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" />
                 <button onClick={calculateLiveDelivery} disabled={isCalculating} className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50">{isCalculating ? 'WAIT...' : 'CALCULATE'}</button>
               </div>
             </div>
             <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
               <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
-              {deliveryZone !== '' && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{deliveryFee === 0 ? 'COMPLIMENTARY' : formatPrice(deliveryFee, true)}</span></div> )}
+              {deliveryZone !== '' && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
               <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
             </div>
             <div className="flex gap-3">
