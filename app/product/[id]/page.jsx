@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { createClient } from '@supabase/supabase-js';
 import ClientView from './ClientView';
 
@@ -15,8 +17,9 @@ const extractCleanUrls = (payload) => {
   }
 };
 
-// THIS IS THE MAGIC THAT CREATES THE WHATSAPP PREVIEW FOR EACH PRODUCT
-export async function generateMetadata({ params }) {
+// Generates the WhatsApp / Social Media Link Previews
+export async function generateMetadata(props) {
+  const params = await props.params; // Safely unpack the ID promise (Fixes Next.js bugs)
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data: product } = await supabase.from('products').select('*').eq('id', params.id).single();
   
@@ -36,7 +39,7 @@ export async function generateMetadata({ params }) {
       url: `https://ssikamore.com/product/${params.id}`,
       images: [
         {
-          url: primaryImage, // Automatically uses the exact product image!
+          url: primaryImage,
           width: 1080,
           height: 1080,
           alt: product.name,
@@ -53,12 +56,26 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function ProductPage({ params }) {
+// Renders the actual page content
+export default async function ProductPage(props) {
+  const params = await props.params; // Safely unpack the ID promise
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  const { data: product } = await supabase.from('products').select('*').eq('id', params.id).single();
+  
+  const { data: product } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', params.id)
+    .single();
   
   if (!product) {
-    return <div className="min-h-screen flex items-center justify-center text-[10px] tracking-widest uppercase text-black bg-zinc-50">Piece not found in the archive.</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-[10px] tracking-widest uppercase text-black bg-zinc-50 gap-6">
+        <p>Piece not found in the archive.</p>
+        <a href="/shop" className="border border-black px-8 py-4 hover:bg-black hover:text-white transition-colors">
+          Return to Collection
+        </a>
+      </div>
+    );
   }
 
   return <ClientView product={product} />;
