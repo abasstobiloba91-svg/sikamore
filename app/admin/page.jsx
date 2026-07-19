@@ -1290,22 +1290,79 @@ export default function AdminDashboard() {
 
         {/* --- TAB 7: REAL-TIME ANALYTICS --- */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-8 animate-fade-in">
+            {/* Top Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
-                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Total Page Visits</span>
-                <h2 className="text-3xl font-light tracking-wide text-black font-serif animate-pulse">{totalVisits.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Logs</span></h2>
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Total Site Visits</span>
+                <h2 className="text-3xl font-light tracking-wide text-black font-serif">{totalVisits.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Logs</span></h2>
               </div>
               <div className="bg-black text-white border border-black p-6 shadow-sm rounded-sm text-center">
-                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1 font-medium">Interactive Product Clicks</span>
+                <span className="text-[8px] text-zinc-400 block tracking-widest uppercase mb-1 font-medium">Total Product Clicks</span>
                 <h2 className="text-3xl font-light tracking-wide text-white font-serif">{totalClicks.toLocaleString()} <span className="text-[9px] tracking-widest text-zinc-500 uppercase font-sans">Interactions</span></h2>
               </div>
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
-                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Click-Through Engagement</span>
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Overall Store Engagement</span>
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{clickThroughRate}% <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Rate</span></h2>
               </div>
             </div>
             
+            {/* Product Performance Leaderboard */}
+            <div className="bg-white text-black border border-zinc-200 p-6 sm:p-8 shadow-sm rounded-sm">
+              <div className="border-b border-zinc-200 pb-3 mb-6">
+                <h4 className="text-[10px] tracking-widest uppercase text-black font-medium">Product Engagement Metrics Ledger</h4>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[10px] tracking-wider uppercase divide-y divide-zinc-200 text-zinc-600">
+                  <thead>
+                    <tr className="text-black text-[8px] tracking-widest border-b border-zinc-200 pb-2">
+                      <th className="py-2.5 font-medium">Product Profile</th>
+                      <th className="py-2.5 font-medium text-center">Views</th>
+                      <th className="py-2.5 font-medium text-center">Cart Adds</th>
+                      <th className="py-2.5 font-medium text-right">Intent Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 text-black">
+                    {(() => {
+                      const statsMap = {};
+                      analyticsData.forEach(log => {
+                        if (log.product_name) {
+                          if (!statsMap[log.product_name]) statsMap[log.product_name] = { views: 0, carts: 0 };
+                          if (log.action_type === 'add_to_cart') statsMap[log.product_name].carts += 1;
+                          else statsMap[log.product_name].views += 1;
+                        }
+                      });
+
+                      const sortedStats = Object.keys(statsMap).map(name => ({
+                        name,
+                        views: statsMap[name].views,
+                        carts: statsMap[name].carts,
+                        rate: statsMap[name].views > 0 ? ((statsMap[name].carts / statsMap[name].views) * 100).toFixed(1) : 0
+                      })).sort((a, b) => b.views - a.views);
+
+                      if (sortedStats.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan="4" className="py-8 text-center text-zinc-400 uppercase tracking-widest text-[9px]">No product interaction profiles logged yet.</td>
+                          </tr>
+                        );
+                      }
+
+                      return sortedStats.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-zinc-50 transition-colors">
+                          <td className="py-3.5 font-medium text-black">{item.name}</td>
+                          <td className="py-3.5 text-center font-mono text-zinc-600">{item.views}</td>
+                          <td className="py-3.5 text-center font-mono text-zinc-600">{item.carts}</td>
+                          <td className="py-3.5 text-right font-mono font-bold text-black">{item.rate}%</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Live Interaction Log */}
             <div className="bg-white text-black border border-zinc-200 p-6 sm:p-8 shadow-sm rounded-sm">
               <div className="border-b border-zinc-200 pb-3 mb-4 flex justify-between items-center">
                 <h4 className="text-[10px] tracking-widest uppercase text-black font-medium">Real-Time Interaction Feed Matrix</h4>
@@ -1328,12 +1385,12 @@ export default function AdminDashboard() {
                         <tr key={metric.id} className="hover:bg-zinc-50 transition-colors">
                           <td className="py-3 font-mono text-[8.5px] text-zinc-400">{new Date(metric.created_at).toLocaleTimeString()}</td>
                           <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded-sm text-[8px] font-medium tracking-widest ${metric.event_type === 'visit' ? 'bg-zinc-100 text-zinc-600' : 'bg-black text-white'}`}>
-                              {metric.event_type}
+                            <span className={`px-2 py-0.5 rounded-sm text-[8px] font-medium tracking-widest ${metric.action_type === 'add_to_cart' ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-600'}`}>
+                              {metric.action_type === 'add_to_cart' ? 'bag add' : metric.event_type}
                             </span>
                           </td>
                           <td className="py-3 text-black truncate max-w-[240px]">
-                            {metric.event_type === 'click' ? `Clicked Product: ${metric.product_name || 'Item Tile'}` : `Viewed Path: ${metric.page_path}`}
+                            {metric.product_name ? `${metric.product_name}` : `Viewed Path: ${metric.page_path}`}
                           </td>
                         </tr>
                       ))}
