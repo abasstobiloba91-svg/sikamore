@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   const [disabled, setDisabled] = useState(false);
 
   const [orders, setOrders] = useState([]);
+  const [clients, setClients] = useState([]); // NEW CLIENTS STATE
   const [subscribers, setSubscribers] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -67,6 +68,10 @@ export default function AdminDashboard() {
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+
+  // PAGINATION & SEARCH STATES FOR ORDERS
+  const [orderSearch, setOrderSearch] = useState('');
+  const [visibleOrderCount, setVisibleOrderCount] = useState(10);
 
   const [interceptedOrder, setInterceptedOrder] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState('');
@@ -95,6 +100,10 @@ export default function AdminDashboard() {
       try {
         const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
         if (oData) setOrders(oData);
+      } catch(e){}
+      try {
+        const { data: clData } = await supabase.from('client_profiles').select('*').order('created_at', { ascending: false });
+        if (clData) setClients(clData);
       } catch(e){}
       try {
         const { data: lData } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
@@ -141,6 +150,9 @@ export default function AdminDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') setOrders(prev => [payload.new, ...prev]);
         if (payload.eventType === 'UPDATE') setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'client_profiles' }, (payload) => {
+        setClients(prev => [payload.new, ...prev]);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, (payload) => {
         if (payload.eventType === 'INSERT') setTickets(prev => [payload.new, ...prev]);
@@ -624,6 +636,16 @@ export default function AdminDashboard() {
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setSendingReply(false); }
   };
 
+  // FILTERED ORDERS FOR TRACKER
+  const filteredOrders = orders.filter(o => {
+    const q = orderSearch.toLowerCase();
+    return o.id.toLowerCase().includes(q) || 
+           (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
+           (o.customer_email && o.customer_email.toLowerCase().includes(q));
+  });
+
+  const displayedOrders = filteredOrders.slice(0, visibleOrderCount);
+
   const totalVisits = analyticsData.filter(a => a.event_type === 'visit').length;
   const totalClicks = analyticsData.filter(a => a.event_type === 'click').length;
   const clickThroughRate = totalVisits > 0 ? ((totalClicks / totalVisits) * 100).toFixed(1) : 0;
@@ -656,7 +678,7 @@ export default function AdminDashboard() {
           </div>
           <h1 className="text-2xl font-normal tracking-[0.4em] uppercase mb-2 font-serif text-black">S. SIKAMÒRE</h1>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-8">
-            {['inventory', 'tracker', 'logistics', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
+            {['inventory', 'tracker', 'clients', 'logistics', 'newsletter', 'support', 'vendors', 'analytics'].map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[9px] tracking-[0.2em] uppercase transition-colors border ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black'}`}>
                 {tab}
               </button>
@@ -868,10 +890,21 @@ export default function AdminDashboard() {
         {/* --- TAB 2: REAL-TIME ORDER FULFILLMENT TRACKER --- */}
         {activeTab === 'tracker' && (
           <div className="space-y-6 animate-fade-in">
-            {orders.length === 0 ? (
-              <div className="bg-white text-zinc-500 p-12 text-center border border-zinc-200 uppercase tracking-widest text-[10px] rounded-sm">No sales items logged in database.</div>
+            <div className="bg-white border border-zinc-200 p-4 rounded-sm shadow-sm flex items-center gap-3">
+              <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input 
+                type="text" 
+                placeholder="Search by Order ID (e.g. SKM_123), Customer Name, or Email..." 
+                value={orderSearch} 
+                onChange={e => setOrderSearch(e.target.value)} 
+                className="w-full bg-transparent outline-none text-base md:text-[11px] tracking-widest uppercase text-black" 
+              />
+            </div>
+
+            {displayedOrders.length === 0 ? (
+              <div className="bg-white text-zinc-500 p-12 text-center border border-zinc-200 uppercase tracking-widest text-[10px] rounded-sm">No matching orders found.</div>
             ) : (
-              orders.map((order) => (
+              displayedOrders.map((order) => (
                 <div key={order.id} className="bg-white text-black border border-zinc-200 shadow-sm overflow-hidden p-6 sm:p-8 flex flex-col gap-6 rounded-sm">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 pb-4">
                     <div>
@@ -922,6 +955,49 @@ export default function AdminDashboard() {
                 </div>
               ))
             )}
+
+            {/* THE LOAD MORE BUTTON */}
+            {visibleOrderCount < filteredOrders.length && (
+              <button 
+                onClick={() => setVisibleOrderCount(prev => prev + 10)} 
+                className="w-full bg-white border border-zinc-200 text-black py-4 text-[9px] tracking-widest uppercase hover:bg-zinc-50 transition-colors rounded-sm shadow-sm"
+              >
+                Load More Orders
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB 3: REGISTERED CLIENTS DIRECTORY --- */}
+        {activeTab === 'clients' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200 rounded-sm">
+              <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Registered Client Directory</h3>
+              {clients.length === 0 ? (
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center py-10">No client profiles registered yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[10px] tracking-wider uppercase text-zinc-600">
+                    <thead>
+                      <tr className="text-black text-[8px] tracking-widest border-b border-zinc-200 pb-2">
+                        <th className="py-3 font-medium">Join Date</th>
+                        <th className="py-3 font-medium">Client Name</th>
+                        <th className="py-3 font-medium">Email Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {clients.map(client => (
+                        <tr key={client.id} className="hover:bg-zinc-50 transition-colors">
+                          <td className="py-4 font-mono text-[8.5px] text-zinc-400">{new Date(client.created_at).toLocaleDateString()}</td>
+                          <td className="py-4 text-black font-medium">{client.first_name} {client.last_name}</td>
+                          <td className="py-4 lowercase text-zinc-500 tracking-wide">{client.email}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
