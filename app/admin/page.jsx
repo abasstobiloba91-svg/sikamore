@@ -941,7 +941,6 @@ export default function AdminDashboard() {
                   const dynamicUsdRate = parseFloat(e.target.usdRate.value);
                   const feeAfrica = parseFloat(e.target.intlShippingAfricaUSD.value);
                   const feeGlobal = parseFloat(e.target.intlShippingGlobalUSD.value);
-                  const isFree = e.target.intFree.checked;
 
                   const { error } = await supabase
                     .from('shipping_settings')
@@ -949,7 +948,6 @@ export default function AdminDashboard() {
                       mainland_fee: mainFee, 
                       island_fee: islFee, 
                       interstate_fee: interFee, 
-                      international_free: isFree,
                       usd_to_ngn_rate: dynamicUsdRate,
                       international_fee_africa: feeAfrica,
                       international_fee_global: feeGlobal,
@@ -963,7 +961,6 @@ export default function AdminDashboard() {
                     mainland_fee: mainFee, 
                     island_fee: islFee, 
                     interstate_fee: interFee, 
-                    international_free: isFree,
                     usd_to_ngn_rate: dynamicUsdRate,
                     international_fee_africa: feeAfrica,
                     international_fee_global: feeGlobal,
@@ -996,10 +993,10 @@ export default function AdminDashboard() {
                     <input type="number" name="intlShippingGlobalUSD" defaultValue={logisticsSettings?.international_fee_global || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   </div>
                 </div>
-                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location. The checkout engine will automatically route customers to the correct tier.</p>
+                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location. Users will now ALWAYS see this explicit shipping charge applied to their total at checkout.</p>
               </div>
 
-              <div className="space-y-4 pt-4">
+              <div className="space-y-4 pt-4 mb-4">
                 <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— Domestic Freight Delivery Directories —</span>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Mainland Dispatch Rate (₦)</label>
@@ -1013,16 +1010,6 @@ export default function AdminDashboard() {
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Interstate Freight Waybill Rate (₦)</label>
                   <input type="number" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 20000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
-              </div>
-              
-              <div className="flex flex-col gap-2 pt-4 pb-4 border-t border-b border-zinc-100">
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" name="intFree" id="intFree" defaultChecked={logisticsSettings?.international_free ?? true} className="w-4 h-4 accent-black cursor-pointer" />
-                  <label htmlFor="intFree" className="text-[9px] tracking-[0.15em] uppercase text-zinc-600 font-bold cursor-pointer select-none">
-                    Hide international shipping line item & bake fee value directly into total sum
-                  </label>
-                </div>
-                <p className="text-[8px] text-zinc-400 normal-case pl-7 italic">When checked, international users see "Complimentary Premium Dispatch ($0.00)" on their screen, but the shipping fee you defined above is seamlessly added into their final total balance anyway.</p>
               </div>
 
               <button type="submit" className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-bold transition-colors rounded-sm shadow-md">
