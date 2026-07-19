@@ -40,7 +40,7 @@ export default function ClientLogin() {
         
       } else {
         // SIGNUP FLOW
-        const { error } = await supabase.auth.signUp({
+        const { data: authData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -51,6 +51,16 @@ export default function ClientLogin() {
           }
         });
         if (error) throw error;
+
+        // SYNC TO ADMIN DASHBOARD DIRECTORY
+        if (authData?.user) {
+          await supabase.from('client_profiles').insert([{
+            id: authData.user.id,
+            email: email.toLowerCase().trim(),
+            first_name: firstName,
+            last_name: lastName
+          }]);
+        }
         
         showToast('Account created successfully.');
         router.push('/dashboard');
