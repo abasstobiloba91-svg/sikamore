@@ -2,6 +2,7 @@ import './globals.css';
 import { AppProvider } from './providers';
 
 export const metadata = {
+  metadataBase: new URL('https://ssikamore.com'), // This forces the absolute URL
   title: 'S. SIKAMÒRE | Official Store',
   description: 'Finely crafted for audacious women who carry light and purpose.',
   
