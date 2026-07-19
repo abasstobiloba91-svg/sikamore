@@ -20,9 +20,8 @@ export default function CheckoutPage() {
 
   // DYNAMIC PRICING STATES
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
-  const [intlMarkupMultiplier, setIntlMarkupMultiplier] = useState(1.5);
-  const [internationalFee, setInternationalFee] = useState(55);
-  const [isInternationalFree, setIsInternationalFree] = useState(true);
+  const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
+  const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,9 +61,8 @@ export default function CheckoutPage() {
         const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
-          if (data.intl_markup_multiplier) setIntlMarkupMultiplier(parseFloat(data.intl_markup_multiplier));
-          if (data.international_fee) setInternationalFee(parseFloat(data.international_fee));
-          setIsInternationalFree(data.international_free);
+          if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
+          if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
         }
       } catch (e) {}
     }
@@ -108,19 +106,17 @@ export default function CheckoutPage() {
     return () => clearTimeout(timeout);
   }, [cart, router, address, isSuccess]);
 
-// MATH CORE: Perfectly syncs with Shop component
+// MATH CORE: 1-to-1 Pure Conversion Math
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFeeNgn = deliveryData?.fee || 0; 
-  const isInternational = deliveryData?.countryCode && deliveryData.countryCode !== 'NG';
-  const markupRate = isInternational ? intlMarkupMultiplier : 1.0;
   
   const getDynamicExchangeRate = () => {
     const rates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     return rates[currency] || 1;
   };
 
-  const finalConvertedSubtotal = cartSubtotalNgn * markupRate * getDynamicExchangeRate();
-  const finalConvertedShipping = shippingFeeNgn * 1.0 * getDynamicExchangeRate();
+  const finalConvertedSubtotal = cartSubtotalNgn * getDynamicExchangeRate();
+  const finalConvertedShipping = shippingFeeNgn * getDynamicExchangeRate();
 
   // HONEST MATH: Total is strictly Subtotal + explicitly displayed Shipping Fee (No hidden inflation).
   const finalNumericTotal = finalConvertedSubtotal + finalConvertedShipping;
@@ -167,7 +163,7 @@ export default function CheckoutPage() {
         customer_email: email.toLowerCase().trim(),
         customer_phone: phone,
         shipping_address: address.toUpperCase(),
-        total_amount: cartSubtotalNgn + shippingFeeNgn, // Keep DB record in raw base value for local accounting
+        total_amount: cartSubtotalNgn + shippingFeeNgn, 
         items: cart,
         status: 'pending',
         payment_reference: transaction.reference
@@ -177,9 +173,8 @@ export default function CheckoutPage() {
 
       const orderRefStamp = orderData.id.slice(0, 8).toUpperCase();
 
-      // Email formatting upgraded to show the exact currency the user paid in!
       const orderItemsHtml = cart.map(i => {
-        const itemConverted = i.price * markupRate * getDynamicExchangeRate();
+        const itemConverted = i.price * getDynamicExchangeRate();
         return `
         <tr>
           <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #E5E5E5; text-transform: uppercase;">${i.name.toUpperCase()} (${i.size}) x${i.quantity}</td>
@@ -291,8 +286,8 @@ export default function CheckoutPage() {
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
-        amount: Math.round(finalNumericTotal * 100), // PERFECTLY CONVERTED MATH FIX
-        currency: currency, // CHARGES EXACT DOLLARS, POUNDS OR EUROS
+        amount: Math.round(finalNumericTotal * 100), 
+        currency: currency, 
         reference: `SKM_${new Date().getTime().toString()}`,
         onSuccess: (transaction) => {
           finalizeOrderDatabase(transaction);
@@ -320,10 +315,10 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-white text-black flex flex-col items-center justify-center px-6 font-sans antialiased text-center">
         <div className="max-w-md w-full border border-zinc-200 p-10 bg-white rounded-sm shadow-sm space-y-6 animate-fade-in">
-          <h1 className="text-xl font-normal font-serif tracking-[0.3em] uppercase text-black">ACQUISITION COMPLETE</h1>
+          <h1 className="text-xl font-normal font-serif tracking-[0.3em] uppercase text-black">PAYMENT COMPLETE</h1>
           <div className="w-10 h-[1px] bg-black mx-auto my-4"></div>
           <p className="text-[10px] text-zinc-500 tracking-widest uppercase leading-relaxed">
-            Your transaction has settled successfully. A monochrome catalog invoice summary has been dispatched directly to <span className="text-black font-medium">{email}</span>.
+            Your transaction has settled successfully. A receipt has been dispatched directly to <span className="text-black font-medium">{email}</span>.
           </p>
           <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-sm font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
             REFERENCE STAMP: #{generatedOrderId}
@@ -405,8 +400,8 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Fulfillment Dispatch Address / Landmark Bus Stop</label>
-                <textarea required rows="3" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="SPECIFY EXACT DELIVERY LOCATION PRECISELY..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-wider resize-none transition-colors" />
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Fulfillment Dispatch Address</label>
+                <textarea required rows="3" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="NEAREST ZIP CODE, LANDMARK, OR BUS STOP..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-wider resize-none transition-colors" />
                 {deliveryData?.zone && (
                   <span className="text-[8px] tracking-widest text-zinc-400 block mt-2 font-mono bg-zinc-50 p-2 border border-zinc-200">
                     ROUTING ZONE LAYOUT: {deliveryData.zone.toUpperCase()}
@@ -417,17 +412,17 @@ export default function CheckoutPage() {
           </section>
 
           <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
-            {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : `CONFIRM ACQUISITION • ${displayFormat(finalNumericTotal)}`}
+            {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : `COMPLETE PAYMENT • ${displayFormat(finalNumericTotal)}`}
           </button>
         </form>
 
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 rounded-sm shadow-xl">
-            <h3 className="text-[10px] tracking-[0.25em] uppercase font-medium border-b border-zinc-800 pb-3 mb-6 text-zinc-400">Acquisition Manifest</h3>
+            <h3 className="text-[10px] tracking-[0.25em] uppercase font-medium border-b border-zinc-800 pb-3 mb-6 text-zinc-400">Breakdown</h3>
             
             <div className="divide-y divide-zinc-900 overflow-y-auto max-h-[260px] pr-2 mb-6">
               {cart.map((item, idx) => {
-                const itemConverted = item.price * markupRate * getDynamicExchangeRate();
+                const itemConverted = item.price * getDynamicExchangeRate();
                 return (
                 <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                   <div className="w-14 h-20 bg-[#111] shrink-0 border border-zinc-800 overflow-hidden rounded-xs">
@@ -454,10 +449,10 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span>Logistics Routing Fee:</span>
-                <span className="font-mono text-zinc-300">{isInternational && isInternationalFree ? 'COMPLIMENTARY' : (shippingFeeNgn > 0 ? displayFormat(finalConvertedShipping) : 'FREE REF')}</span>
+                <span className="font-mono text-zinc-300">{displayFormat(finalConvertedShipping)}</span>
               </div>
               <div className="flex justify-between font-bold text-white text-xs pt-4 border-t border-zinc-800 mt-4">
-                <span>Aggregate Total:</span>
+                <span>Total:</span>
                 <span className="font-mono text-white text-[13px]">{displayFormat(finalNumericTotal)}</span>
               </div>
             </div>
