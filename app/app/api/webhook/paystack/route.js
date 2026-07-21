@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
+// ----------------------------------------------------------------------
+// 1. POST ROUTE (Used secretly by Paystack to update the system & send emails)
+// ----------------------------------------------------------------------
 export async function POST(req) {
   try {
     const supabaseAdmin = createClient(
@@ -131,4 +134,14 @@ export async function POST(req) {
     console.error('Webhook processing failed:', error);
     return NextResponse.json({ message: 'Server error' }, { status: 500 });
   }
+}
+
+// ----------------------------------------------------------------------
+// 2. GET ROUTE (Used so you can check the URL safely in your web browser)
+// ----------------------------------------------------------------------
+export async function GET() {
+  return NextResponse.json({ 
+    status: "Active", 
+    message: "S. SIKAMÒRE Webhook is Live & Listening for Paystack." 
+  }, { status: 200 });
 }
