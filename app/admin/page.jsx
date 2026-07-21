@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   const [disabled, setDisabled] = useState(false);
 
   const [orders, setOrders] = useState([]);
-  const [clients, setClients] = useState([]); // NEW CLIENTS STATE
+  const [clients, setClients] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -69,8 +69,9 @@ export default function AdminDashboard() {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
 
-  // PAGINATION & SEARCH STATES FOR ORDERS
+  // PAGINATION, SEARCH & TRACKER MODES
   const [orderSearch, setOrderSearch] = useState('');
+  const [trackerMode, setTrackerMode] = useState('active'); // 'active' or 'abandoned'
   const [visibleOrderCount, setVisibleOrderCount] = useState(10);
 
   const [interceptedOrder, setInterceptedOrder] = useState(null);
@@ -636,12 +637,22 @@ export default function AdminDashboard() {
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setSendingReply(false); }
   };
 
+  // --------------------------------------------------------
   // FILTERED ORDERS FOR TRACKER
+  // --------------------------------------------------------
   const filteredOrders = orders.filter(o => {
     const q = orderSearch.toLowerCase();
-    return o.id.toLowerCase().includes(q) || 
+    const matchesSearch = o.id.toLowerCase().includes(q) || 
            (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
            (o.customer_email && o.customer_email.toLowerCase().includes(q));
+
+    if (trackerMode === 'active') {
+      // Exclude pending_payment so they don't show up here
+      return matchesSearch && o.status !== 'pending_payment';
+    } else {
+      // Only show abandoned carts
+      return matchesSearch && o.status === 'pending_payment';
+    }
   });
 
   const displayedOrders = filteredOrders.slice(0, visibleOrderCount);
@@ -890,6 +901,16 @@ export default function AdminDashboard() {
         {/* --- TAB 2: REAL-TIME ORDER FULFILLMENT TRACKER --- */}
         {activeTab === 'tracker' && (
           <div className="space-y-6 animate-fade-in">
+            {/* NEW: TRACKER MODE SUB-MENU */}
+            <div className="flex border-b border-zinc-200 pb-2 mb-6">
+              <button onClick={() => setTrackerMode('active')} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${trackerMode === 'active' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
+                Active Orders
+              </button>
+              <button onClick={() => setTrackerMode('abandoned')} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${trackerMode === 'abandoned' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
+                Abandoned Carts
+              </button>
+            </div>
+
             <div className="bg-white border border-zinc-200 p-4 rounded-sm shadow-sm flex items-center gap-3">
               <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input 
@@ -912,7 +933,12 @@ export default function AdminDashboard() {
                       <h3 className="text-xs font-medium text-black uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-500 font-normal normal-case">{order.customer_email}</span></h3>
                     </div>
                     
-                    {interceptedOrder === order.id ? (
+                    {/* NEW: RENDER READ-ONLY BADGE IF ABANDONED CART */}
+                    {order.status === 'pending_payment' ? (
+                      <div className="bg-zinc-100 text-zinc-500 px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium border border-zinc-200 mt-4 sm:mt-0 w-full sm:w-auto text-center cursor-not-allowed">
+                        Awaiting Payment
+                      </div>
+                    ) : interceptedOrder === order.id ? (
                       <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
                         <input type="text" placeholder="e.g. 3-5 Business Days" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="bg-white border border-zinc-300 text-black p-2.5 outline-none text-base md:text-xs uppercase tracking-widest w-full sm:w-48 placeholder-zinc-400 focus:border-black" />
                         <button onClick={() => confirmShipping(order)} className="bg-black text-white px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors">Confirm</button>
@@ -923,6 +949,7 @@ export default function AdminDashboard() {
                         if (e.target.value === 'shipped') setInterceptedOrder(order.id);
                         else handleUpdateOrderStatus(order.id, e.target.value, null, order);
                       }} className="bg-white text-black border border-zinc-300 text-base md:text-xs tracking-widest uppercase p-2.5 outline-none mt-4 sm:mt-0 w-full sm:w-auto focus:border-black">
+                        <option value="paid">Paid / Processing</option>
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
