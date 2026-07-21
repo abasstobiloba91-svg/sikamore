@@ -4,13 +4,14 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY 
-);
-
 export async function POST(req) {
   try {
+    // Moved INSIDE the POST function so Vercel doesn't crash during the build!
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
+
     const rawBody = await req.text();
     const signature = req.headers.get('x-paystack-signature');
     
@@ -18,7 +19,6 @@ export async function POST(req) {
       return NextResponse.json({ message: 'No signature provided' }, { status: 400 });
     }
 
-    // Use your sk_live_... key here via the environment variable
     const hash = crypto
       .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
       .update(rawBody)
