@@ -106,7 +106,7 @@ export default function CheckoutPage() {
     return () => clearTimeout(timeout);
   }, [cart, router, address, isSuccess]);
 
-// MATH CORE: 1-to-1 Pure Conversion Math
+  // MATH CORE: 1-to-1 Pure Conversion Math
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFeeNgn = deliveryData?.fee || 0; 
   
@@ -117,8 +117,6 @@ export default function CheckoutPage() {
 
   const finalConvertedSubtotal = cartSubtotalNgn * getDynamicExchangeRate();
   const finalConvertedShipping = shippingFeeNgn * getDynamicExchangeRate();
-
-  // HONEST MATH: Total is strictly Subtotal + explicitly displayed Shipping Fee (No hidden inflation).
   const finalNumericTotal = finalConvertedSubtotal + finalConvertedShipping;
 
   const displayFormat = (amount) => {
@@ -152,26 +150,15 @@ export default function CheckoutPage() {
     else showToast('RECOVERY DISPATCHED TO EMAIL.');
   };
 
-  // 3. DATABASE FINALIZATION & EMAIL DISPATCH (Post-Payment)
-  const finalizeOrderDatabase = async (transaction) => {
+  // 3. FINALIZE EMAILS & STATUS POST-PAYMENT
+  const finalizeOrderSuccess = async (transactionRef, dbOrderId, customerFullName) => {
     try {
-      showToast('PAYMENT SECURED. VERIFYING LEDGER...');
+      showToast('PAYMENT SECURED. DISPATCHING RECEIPTS...');
 
-      const customerFullName = `${firstName} ${lastName}`.trim().toUpperCase();
-      const { data: orderData, error: dbError } = await supabase.from('orders').insert([{
-        customer_name: customerFullName,
-        customer_email: email.toLowerCase().trim(),
-        customer_phone: phone,
-        shipping_address: address.toUpperCase(),
-        total_amount: cartSubtotalNgn + shippingFeeNgn, 
-        items: cart,
-        status: 'pending',
-        payment_reference: transaction.reference
-      }]).select().single();
+      // Update the pre-saved order to paid
+      await supabase.from('orders').update({ status: 'paid' }).eq('id', dbOrderId);
 
-      if (dbError) throw dbError;
-
-      const orderRefStamp = orderData.id.slice(0, 8).toUpperCase();
+      const orderRefStamp = dbOrderId.slice(0, 8).toUpperCase();
 
       const orderItemsHtml = cart.map(i => {
         const itemConverted = i.price * getDynamicExchangeRate();
@@ -246,13 +233,13 @@ export default function CheckoutPage() {
       showToast("ACQUISITION COMPLETE.");
       
     } catch (err) {
-      showToast(`DATABASE ERROR: ${err.message.toUpperCase()}`);
+      showToast(`RECEIPT ERROR: ${err.message.toUpperCase()}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // 4. INITIATE CHECKOUT (Pre-Payment Gateway)
+  // 4. PRE-SAVE ORDER & INITIATE CHECKOUT
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
@@ -280,6 +267,28 @@ export default function CheckoutPage() {
     }
 
     try {
+      showToast('SECURING LEDGER ENTRY...');
+      
+      const transactionRef = `SKM_${new Date().getTime().toString()}`;
+      const customerFullName = `${firstName} ${lastName}`.trim().toUpperCase();
+
+      // PRE-SAVE ORDER TO DATABASE (Status: pending_payment)
+      const { data: orderData, error: dbError } = await supabase.from('orders').insert([{
+        customer_name: customerFullName,
+        customer_email: email.toLowerCase().trim(),
+        customer_phone: phone,
+        shipping_address: address.toUpperCase(),
+        total_amount: cartSubtotalNgn + shippingFeeNgn, 
+        items: cart,
+        status: 'pending_payment',
+        payment_reference: transactionRef
+      }]).select().single();
+
+      if (dbError) {
+        setIsProcessing(false);
+        return showToast(`DATABASE ERROR: ${dbError.message.toUpperCase()}`);
+      }
+
       showToast('LAUNCHING SECURE PAYMENT COHORT...');
       const paystack = new window.PaystackPop();
       
@@ -288,9 +297,10 @@ export default function CheckoutPage() {
         email: email.toLowerCase().trim(),
         amount: Math.round(finalNumericTotal * 100), 
         currency: currency, 
-        reference: `SKM_${new Date().getTime().toString()}`,
+        reference: transactionRef,
         onSuccess: (transaction) => {
-          finalizeOrderDatabase(transaction);
+          // PROCEED TO MARK AS PAID AND EMAIL
+          finalizeOrderSuccess(transaction.reference, orderData.id, customerFullName);
         },
         onCancel: () => {
           setIsProcessing(false);
