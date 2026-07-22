@@ -38,11 +38,6 @@ export default function GlobalCart() {
   const [detectedContinentCode, setDetectedContinentCode] = useState('AF');
   const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
-  // Hide on Checkout and Admin
-  if (pathname === '/checkout' || pathname.startsWith('/admin')) {
-    return null;
-  }
-
   const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
   const cartItemCount = cart ? cart.reduce((acc, curr) => acc + curr.quantity, 0) : 0;
 
@@ -79,6 +74,17 @@ export default function GlobalCart() {
     }
     locateClientNetwork();
   }, []);
+
+  // ==========================================
+  // NEW: STRICT ROUTE VISIBILITY CONTROL
+  // ==========================================
+  // Add any other pages here where you DO NOT want the cart to appear
+  const hiddenPaths = ['/', '/login', '/signup', '/register', '/checkout'];
+  
+  // Hide if the current page is in the list above, OR if it's the admin dashboard
+  if (hiddenPaths.includes(pathname) || pathname.startsWith('/admin')) {
+    return null;
+  }
 
   const formatPrice = (ngnPrice, isFee = false) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
@@ -188,7 +194,7 @@ export default function GlobalCart() {
   return (
     <>
       {/* YOUR EXACT FLOATING CART PILL */}
-      {cartItemCount > 0 && !isCartOpen && pathname !== '/checkout' && (
+      {cartItemCount > 0 && !isCartOpen && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
