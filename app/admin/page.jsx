@@ -69,9 +69,8 @@ export default function AdminDashboard() {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
 
-  // PAGINATION, SEARCH & TRACKER MODES
   const [orderSearch, setOrderSearch] = useState('');
-  const [trackerMode, setTrackerMode] = useState('active'); // 'active' or 'abandoned'
+  const [trackerMode, setTrackerMode] = useState('active');
   const [visibleOrderCount, setVisibleOrderCount] = useState(10);
 
   const [interceptedOrder, setInterceptedOrder] = useState(null);
@@ -417,7 +416,7 @@ export default function AdminDashboard() {
         const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
         const orderCurrency = orderData.currency || 'NGN';
         const symbol = currencySymbols[orderCurrency] || '$';
-        const decimalPlaces = orderCurrency === 'NGN' ? 0 : 2;
+        const decimalPlaces = orderCurrency === 'USD' ? 2 : 0;
 
         const itemsHtml = orderData.items.map(i => `
           <tr>
@@ -637,9 +636,6 @@ export default function AdminDashboard() {
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setSendingReply(false); }
   };
 
-  // --------------------------------------------------------
-  // FILTERED ORDERS FOR TRACKER
-  // --------------------------------------------------------
   const filteredOrders = orders.filter(o => {
     const q = orderSearch.toLowerCase();
     const matchesSearch = o.id.toLowerCase().includes(q) || 
@@ -647,10 +643,8 @@ export default function AdminDashboard() {
            (o.customer_email && o.customer_email.toLowerCase().includes(q));
 
     if (trackerMode === 'active') {
-      // Exclude pending_payment so they don't show up here
       return matchesSearch && o.status !== 'pending_payment';
     } else {
-      // Only show abandoned carts
       return matchesSearch && o.status === 'pending_payment';
     }
   });
@@ -901,7 +895,6 @@ export default function AdminDashboard() {
         {/* --- TAB 2: REAL-TIME ORDER FULFILLMENT TRACKER --- */}
         {activeTab === 'tracker' && (
           <div className="space-y-6 animate-fade-in">
-            {/* NEW: TRACKER MODE SUB-MENU */}
             <div className="flex border-b border-zinc-200 pb-2 mb-6">
               <button onClick={() => setTrackerMode('active')} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${trackerMode === 'active' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
                 Active Orders
@@ -933,7 +926,6 @@ export default function AdminDashboard() {
                       <h3 className="text-xs font-medium text-black uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-500 font-normal normal-case">{order.customer_email}</span></h3>
                     </div>
                     
-                    {/* NEW: RENDER READ-ONLY BADGE IF ABANDONED CART */}
                     {order.status === 'pending_payment' ? (
                       <div className="bg-zinc-100 text-zinc-500 px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium border border-zinc-200 mt-4 sm:mt-0 w-full sm:w-auto text-center cursor-not-allowed">
                         Awaiting Payment
@@ -969,13 +961,21 @@ export default function AdminDashboard() {
                         {order.items?.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-zinc-700">
                             <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
-                            <span className="font-mono text-zinc-500">₦{(item.price * item.quantity).toLocaleString()}</span>
+                            {/* NEW: DYNAMIC CURRENCY SYMBOL */}
+                            <span className="font-mono text-zinc-500">
+                              {order.currency === 'USD' ? '$' : '₦'}
+                              {(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: order.currency === 'USD' ? 2 : 0 })}
+                            </span>
                           </div>
                         ))}
                       </div>
                       <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between text-black font-medium text-xs">
                         <span>Aggregate Total</span>
-                        <span>₦{order.total_amount?.toLocaleString()}</span>
+                        {/* NEW: DYNAMIC CURRENCY SYMBOL */}
+                        <span>
+                          {order.currency === 'USD' ? '$' : '₦'}
+                          {order.total_amount?.toLocaleString(undefined, { minimumFractionDigits: order.currency === 'USD' ? 2 : 0 })}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -983,7 +983,6 @@ export default function AdminDashboard() {
               ))
             )}
 
-            {/* THE LOAD MORE BUTTON */}
             {visibleOrderCount < filteredOrders.length && (
               <button 
                 onClick={() => setVisibleOrderCount(prev => prev + 10)} 
@@ -1292,13 +1291,21 @@ export default function AdminDashboard() {
                               {vo.items?.map((item, i) => (
                                 <div key={i} className="flex justify-between">
                                   <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
-                                  <span className="font-mono text-zinc-500">₦{(item.price * item.quantity).toLocaleString()}</span>
+                                  {/* NEW: DYNAMIC CURRENCY SYMBOL */}
+                                  <span className="font-mono text-zinc-500">
+                                    {vo.currency === 'USD' ? '$' : '₦'}
+                                    {(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: vo.currency === 'USD' ? 2 : 0 })}
+                                  </span>
                                 </div>
                               ))}
                             </div>
                             <div className="border-t border-zinc-200 mt-3 pt-2 flex justify-between text-[11px] text-black font-medium uppercase tracking-wider">
                               <span>Total Value</span>
-                              <span>₦{vo.total_amount?.toLocaleString()}</span>
+                              {/* NEW: DYNAMIC CURRENCY SYMBOL */}
+                              <span>
+                                {vo.currency === 'USD' ? '$' : '₦'}
+                                {vo.total_amount?.toLocaleString(undefined, { minimumFractionDigits: vo.currency === 'USD' ? 2 : 0 })}
+                              </span>
                             </div>
                           </div>
                         ))}
