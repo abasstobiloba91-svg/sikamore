@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from './providers'; 
@@ -10,6 +10,12 @@ export default function GlobalCart() {
   const { cart } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+
+  // --- CUSTOM PHYSICS & DRAG LOGIC ---
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const hasDragged = useRef(false);
 
   // Calculate cart totals
   const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
@@ -20,45 +26,100 @@ export default function GlobalCart() {
     setIsOpen(false);
   }, [pathname]);
 
-  // HIDE THE CART ON THE HOME PAGE ('/'), CHECKOUT, AND ADMIN PAGES
+  // Hide on Home Page, Checkout, and Admin
   if (pathname === '/' || pathname === '/checkout' || pathname.startsWith('/admin')) {
     return null;
   }
 
+  // --- POINTER EVENT HANDLERS ---
+  const handlePointerDown = (e) => {
+    isDragging.current = true;
+    hasDragged.current = false;
+    startPos.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging.current) return;
+    
+    const newX = e.clientX - startPos.current.x;
+    const newY = e.clientY - startPos.current.y;
+    
+    // If movement exceeds 3px, we classify it as a "drag" rather than a "click"
+    if (Math.abs(e.clientX - (startPos.current.x + offset.x)) > 3 || Math.abs(e.clientY - (startPos.current.y + offset.y)) > 3) {
+      hasDragged.current = true;
+    }
+    
+    setOffset({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  const handleClick = (e) => {
+    // If they were dragging, intercept the click so the drawer doesn't accidentally open
+    if (hasDragged.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    setIsOpen(true);
+  };
+
   return (
     <>
-      {/* FLOATING CART BUTTON WITH CLEAN SVG */}
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[9999] bg-black text-white px-5 py-3.5 text-[9px] tracking-[0.25em] uppercase font-medium hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2.5 rounded-sm border border-zinc-800"
+      {/* DRAGGABLE FLOATING CART ICON */}
+      <div 
+        className="fixed bottom-6 right-6 z-[9999] touch-none"
+        style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
       >
-        {/* Minimalist Luxury Shopping Bag/Cart Icon */}
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>
-        
-        <span>Cart</span>
-        
-        {totalItems > 0 && (
-          <span className="bg-white text-black px-2 py-0.5 font-mono text-[10px] rounded-sm ml-1">
-            {totalItems}
-          </span>
-        )}
-      </button>
+        <button 
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onClick={handleClick}
+          className="w-14 h-14 bg-white/95 backdrop-blur-sm border border-zinc-200 shadow-xl rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing"
+          aria-label="Open Cart"
+        >
+          <div className="relative flex items-center justify-center">
+            {/* Tapered Bag Icon */}
+            <svg 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="black" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M8 8V5a4 4 0 0 1 8 0v3" />
+              <path d="M4.5 8h15l1.5 13H3L4.5 8z" />
+            </svg>
+            
+            {/* Overlapping Notification Badge */}
+            {totalItems > 0 && (
+              <span className="absolute -top-2.5 -right-3 bg-black text-white w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-bold font-sans border-2 border-white">
+                {totalItems}
+              </span>
+            )}
+          </div>
+        </button>
+      </div>
 
       {/* SLIDE-OUT DRAWER OVERLAY */}
       {isOpen && (
-        <div className="fixed inset-0 z-[10000] flex justify-end">
-          {/* Dark transparent background (click to close) */}
+        <div className="fixed inset-0 z-[10000] flex justify-end touch-auto">
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)}
           ></div>
 
-          {/* The Actual Drawer */}
           <div className="relative w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-slide-in-right border-l border-zinc-200">
             
-            {/* Drawer Header */}
             <div className="flex items-center justify-between p-6 border-b border-zinc-200 shrink-0 bg-zinc-50">
               <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-black">Your Atelier Bag</h2>
               <button onClick={() => setIsOpen(false)} className="text-[10px] tracking-widest uppercase text-zinc-500 hover:text-black transition-colors">
@@ -66,7 +127,6 @@ export default function GlobalCart() {
               </button>
             </div>
 
-            {/* Drawer Body (Items) */}
             <div className="flex-1 overflow-y-auto p-6">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
@@ -98,7 +158,6 @@ export default function GlobalCart() {
               )}
             </div>
 
-            {/* Drawer Footer (Checkout Button) */}
             {cart.length > 0 && (
               <div className="p-6 border-t border-zinc-200 bg-zinc-50 shrink-0">
                 <div className="flex justify-between items-center mb-6 text-[10px] tracking-widest uppercase font-medium text-black">
