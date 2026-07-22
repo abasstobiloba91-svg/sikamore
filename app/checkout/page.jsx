@@ -12,7 +12,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+// Simplified strictly to Local (NGN) and Global (USD)
+const currencySymbols = { NGN: '₦', USD: '$' };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -84,7 +85,14 @@ export default function CheckoutPage() {
         try {
           const parsed = JSON.parse(storedDelivery);
           setDeliveryData(parsed);
-          if (parsed.currency) setCurrency(parsed.currency);
+          
+          // STRICT CURRENCY RULE: If it is anything other than NGN, force it to USD
+          if (parsed.currency && parsed.currency !== 'NGN') {
+            setCurrency('USD');
+          } else {
+            setCurrency('NGN');
+          }
+          
           if (parsed.address) setAddress(parsed.address.toUpperCase());
         } catch(e) {}
       }
@@ -111,8 +119,8 @@ export default function CheckoutPage() {
   const shippingFeeNgn = deliveryData?.fee || 0; 
   
   const getDynamicExchangeRate = () => {
-    const rates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    return rates[currency] || 1;
+    // Only applies division if strictly USD
+    return currency === 'USD' ? (1 / usdToNgnRate) : 1;
   };
 
   const finalConvertedSubtotal = cartSubtotalNgn * getDynamicExchangeRate();
@@ -121,7 +129,7 @@ export default function CheckoutPage() {
 
   const displayFormat = (amount) => {
     if (currency === 'NGN') return `₦${Math.round(amount).toLocaleString()}`;
-    return `${currencySymbols[currency] || '$'}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const handleEmailCheck = async (e) => {
@@ -293,13 +301,13 @@ export default function CheckoutPage() {
       const paystack = new window.PaystackPop();
       
       // ==========================================
-      // FIX: FORCE PAYSTACK TO ALWAYS INITIALIZE IN NGN
+      // NEW: DYNAMIC CURRENCY ASSIGNMENT
       // ==========================================
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
-        amount: Math.round((cartSubtotalNgn + shippingFeeNgn) * 100), // Converted to NGN kobo explicitly
-        currency: 'NGN', // Hardcoded to NGN to bypass Paystack's restriction
+        amount: Math.round(finalNumericTotal * 100), // Converted to NGN kobo or USD cents explicitly
+        currency: currency, // Dynamically maps to 'NGN' or 'USD'
         reference: transactionRef,
         onSuccess: (transaction) => {
           // PROCEED TO MARK AS PAID AND EMAIL
