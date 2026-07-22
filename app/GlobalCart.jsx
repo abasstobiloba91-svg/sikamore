@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useApp } from './providers'; // IMPORTANT: Adjust this path if your providers file is somewhere else
+import { useApp } from './providers'; 
 
 export default function GlobalCart() {
   const { cart } = useApp();
@@ -15,32 +15,40 @@ export default function GlobalCart() {
   const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
   const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-  // Close the cart drawer automatically when the user navigates to a new page (like checkout)
+  // Close the cart drawer automatically when the user navigates to a new page
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
 
-  // Hide the floating cart button if the user is already on the checkout or admin page
-  if (pathname === '/checkout' || pathname.startsWith('/admin')) {
+  // HIDE THE CART ON THE HOME PAGE ('/'), CHECKOUT, AND ADMIN PAGES
+  if (pathname === '/' || pathname === '/checkout' || pathname.startsWith('/admin')) {
     return null;
   }
 
   return (
     <>
-      {/* FLOATING CART BUTTON */}
+      {/* FLOATING CART BUTTON WITH CLEAN SVG */}
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 bg-black text-white px-5 py-3.5 text-[9px] tracking-[0.25em] uppercase font-medium hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-3 rounded-sm"
+        className="fixed bottom-6 right-6 z-[9999] bg-black text-white px-5 py-3.5 text-[9px] tracking-[0.25em] uppercase font-medium hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2.5 rounded-sm border border-zinc-800"
       >
+        {/* Minimalist Luxury Shopping Bag/Cart Icon */}
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+        
         <span>Cart</span>
+        
         {totalItems > 0 && (
-          <span className="bg-white text-black px-2 py-0.5 font-mono text-[10px] rounded-sm">{totalItems}</span>
+          <span className="bg-white text-black px-2 py-0.5 font-mono text-[10px] rounded-sm ml-1">
+            {totalItems}
+          </span>
         )}
       </button>
 
       {/* SLIDE-OUT DRAWER OVERLAY */}
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
+        <div className="fixed inset-0 z-[10000] flex justify-end">
           {/* Dark transparent background (click to close) */}
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
