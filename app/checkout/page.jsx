@@ -292,11 +292,14 @@ export default function CheckoutPage() {
       showToast('LAUNCHING SECURE PAYMENT COHORT...');
       const paystack = new window.PaystackPop();
       
+      // ==========================================
+      // FIX: FORCE PAYSTACK TO ALWAYS INITIALIZE IN NGN
+      // ==========================================
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
-        amount: Math.round(finalNumericTotal * 100), 
-        currency: currency, 
+        amount: Math.round((cartSubtotalNgn + shippingFeeNgn) * 100), // Converted to NGN kobo explicitly
+        currency: 'NGN', // Hardcoded to NGN to bypass Paystack's restriction
         reference: transactionRef,
         onSuccess: (transaction) => {
           // PROCEED TO MARK AS PAID AND EMAIL
