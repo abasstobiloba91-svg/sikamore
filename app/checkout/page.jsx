@@ -269,7 +269,6 @@ export default function CheckoutPage() {
       const transactionRef = `SKM_${new Date().getTime().toString()}`;
       const customerFullName = `${firstName} ${lastName}`.trim().toUpperCase();
 
-      // NEW: SAVING THE ACTUAL CONVERTED TOTAL, CURRENCY, AND ADJUSTED ITEM PRICES!
       const { data: orderData, error: dbError } = await supabase.from('orders').insert([{
         customer_name: customerFullName,
         customer_email: email.toLowerCase().trim(),
@@ -427,8 +426,24 @@ export default function CheckoutPage() {
         </form>
 
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 rounded-sm shadow-xl">
-            <h3 className="text-[10px] tracking-[0.25em] uppercase font-medium border-b border-zinc-800 pb-3 mb-6 text-zinc-400">Breakdown</h3>
+          <div className="bg-[#0A0A0A] text-white border border-zinc-900 p-6 sm:p-8 rounded-sm shadow-xl relative">
+            
+            {/* ========================================= */}
+            {/* NEW: MANUAL CURRENCY TOGGLE FOR THE USER  */}
+            {/* ========================================= */}
+            <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+              <span className="text-[8px] tracking-[0.25em] text-zinc-500 uppercase">Billing Currency:</span>
+              <select 
+                value={currency} 
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-zinc-900 text-white border border-zinc-700 text-[9px] tracking-widest uppercase py-1 px-2 outline-none cursor-pointer hover:border-white transition-colors"
+              >
+                <option value="NGN">NGN (₦)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+
+            <h3 className="text-[10px] tracking-[0.25em] uppercase font-medium border-b border-zinc-800 pb-3 mb-6 text-zinc-400 w-1/2">Breakdown</h3>
             
             <div className="divide-y divide-zinc-900 overflow-y-auto max-h-[260px] pr-2 mb-6">
               {cart.map((item, idx) => {
