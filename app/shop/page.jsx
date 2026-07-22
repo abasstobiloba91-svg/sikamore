@@ -125,19 +125,79 @@ export default function ShopCatalog() {
     "BEAUTIFULLY CRAFTED CREATIONS • DESIGNED FOR YOU",
   ];
 
-  const appContext = useApp() || {};
-  const cart = appContext.cart || [];
-  const wishlist = appContext.wishlist || [];
-  const toggleWishlist = appContext.toggleWishlist || (() => {});
-  const addToCart = appContext.addToCart || (() => {});
-  const removeFromCart = appContext.removeFromCart || (() => {});
-  const isCartOpen = appContext.isCartOpen || false;
-  const setIsCartOpen = appContext.setIsCartOpen || (() => {});
-  const showToast = appContext.showToast || ((msg) => console.log(msg));
+ /* eslint-disable @next/next/no-img-element */
+'use client';
 
-  const [selectedSize, setSelectedSize] = useState('M');
-  const [qty, setQty] = useState(1);
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useApp } from './providers'; 
+import { createClient } from '@supabase/supabase-js';
 
+// We need a tiny Supabase instance to fetch the live exchange rate for the cart drawer
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+
+export default function GlobalCart() {
+  const { cart, removeFromCart } = useApp();
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  // --- GLOBAL CURRENCY STATES ---
+  const [currency, setCurrency] = useState('NGN');
+  const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+
+  // --- DRAGGABLE PHYSICS STATES ---
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const hasDragged = useRef(false);
+
+  // Calculate cart totals
+  const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+  const cartSubtotal = cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
+
+  // 1. LOAD MASTER EXCHANGE RATE & DETECT LOCATION (Just like your shop code!)
+  useEffect(() => {
+    async function loadMasterSettings() {
+      try {
+        const { data } = await supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single();
+        if (data && data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+      } catch (e) {}
+    }
+    loadMasterSettings();
+
+    async function locateClientNetwork() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        if (data && data.country_code) {
+          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
+          if (data.country_code === 'NG') setCurrency('NGN');
+          else if (data.continent_code === 'AF') setCurrency('USD'); 
+          else if (data.country_code === 'GB') setCurrency('GBP');
+          else if (checkEurope) setCurrency('EUR');
+          else setCurrency('USD');
+        }
+      } catch (err) {}
+    }
+    locateClientNetwork();
+  }, []);
+
+  // Close the cart drawer automatically when the user navigates
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Hide on Home Page, Checkout, and Admin
+  if (pathname === '/' || pathname === '/checkout' || pathname.startsWith('/admin')) {
+    return null;
+  }
+
+  // --- FORMAT PRICE EXACTLY LIKE YOUR CODE ---
   const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
     const dynamicExchangeRates = { 
@@ -153,354 +213,146 @@ export default function ShopCatalog() {
     return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getDisplayTotal = () => {
-    const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); 
-    const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
-    const combinedTotal = productsConverted + shippingConverted;
-    if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
-    return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-  
-  useEffect(() => {
-    async function locateClientNetwork() {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.country_code) {
-          setDetectedCountryCode(data.country_code);
-          setDetectedCountryName(data.country_name);
-          setDetectedContinentCode(data.continent_code);
-          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
-          setIsEuropeanUser(checkEurope);
-          if (data.country_code === 'NG') setCurrency('NGN');
-          else if (data.continent_code === 'AF') setCurrency('USD'); 
-          else if (data.country_code === 'GB') setCurrency('GBP');
-          else if (checkEurope) setCurrency('EUR');
-          else setCurrency('USD');
-        }
-      } catch (err) {}
-    }
-    locateClientNetwork();
-  }, []);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setUserSession(session.user);
-      else {
-        const localUser = localStorage.getItem('sikamore_user_profile');
-        if (localUser) setUserSession(JSON.parse(localUser)); 
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (products.length > 0) {
-      const accProducts = products.filter(p => p.category && p.category.toLowerCase() === 'accessories');
-      let extractedImgs = [];
-      accProducts.forEach(p => {
-        const urls = extractCleanUrls(p.image);
-        urls.forEach(u => { if (u && !extractedImgs.includes(u)) extractedImgs.push(u); });
-      });
-      if (extractedImgs.length > 0) setAccessoryImages(extractedImgs.slice(0, 5));
-      else setAccessoryImages(["https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"]);
-    }
-  }, [products]);
-
-  useEffect(() => {
-    let result = [...products];
-    let cat = null;
-    let viewParam = null;
-
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      cat = params.get('category');
-      viewParam = params.get('view');
-      setCurrentCategory(cat);
-      setIsViewAll(viewParam === 'all');
-    }
-
-    if (cat) {
-      result = result.filter(p => {
-        const productCat = p.category ? p.category.toLowerCase() : 'bags';
-        return productCat === cat.toLowerCase(); 
-      });
-    }
-
-    if (searchQuery.trim()) {
-      const lowerQ = searchQuery.toLowerCase();
-      result = result.filter(p => {
-        const n = p.name ? p.name.toLowerCase() : '';
-        const d = p.description ? p.description.toLowerCase() : '';
-        return n.includes(lowerQ) || d.includes(lowerQ);
-      });
-    }
-
-    if (activeSort === 'low_to_high') result.sort((a, b) => Number(a.price) - Number(b.price));
-    else if (activeSort === 'high_to_low') result.sort((a, b) => Number(b.price) - Number(a.price));
-    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    setSearchResults(result);
-  }, [searchQuery, products, activeSort]);
-
-  useEffect(() => {
-    supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    async function fetchProducts() {
-      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (data) {
-        setProducts(data);
-        setSearchResults(data);
-      }
-      setLoading(false);
-    }
-    fetchProducts();
-  }, []);
-
-  useEffect(() => {
-    const tickerTimer = setInterval(() => setTickerIndex((prev) => (prev + 1) % announcements.length), 5000);
-    return () => clearInterval(tickerTimer);
-  }, [announcements.length]);
-
-  useEffect(() => {
-    if (accessoryImages.length <= 1) return;
-    const bannerTimer = setInterval(() => setBannerIndex((prev) => (prev + 1) % accessoryImages.length), 5000);
-    return () => clearInterval(bannerTimer);
-  }, [accessoryImages.length]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hasSignedNewsletter = sessionStorage.getItem('sikamore_newsletter');
-      if (!hasSignedNewsletter) {
-        const timer = setTimeout(() => setShowNewsletter(true), 4000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, []);
-
-  const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
-  const cartItemCount = cart ? cart.reduce((acc, curr) => acc + curr.quantity, 0) : 0;
-
-  const openQuickView = async (product) => {
-    if (!product) return;
-    setQty(1);
-    setSelectedSize('M');
-    setOpenAccordion('description');
-    setQuickViewImgIndex(0); 
-    setQuickViewProduct(product);
-
-    try {
-      await supabase.from('page_analytics').insert([{ 
-        event_type: 'click', 
-        action_type: 'view_details',
-        product_name: product.name.toUpperCase(),
-        page_path: `/shop?item=${product.id}`
-      }]);
-    } catch (e) {}
+  // --- POINTER EVENT HANDLERS FOR DRAGGING ---
+  const handlePointerDown = (e) => {
+    isDragging.current = true;
+    hasDragged.current = false;
+    startPos.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const minSwipeDistance = 30;
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches.clientX);
-  };
-  const onTouchMove = (e) => setTouchEnd(e.targetTouches.clientX);
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const images = quickViewProduct ? extractCleanUrls(quickViewProduct.image) : [];
-    if (images.length <= 1) return;
-
-    if (distance > minSwipeDistance) setQuickViewImgIndex((prev) => (prev + 1) % images.length);
-    else if (distance < -minSwipeDistance) setQuickViewImgIndex((prev) => (prev - 1 + images.length) % images.length);
-    
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  const handleAddToCart = async (e, product, overrideQty = 1, overrideSize = 'M') => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    const cartItemPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
-    try {
-      addToCart(cartItemPayload, overrideQty, overrideSize); 
-      setIsCartOpen(false); 
-      showToast('Added to your bag.');
-
-      await supabase.from('page_analytics').insert([{ 
-        event_type: 'click', 
-        action_type: 'add_to_cart',
-        product_name: product.name.toUpperCase(),
-        page_path: `/shop?item=${product.id}`
-      }]);
-    } catch (err) {
-      showToast('Error adding to bag.');
+  const handlePointerMove = (e) => {
+    if (!isDragging.current) return;
+    const newX = e.clientX - startPos.current.x;
+    const newY = e.clientY - startPos.current.y;
+    if (Math.abs(e.clientX - (startPos.current.x + offset.x)) > 3 || Math.abs(e.clientY - (startPos.current.y + offset.y)) > 3) {
+      hasDragged.current = true;
     }
+    setOffset({ x: newX, y: newY });
   };
 
-  const handleWishlistClick = (e, product) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    const wishlistPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
-    toggleWishlist(wishlistPayload);
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  const handlePopupSubscription = async (e) => {
-    e.preventDefault();
-    if (!subscriberEmail.trim()) return;
-    setSubmittingEmail(true);
-    try {
-      const { error } = await supabase.from('subscribers').insert([{ email: subscriberEmail.toLowerCase().trim() }]);
-      if (error && error.code !== '23505') throw error;
-      showToast('Thank you for joining our community.');
-      setShowNewsletter(false);
-      sessionStorage.setItem('sikamore_newsletter', 'true');
-    } catch (err) {
-      showToast(`Oops, there was an issue: ${err.message}`);
-    } finally {
-      setSubmittingEmail(false);
+  const handleClick = (e) => {
+    if (hasDragged.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
+    setIsOpen(true);
   };
 
-  const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR COMPLETE DELIVERY ADDRESS.");
-    setIsCalculating(true);
-    try {
-      showToast("VALIDATING SHIPPING DESTINATION...");
-      
-      const res = await fetch('/api/shipping-calc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: deliveryAddress, countryCode: detectedCountryCode, countryName: detectedCountryName }),
-      });
-
-      let data;
-      try { data = await res.json(); } catch (parseError) { throw new Error("SYSTEM ROUTE MISSING."); }
-
-      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
-      if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
-      else if (isEuropeanUser) autoCurrency = 'EUR';
-
-      if (!data.success) {
-        if (detectedCountryCode !== 'NG') {
-          const actualIntlFee = detectedContinentCode === 'AF' ? intlFeeAfrica : intlFeeGlobal;
-          const explicitFee = (actualIntlFee * usdToNgnRate);
-          setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
-          setDeliveryFee(explicitFee);
-          setDeliveryZone(`International Delivery (${detectedCountryName})`);
-          if (autoCurrency !== currency) setCurrency(autoCurrency);
-          showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
-          return;
-        } else {
-          const { data: rules } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
-          const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
-          const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
-          const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
-          
-          let fallbackFee = mainlandRate;
-          let fallbackZone = "Lagos Mainland Flat Rate";
-          const lowerAddress = deliveryAddress.toLowerCase();
-
-          if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ajah') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria')) {
-            fallbackFee = islandRate;
-            fallbackZone = "Lagos Island Flat Rate";
-          } else if (lowerAddress.includes('abuja') || lowerAddress.includes('port harcourt') || lowerAddress.includes('state') || lowerAddress.includes('delta')) {
-            fallbackFee = interstateRate;
-            fallbackZone = "Interstate Flat Rate";
-          }
-
-          setDeliveryAddress(deliveryAddress.toUpperCase() + " (ESTIMATED)");
-          setDeliveryFee(fallbackFee);
-          setDeliveryZone(fallbackZone);
-          if (autoCurrency !== currency) setCurrency(autoCurrency);
-          showToast(`EXACT ROUTE UNKNOWN. APPLIED ₦${fallbackFee.toLocaleString()} RATE.`);
-          return;
-        }
-      }
-
-      setDeliveryAddress(data.matchedAddress); 
-      setDeliveryFee(data.shippingFee);
-      
-      if (data.isInternational) {
-        setDeliveryZone(`International Delivery (${detectedCountryName})`);
-        showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
-      } else {
-        const dist = data.distanceKm || 15;
-        if (dist <= 30) setDeliveryZone(`Lagos Mainland Dispatch (${dist}km)`);
-        else if (dist <= 65) setDeliveryZone(`Lagos Island Dispatch (${dist}km)`);
-        else setDeliveryZone(`Interstate Freight Delivery (${dist}km)`);
-        showToast(`Route Calculated: ${dist}km layout validated.`);
-      }
-
-      if (autoCurrency !== currency) setCurrency(autoCurrency);
-
-    } catch (err) {
-      setDeliveryFee(detectedCountryCode === 'NG' ? 5000 : 0);
-      setDeliveryZone(detectedCountryCode === 'NG' ? "Lagos Delivery (Estimated)" : "International Delivery");
-      showToast("CONNECTION TIMEOUT. STANDARD PROTOCOL ENGAGED.");
-    } finally {
-      setIsCalculating(false);
-    }
-  };
-  
-  const toggleAccordion = (tabId) => {
-    setOpenAccordion(openAccordion === tabId ? '' : tabId);
-  };
-
-  const productTabs = [
-    { id: 'description', title: 'The Details', content: quickViewProduct?.description || "A beautifully detailed silhouette crafted to elevate your everyday wardrobe with effortless grace." },
-    { id: 'additional', title: 'Additional Info', content: quickViewProduct?.additional_information || "Designed in-house. We recommend dry cleaning to preserve the integrity of the fabrics and true-to-size fit." },
-    { id: 'policies', title: 'Store Policies', content: quickViewProduct?.store_policies || "We offer explicitly stated worldwide shipping on all orders. Returns are seamlessly accepted within 14 days of delivery." },
-    { id: 'inquiries', title: 'Inquiries', content: quickViewProduct?.inquiries || "Questions about styling or fit? Our Client Advisory team is here for you. Reach out through the Support tab on your dashboard." }
-  ];
-
-  const renderProductCard = (product) => {
-    const inWishlist = wishlist.some(w => w.id === product.id);
-    const gridPrimaryImage = getPrimaryImage(product.image);
-    const productSlug = generateSlug(product.name); // Using the clean URL slug
-
-    return (
-      <div key={product.id} className="group flex flex-col relative bg-white pb-4">
-        <div 
-          className="bg-zinc-50 aspect-[3/4] w-full overflow-hidden relative rounded-sm border border-zinc-100 cursor-pointer"
-          onClick={(e) => { e.stopPropagation(); if (!product.is_sold_out) openQuickView(product); }}
+  return (
+    <>
+      {/* DRAGGABLE FLOATING CART ICON (WITH YOUR TOTE BAG ICON) */}
+      <div 
+        className="fixed bottom-6 right-6 z-[9999] touch-none"
+        style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
+      >
+        <button 
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onClick={handleClick}
+          className="w-14 h-14 bg-white/95 backdrop-blur-sm border border-zinc-200 shadow-xl rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing"
+          aria-label="Open Cart"
         >
-          {gridPrimaryImage ? (
-            <img 
-              key={gridPrimaryImage} 
-              src={gridPrimaryImage} 
-              alt={product.name || 'Product'} 
-              className="absolute inset-0 w-full h-full object-cover" 
-            />
-          ) : (
-            <div className="absolute inset-0 bg-zinc-100 flex items-center justify-center text-[8px] tracking-widest text-zinc-400 uppercase">Awaiting Restock</div>
-          )}
-          
-          <button type="button" onClick={(e) => handleWishlistClick(e, product)} className="absolute top-3 right-3 z-30 pointer-events-auto p-2 text-black hover:scale-110 active:scale-95 transition-transform">
-            <svg className="w-5 h-5 pointer-events-none" fill={inWishlist ? "#D31313" : "none"} stroke={inWishlist ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-          </button>
-
-          <div className="absolute inset-x-0 bottom-6 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex flex-col items-center gap-2 z-30 pointer-events-none">
-            <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`pointer-events-auto flex items-center justify-center bg-black text-white h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all shadow-lg ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <Link href={`/product/${productSlug}`} onClick={(e) => e.stopPropagation()} className="pointer-events-auto flex items-center justify-center bg-white border border-zinc-200 text-black h-8 w-32 rounded-sm text-[9px] uppercase tracking-widest hover:bg-zinc-100 active:scale-95 transition-all shadow-lg">View Product</Link>
+          <div className="relative flex items-center justify-center">
+            {/* Tapered Bag Icon */}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 8V5a4 4 0 0 1 8 0v3" />
+              <path d="M4.5 8h15l1.5 13H3L4.5 8z" />
+            </svg>
+            
+            {/* Overlapping Notification Badge */}
+            {totalItems > 0 && (
+              <span className="absolute -top-2.5 -right-3 bg-black text-white w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-bold font-sans border-2 border-white">
+                {totalItems}
+              </span>
+            )}
           </div>
-
-          {product.is_sold_out && (
-            <div className="absolute inset-0 bg-white/60 flex items-center justify-center pointer-events-none z-20"><div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center"><span className="text-[8px] tracking-[0.15em] uppercase text-zinc-400">Sold Out</span></div></div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1 mt-4 text-left px-1">
-          <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
-          <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
-          <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
-            <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
-            <Link href={`/product/${productSlug}`} className="w-full text-center bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors block">View Product</Link>
-          </div>
-        </div>
+        </button>
       </div>
-    );
-  };
+
+      {/* SLIDE-OUT DRAWER OVERLAY */}
+      {isOpen && (
+        <div className="fixed inset-0 z-[10000] flex justify-end touch-auto">
+          {/* Dark transparent background */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsOpen(false)}></div>
+
+          {/* The Drawer Panel */}
+          <div className="relative w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-slide-in-right">
+            
+            <div className="flex items-center justify-between p-6 border-b border-zinc-200 shrink-0 bg-white">
+              <h2 className="text-sm font-normal font-serif tracking-[0.2em] uppercase text-black">Your Shopping Bag</h2>
+              <button onClick={() => setIsOpen(false)} className="text-[10px] tracking-widest uppercase text-zinc-500 hover:text-black transition-colors">
+                Close
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 bg-zinc-50">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
+                  <p className="text-[11px] tracking-[0.2em] text-zinc-400 uppercase">Your bag is currently empty.</p>
+                  <button onClick={() => setIsOpen(false)} className="border border-black bg-black text-white px-8 py-3.5 text-[9px] font-medium tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors">
+                    Explore Collections
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-200">
+                  {cart.map((item, idx) => (
+                    <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4 py-6 first:pt-0 last:pb-0 relative group">
+                      
+                      <div className="w-24 h-32 bg-white shrink-0 border border-zinc-200 overflow-hidden rounded-sm relative">
+                        {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+                      </div>
+                      
+                      <div className="flex-1 flex flex-col justify-between py-1">
+                        <div>
+                          <h4 className="text-[11px] tracking-[0.15em] uppercase font-medium text-black line-clamp-2">{item.name}</h4>
+                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-2">Size: {item.size}</p>
+                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">Qty: {item.quantity}</p>
+                        </div>
+                        
+                        <div className="flex justify-between items-end">
+                          <span className="text-[13px] tracking-widest text-black font-medium">{formatPrice(item.price * item.quantity)}</span>
+                          <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] text-zinc-400 hover:text-red-600 uppercase tracking-widest underline decoration-zinc-300 underline-offset-4 transition-colors">
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-6 border-t border-zinc-200 bg-white shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
+                <div className="flex justify-between items-center mb-6 text-[10px] tracking-[0.2em] uppercase font-medium text-zinc-500">
+                  <span>Subtotal</span>
+                  <span className="font-mono text-sm text-black">{formatPrice(cartSubtotal)}</span>
+                </div>
+                
+                <Link href="/checkout" className="w-full block bg-black text-white text-center py-4.5 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors rounded-sm shadow-md mb-3">
+                  Proceed to Secure Checkout
+                </Link>
+                
+                <p className="text-[8px] tracking-[0.15em] uppercase text-zinc-400 text-center leading-relaxed">
+                  Taxes, shipping, and international conversion rates are calculated securely at checkout.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased text-[11px] pb-0 relative">
