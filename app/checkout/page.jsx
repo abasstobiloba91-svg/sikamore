@@ -12,14 +12,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Simplified strictly to Local (NGN) and Global (USD)
 const currencySymbols = { NGN: '₦', USD: '$' };
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart, showToast } = useApp();
 
-  // DYNAMIC PRICING STATES
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
   const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
@@ -43,7 +41,6 @@ export default function CheckoutPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState('');
 
-  // 1. INJECT SECURE PAYSTACK INLINE SDK & LOAD MASTER SETTINGS
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!window.PaystackPop) {
@@ -70,7 +67,6 @@ export default function CheckoutPage() {
     loadMasterLogistics();
   }, []);
 
-  // 2. HYDRATION & SESSION MANAGEMENT
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsHydrated(true);
@@ -86,7 +82,6 @@ export default function CheckoutPage() {
           const parsed = JSON.parse(storedDelivery);
           setDeliveryData(parsed);
           
-          // STRICT CURRENCY RULE: If it is anything other than NGN, force it to USD
           if (parsed.currency && parsed.currency !== 'NGN') {
             setCurrency('USD');
           } else {
@@ -114,12 +109,10 @@ export default function CheckoutPage() {
     return () => clearTimeout(timeout);
   }, [cart, router, address, isSuccess]);
 
-  // MATH CORE: 1-to-1 Pure Conversion Math
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFeeNgn = deliveryData?.fee || 0; 
   
   const getDynamicExchangeRate = () => {
-    // Only applies division if strictly USD
     return currency === 'USD' ? (1 / usdToNgnRate) : 1;
   };
 
@@ -158,12 +151,9 @@ export default function CheckoutPage() {
     else showToast('RECOVERY DISPATCHED TO EMAIL.');
   };
 
-  // 3. FINALIZE EMAILS & STATUS POST-PAYMENT
   const finalizeOrderSuccess = async (transactionRef, dbOrderId, customerFullName) => {
     try {
       showToast('PAYMENT SECURED. DISPATCHING RECEIPTS...');
-
-      // Update the pre-saved order to paid
       await supabase.from('orders').update({ status: 'paid' }).eq('id', dbOrderId);
 
       const orderRefStamp = dbOrderId.slice(0, 8).toUpperCase();
@@ -247,7 +237,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // 4. PRE-SAVE ORDER & INITIATE CHECKOUT
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
     if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
@@ -280,14 +269,18 @@ export default function CheckoutPage() {
       const transactionRef = `SKM_${new Date().getTime().toString()}`;
       const customerFullName = `${firstName} ${lastName}`.trim().toUpperCase();
 
-      // PRE-SAVE ORDER TO DATABASE (Status: pending_payment)
+      // NEW: SAVING THE ACTUAL CONVERTED TOTAL, CURRENCY, AND ADJUSTED ITEM PRICES!
       const { data: orderData, error: dbError } = await supabase.from('orders').insert([{
         customer_name: customerFullName,
         customer_email: email.toLowerCase().trim(),
         customer_phone: phone,
         shipping_address: address.toUpperCase(),
-        total_amount: cartSubtotalNgn + shippingFeeNgn, 
-        items: cart,
+        total_amount: finalNumericTotal, 
+        currency: currency,
+        items: cart.map(item => ({
+          ...item,
+          price: item.price * getDynamicExchangeRate()
+        })),
         status: 'pending_payment',
         payment_reference: transactionRef
       }]).select().single();
@@ -300,17 +293,13 @@ export default function CheckoutPage() {
       showToast('LAUNCHING SECURE PAYMENT COHORT...');
       const paystack = new window.PaystackPop();
       
-      // ==========================================
-      // NEW: DYNAMIC CURRENCY ASSIGNMENT
-      // ==========================================
       paystack.newTransaction({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: email.toLowerCase().trim(),
-        amount: Math.round(finalNumericTotal * 100), // Converted to NGN kobo or USD cents explicitly
-        currency: currency, // Dynamically maps to 'NGN' or 'USD'
+        amount: Math.round(finalNumericTotal * 100),
+        currency: currency, 
         reference: transactionRef,
         onSuccess: (transaction) => {
-          // PROCEED TO MARK AS PAID AND EMAIL
           finalizeOrderSuccess(transaction.reference, orderData.id, customerFullName);
         },
         onCancel: () => {
