@@ -1,5 +1,6 @@
 import './globals.css';
 import { AppProvider } from './providers';
+import GlobalCart from './GlobalCart'; // <-- WE IMPORT THE CART HERE
 
 export const metadata = {
   title: 'S. SIKAMÒRE | Official Store',
@@ -13,7 +14,7 @@ export const metadata = {
     siteName: 'S. SIKAMÒRE',
     images: [
       {
-        url: 'https://ssikamore.com/client-logo.jpeg', // <-- BRUTE FORCE FULL URL
+        url: 'https://ssikamore.com/client-logo.jpeg',
         width: 1200,
         height: 630,
         alt: 'S. SIKAMÒRE Luxury Brand Preview',
@@ -28,7 +29,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'S. SIKAMÒRE | Official Store',
     description: 'Finely crafted for audacious women who carry light and purpose.',
-    images: ['https://ssikamore.com/client-logo.jpeg'], // <-- BRUTE FORCE FULL URL
+    images: ['https://ssikamore.com/client-logo.jpeg'],
   },
 
   // Browser Icons
@@ -43,6 +44,9 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <AppProvider>
+          {/* THE CART FLOATS HERE ON EVERY PAGE */}
+          <GlobalCart />
+          
           {children}
         </AppProvider>
       </body>
