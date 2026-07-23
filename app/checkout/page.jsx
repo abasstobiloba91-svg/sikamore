@@ -30,8 +30,17 @@ export default function CheckoutPage() {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  
+  // ==========================================
+  // NEW: STREAMLINED ADDRESS STATES
+  // ==========================================
+  const [unit, setUnit] = useState('');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [stateRegion, setStateRegion] = useState('');
+  const [countryInput, setCountryInput] = useState('');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -88,7 +97,10 @@ export default function CheckoutPage() {
             setCurrency('NGN');
           }
           
-          if (parsed.address) setAddress(parsed.address.toUpperCase());
+          // Pre-fill country if detected by the IP locator in the cart
+          if (parsed.countryName) {
+            setCountryInput(parsed.countryName.toUpperCase());
+          }
         } catch(e) {}
       }
     }
@@ -100,14 +112,13 @@ export default function CheckoutPage() {
         setFirstName(session.user.user_metadata?.first_name || '');
         setLastName(session.user.user_metadata?.last_name || '');
         setPhone(session.user.user_metadata?.phone || '');
-        setAddress(session.user.user_metadata?.address || address || '');
         setAccountStatus('logged_in');
       }
     }
     checkActiveSession();
 
     return () => clearTimeout(timeout);
-  }, [cart, router, address, isSuccess]);
+  }, [cart, router, isSuccess]);
 
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFeeNgn = deliveryData?.fee || 0; 
@@ -151,7 +162,7 @@ export default function CheckoutPage() {
     else showToast('RECOVERY DISPATCHED TO EMAIL.');
   };
 
-  const finalizeOrderSuccess = async (transactionRef, dbOrderId, customerFullName) => {
+  const finalizeOrderSuccess = async (transactionRef, dbOrderId, customerFullName, finalizedAddress) => {
     try {
       showToast('PAYMENT SECURED. DISPATCHING RECEIPTS...');
       await supabase.from('orders').update({ status: 'paid' }).eq('id', dbOrderId);
@@ -187,7 +198,7 @@ export default function CheckoutPage() {
                 </tr>
                 
                 <tr><td style="font-size:9px; color:#525252; tracking:0.2em; padding:30px 0 10px 0; font-weight:bold;">DELIVERY ITINERARY</td></tr>
-                <tr><td style="padding:24px; background-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0;">${address.toUpperCase()}</td></tr>
+                <tr><td style="padding:24px; background-color:#000000; border:1px solid #1A1A1A; font-size:10px; color:#A3A3A3; line-height:2.0;">${finalizedAddress}</td></tr>
                 
                 <tr><td><table width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px; border-collapse:collapse;">${orderItemsHtml}</table></td></tr>
                 <tr><td style="padding-top:25px; font-size:11px; color:#FFFFFF; font-weight:bold;"><table width="100%"><tr><td>TOTAL FUNDS REMITTED</td><td align="right" style="font-family:monospace;">${displayFormat(finalNumericTotal)}</td></tr></table></td></tr>
@@ -239,8 +250,17 @@ export default function CheckoutPage() {
 
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
-    if (!email || !address || !firstName || !lastName || !phone) return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
-    if (!isScriptLoaded || !window.PaystackPop) return showToast('SECURE CONNECTION CONFIGURING... PLEASE TRY AGAIN IN A MOMENT.');
+
+    // Compile the separated fields into one clean string for the database
+    const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()} ${postalCode.trim()}, ${countryInput.trim()}`.toUpperCase();
+
+    if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone) {
+      return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
+    }
+
+    if (!isScriptLoaded || !window.PaystackPop) {
+      return showToast('SECURE CONNECTION CONFIGURING... PLEASE TRY AGAIN IN A MOMENT.');
+    }
 
     setIsProcessing(true);
 
@@ -255,7 +275,7 @@ export default function CheckoutPage() {
           await supabase.auth.signUp({
             email: email.toLowerCase().trim(),
             password: password,
-            options: { data: { first_name: firstName, last_name: lastName, phone: phone, address: address, name: `${firstName} ${lastName}`.trim().toUpperCase() } }
+            options: { data: { first_name: firstName, last_name: lastName, phone: phone, address: fullAddress, name: `${firstName} ${lastName}`.trim().toUpperCase() } }
           });
         }
       }
@@ -273,7 +293,7 @@ export default function CheckoutPage() {
         customer_name: customerFullName,
         customer_email: email.toLowerCase().trim(),
         customer_phone: phone,
-        shipping_address: address.toUpperCase(),
+        shipping_address: fullAddress,
         total_amount: finalNumericTotal, 
         currency: currency,
         items: cart.map(item => ({
@@ -299,7 +319,7 @@ export default function CheckoutPage() {
         currency: currency, 
         reference: transactionRef,
         onSuccess: (transaction) => {
-          finalizeOrderSuccess(transaction.reference, orderData.id, customerFullName);
+          finalizeOrderSuccess(transaction.reference, orderData.id, customerFullName, fullAddress);
         },
         onCancel: () => {
           setIsProcessing(false);
@@ -408,15 +428,32 @@ export default function CheckoutPage() {
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+234..." required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] font-mono transition-colors" />
               </div>
 
+              {/* ========================================== */}
+              {/* NEW: THE STREAMLINED ADDRESS GRID */}
+              {/* ========================================== */}
               <div>
                 <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Fulfillment Dispatch Address</label>
-                <textarea required rows="3" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="NEAREST ZIP CODE, LANDMARK, OR BUS STOP..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-wider resize-none transition-colors" />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="UNIT / APT (OPTIONAL)" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                    <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="STREET NAME" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="CITY / TOWN" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                    <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="POSTAL CODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} placeholder="STATE / REGION" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                    <input type="text" value={countryInput} onChange={(e) => setCountryInput(e.target.value)} placeholder="COUNTRY" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                  </div>
+                </div>
                 {deliveryData?.zone && (
-                  <span className="text-[8px] tracking-widest text-zinc-400 block mt-2 font-mono bg-zinc-50 p-2 border border-zinc-200">
+                  <span className="text-[8px] tracking-widest text-zinc-400 block mt-4 font-mono bg-zinc-50 p-2 border border-zinc-200">
                     ROUTING ZONE LAYOUT: {deliveryData.zone.toUpperCase()}
                   </span>
                 )}
               </div>
+
             </div>
           </section>
 
