@@ -20,6 +20,30 @@ const getPrimaryImage = (payload) => {
   }
 };
 
+// ==========================================
+// NEW: SMOOTH IMAGE LOADER COMPONENT
+// ==========================================
+function SmoothBackgroundImage({ img, isActive }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div
+      className={`absolute inset-0 transition-all duration-[2000ms] ease-in-out ${
+        isActive && isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
+      }`}
+    >
+      <img 
+        src={img} 
+        alt="S. Sikamòre Campaign" 
+        className="w-full h-full object-cover"
+        onLoad={() => setIsLoaded(true)}
+        loading="eager"
+        fetchpriority="high" 
+      />
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [bgImages, setBgImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -67,17 +91,14 @@ export default function HomePage() {
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[#0A0A0A] font-sans antialiased text-white flex flex-col">
       
-      {/* 1. BACKGROUND LAYER */}
+      {/* 1. BACKGROUND LAYER (Now using the Smooth Loader) */}
       {bgImages.length > 0 ? (
         bgImages.map((img, index) => (
-          <div
-            key={img}
-            className={`absolute inset-0 transition-all duration-[2000ms] ease-in-out ${
-              index === currentIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
-            }`}
-          >
-            <img src={img} alt="Sikamore Latest Collection" className="w-full h-full object-cover" />
-          </div>
+          <SmoothBackgroundImage 
+            key={img} 
+            img={img} 
+            isActive={index === currentIndex} 
+          />
         ))
       ) : (
         <div className="absolute inset-0 bg-[#0A0A0A]" />
