@@ -32,9 +32,6 @@ export default function CheckoutPage() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   
-  // ==========================================
-  // NEW: STREAMLINED ADDRESS STATES
-  // ==========================================
   const [unit, setUnit] = useState('');
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
@@ -97,7 +94,6 @@ export default function CheckoutPage() {
             setCurrency('NGN');
           }
           
-          // Pre-fill country if detected by the IP locator in the cart
           if (parsed.countryName) {
             setCountryInput(parsed.countryName.toUpperCase());
           }
@@ -251,7 +247,6 @@ export default function CheckoutPage() {
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
 
-    // Compile the separated fields into one clean string for the database
     const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()} ${postalCode.trim()}, ${countryInput.trim()}`.toUpperCase();
 
     if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone) {
@@ -370,14 +365,14 @@ export default function CheckoutPage() {
       
       <div className="mb-12 text-center border-b border-zinc-100 pb-8">
         <Link href="/shop" className="text-xl font-normal tracking-[0.4em] uppercase font-serif text-black hover:text-zinc-500 transition-colors">S. SIKAMÒRE</Link>
-        <p className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 mt-2">Secure Directory Checkout</p>
+        <p className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 mt-2">Secure Checkout</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         
         <form onSubmit={handleCheckoutProcess} className="lg:col-span-7 space-y-10 bg-white border border-zinc-200 p-6 sm:p-10 rounded-sm shadow-sm">
           <section>
-            <h2 className="text-xs font-medium tracking-[0.25em] uppercase text-black border-b border-zinc-100 pb-3 mb-6">Digital Identity</h2>
+            <h2 className="text-xs font-medium tracking-[0.25em] uppercase text-black border-b border-zinc-100 pb-3 mb-6">Contact Information</h2>
             <div className="space-y-4 relative">
               <input type="email" value={email} onChange={handleEmailCheck} disabled={accountStatus === 'logged_in'} placeholder="EMAIL ADDRESS" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest disabled:opacity-50 transition-colors" />
               {isScanningEmail && <span className="absolute right-4 top-4 text-[9px] text-zinc-400 uppercase tracking-widest animate-pulse">Scanning Profile...</span>}
@@ -410,7 +405,7 @@ export default function CheckoutPage() {
           </section>
 
           <section>
-            <h2 className="text-xs font-medium tracking-[0.25em] uppercase text-black border-b border-zinc-100 pb-3 mb-6">Fulfillment Record</h2>
+            <h2 className="text-xs font-medium tracking-[0.25em] uppercase text-black border-b border-zinc-100 pb-3 mb-6">Shipping Details</h2>
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -424,15 +419,12 @@ export default function CheckoutPage() {
               </div>
               
               <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Mobile Contact Matrix</label>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Phone Number</label>
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+234..." required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] font-mono transition-colors" />
               </div>
 
-              {/* ========================================== */}
-              {/* NEW: THE STREAMLINED ADDRESS GRID */}
-              {/* ========================================== */}
               <div>
-                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Fulfillment Dispatch Address</label>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Delivery Address</label>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="UNIT / APT (OPTIONAL)" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
