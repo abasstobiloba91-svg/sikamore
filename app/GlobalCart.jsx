@@ -187,8 +187,8 @@ export default function GlobalCart() {
 
   return (
     <>
-      {/* FLOATING CART PILL - NOW RED AND ONLY VISIBLE ON /shop */}
-      {cartItemCount > 0 && !isCartOpen && pathname === '/shop' && (
+      {/* FLOATING CART PILL - VISIBLE ON /shop AND /product/* */}
+      {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
