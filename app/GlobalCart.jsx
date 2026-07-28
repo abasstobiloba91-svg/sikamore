@@ -75,13 +75,7 @@ export default function GlobalCart() {
     locateClientNetwork();
   }, []);
 
-  // ==========================================
-  // NEW: STRICT ROUTE VISIBILITY CONTROL
-  // ==========================================
-  // Add any other pages here where you DO NOT want the cart to appear
   const hiddenPaths = ['/', '/login', '/signup', '/register', '/checkout'];
-  
-  // Hide if the current page is in the list above, OR if it's the admin dashboard
   if (hiddenPaths.includes(pathname) || pathname.startsWith('/admin')) {
     return null;
   }
@@ -193,8 +187,8 @@ export default function GlobalCart() {
 
   return (
     <>
-      {/* YOUR EXACT FLOATING CART PILL */}
-      {cartItemCount > 0 && !isCartOpen && (
+      {/* FLOATING CART PILL - NOW RED AND ONLY VISIBLE ON /shop */}
+      {cartItemCount > 0 && !isCartOpen && pathname === '/shop' && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
           <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
@@ -202,14 +196,17 @@ export default function GlobalCart() {
               <span className="text-zinc-600">|</span>
               <span>{formatPrice(cartSubtotal)}</span>
             </div>
-            <button onClick={() => setIsCartOpen(true)} className="bg-white text-black px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors shrink-0 ml-2">
+            <button 
+              onClick={() => setIsCartOpen(true)} 
+              className="bg-red-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-red-700 transition-colors shrink-0 ml-2 shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+            >
               View Bag
             </button>
           </div>
         </div>
       )}
 
-      {/* YOUR EXACT SLIDE-OUT DRAWER */}
+      {/* SLIDE-OUT DRAWER */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
