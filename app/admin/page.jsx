@@ -49,8 +49,11 @@ export default function AdminDashboard() {
   const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // ==========================================
+  // NEW: ADDED published_at TO STATE
+  // ==========================================
   const [productsList, setProductsList] = useState([
-    { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }
+    { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }
   ]);
   const [disabled, setDisabled] = useState(false);
 
@@ -231,7 +234,7 @@ export default function AdminDashboard() {
   };
 
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
+    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
   };
 
   const removeProductRow = (id) => {
@@ -294,6 +297,9 @@ export default function AdminDashboard() {
           await networkDelay(500); 
         }
 
+        // ==========================================
+        // NEW: SAVING THE PUBLISHED_AT DATE
+        // ==========================================
         const { error: dbError } = await supabase.from('products').insert([{ 
           name: product.name.toUpperCase(), 
           price: parseFloat(product.price), 
@@ -303,6 +309,7 @@ export default function AdminDashboard() {
           additional_information: product.additional_information || null, 
           store_policies: product.store_policies || null, 
           inquiries: product.inquiries || null, 
+          published_at: product.published_at ? new Date(product.published_at).toISOString() : new Date().toISOString(),
           image: imageUrls, 
           is_sold_out: parseInt(product.stock) <= 0 
         }]);
@@ -311,7 +318,7 @@ export default function AdminDashboard() {
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
-      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', files: [], previews: [] }]);
+      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
       setInventoryMode('manage'); 
     } catch (error) { 
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); 
@@ -331,8 +338,16 @@ export default function AdminDashboard() {
     }
   };
 
+  // ==========================================
+  // NEW: FORMAT DATE FOR THE EDIT FORM
+  // ==========================================
   const startEditingProduct = (product) => {
-    setEditingProduct({ ...product });
+    let formattedDate = '';
+    if (product.published_at) {
+      const d = new Date(product.published_at);
+      formattedDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    }
+    setEditingProduct({ ...product, published_at: formattedDate });
     setEditFiles([]);
     setEditPreviews([]);
   };
@@ -376,6 +391,9 @@ export default function AdminDashboard() {
         }
       }
 
+      // ==========================================
+      // NEW: UPDATING THE PUBLISHED_AT DATE
+      // ==========================================
       const { error: dbError } = await supabase.from('products').update({
         name: editingProduct.name.toUpperCase(),
         price: parseFloat(editingProduct.price),
@@ -385,6 +403,7 @@ export default function AdminDashboard() {
         additional_information: editingProduct.additional_information || null,
         store_policies: editingProduct.store_policies || null,
         inquiries: editingProduct.inquiries || null,
+        published_at: editingProduct.published_at ? new Date(editingProduct.published_at).toISOString() : new Date().toISOString(),
         image: finalImageUrls,
         is_sold_out: parseInt(editingProduct.stock_quantity) <= 0
       }).eq('id', editingProduct.id);
@@ -714,7 +733,7 @@ export default function AdminDashboard() {
                     
                     <form onSubmit={submitEditProduct} className="flex flex-col gap-10">
                       <div className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
                             <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
@@ -734,6 +753,11 @@ export default function AdminDashboard() {
                               <option value="accessories">Accessories</option>
                               <option value="clothing">Clothing</option>
                             </select>
+                          </div>
+                          {/* NEW GO LIVE FIELD */}
+                          <div>
+                            <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
+                            <input type="datetime-local" value={editingProduct.published_at || ''} onChange={(e)=>setEditingProduct({...editingProduct, published_at: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
                           </div>
                         </div>
 
@@ -825,7 +849,7 @@ export default function AdminDashboard() {
                       )}
                       <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
                           <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
@@ -845,6 +869,11 @@ export default function AdminDashboard() {
                             <option value="accessories">Accessories</option>
                             <option value="clothing">Clothing</option>
                           </select>
+                        </div>
+                        {/* NEW GO LIVE FIELD */}
+                        <div>
+                          <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
+                          <input type="datetime-local" value={product.published_at || ''} onChange={(e)=>updateProductData(product.id, 'published_at', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
                         </div>
                       </div>
 
