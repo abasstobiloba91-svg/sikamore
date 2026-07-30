@@ -104,10 +104,7 @@ export default function ShopCatalog() {
   const wishlist = appContext.wishlist || [];
   const toggleWishlist = appContext.toggleWishlist || (() => {});
   const addToCart = appContext.addToCart || (() => {});
-  const setIsCartOpen = appContext.setIsCartOpen || (() => {});
   const showToast = appContext.showToast || ((msg) => console.log(msg));
-  const cart = appContext.cart || [];
-  const cartItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
@@ -212,18 +209,13 @@ export default function ShopCatalog() {
     supabase.from('page_analytics').insert([{ event_type: 'visit', page_path: '/shop' }]).then(() => {}).catch(() => {});
   }, []);
 
-  // ==========================================
-  // NEW: PRODUCT SCHEDULER FILTER
-  // ==========================================
   useEffect(() => {
     async function fetchProducts() {
-      // Get the exact current date & time
       const now = new Date().toISOString();
 
       const { data } = await supabase
         .from('products')
         .select('*')
-        // MAGIC LINE: Only fetch items where published_at is in the past!
         .lte('published_at', now)
         .order('created_at', { ascending: false });
         
@@ -299,9 +291,7 @@ export default function ShopCatalog() {
     const cartItemPayload = { id: String(product.id), name: String(product.name || ''), price: Number(product.price || 0), image: getPrimaryImage(product.image), is_sold_out: Boolean(product.is_sold_out) };
     try {
       addToCart(cartItemPayload, overrideQty, overrideSize); 
-      // Setting isCartOpen(true) here will trigger the GlobalCart to slide out beautifully
-      setIsCartOpen(true); 
-      showToast('Added to your bag.');
+      showToast('Added to your cart.');
 
       await supabase.from('page_analytics').insert([{ 
         event_type: 'click', 
@@ -310,7 +300,7 @@ export default function ShopCatalog() {
         page_path: `/shop?item=${product.id}`
       }]);
     } catch (err) {
-      showToast('Error adding to bag.');
+      showToast('Error adding to cart.');
     }
   };
 
@@ -452,11 +442,6 @@ export default function ShopCatalog() {
                 <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                 {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
               </Link>
-
-              <button onClick={() => setIsCartOpen(true)} className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
-                <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
-                {cartItemCount > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-black text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{cartItemCount}</span>}
-              </button>
             </div>
           </div>
         </header>
@@ -695,7 +680,7 @@ export default function ShopCatalog() {
                     <button onClick={() => setQty(qty + 1)} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-black">+</button>
                   </div>
                 </div>
-                <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Bag • {formatPrice(quickViewProduct.price * qty)}</button>
+                <button onClick={(e) => { handleAddToCart(e, quickViewProduct, qty, selectedSize); setQuickViewProduct(null); }} className="w-full bg-black text-white py-3 text-[9px] tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors font-medium mb-4">Add to Cart • {formatPrice(quickViewProduct.price * qty)}</button>
 
                 <div className="mt-8 border-t border-zinc-200">
                   {productTabs.map((tab) => (
