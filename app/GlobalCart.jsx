@@ -187,20 +187,20 @@ export default function GlobalCart() {
 
   return (
     <>
-      {/* FLOATING CART PILL - VISIBLE ON /shop AND /product/* */}
+      {/* FLOATING CART PILL - ENTIRELY RED BACKGROUND, VISIBLE ON /shop AND /product/* */}
       {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-2xl" style={{ zIndex: 9999990 }}>
-          <div className="bg-black rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-zinc-800">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-[0_10px_30px_rgba(220,38,38,0.4)]" style={{ zIndex: 9999990 }}>
+          <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
-              <span className="text-zinc-600">|</span>
+              <span className="text-red-300">|</span>
               <span>{formatPrice(cartSubtotal)}</span>
             </div>
             <button 
               onClick={() => setIsCartOpen(true)} 
-              className="bg-red-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-red-700 transition-colors shrink-0 ml-2 shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+              className="bg-white text-red-600 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors shrink-0 ml-2 shadow-sm"
             >
-              View Bag
+              View Cart
             </button>
           </div>
         </div>
@@ -210,13 +210,13 @@ export default function GlobalCart() {
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
-          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Bag ({cartItemCount})</h2>
+          <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your bag is currently empty. Let's find you something beautiful.</div>
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your cart is currently empty. Let's find you something beautiful.</div>
           ) : (
             cart.map((item, idx) => (
               <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
