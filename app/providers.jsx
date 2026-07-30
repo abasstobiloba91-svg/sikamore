@@ -15,7 +15,7 @@ const getPrimaryImage = (payload) => {
   try {
     const raw = JSON.stringify(payload);
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
-    return match ? match : '';
+    return match ? match[0] : '';
   } catch (e) {
     return '';
   }
@@ -62,8 +62,9 @@ export function AppProvider({ children }) {
       const sanitizedProduct = { ...product, image: getPrimaryImage(product.image) };
       return [...prev, { ...sanitizedProduct, quantity, size }];
     });
-    setIsCartOpen(true); 
-    showToast('ADDED TO BAG.');
+    
+    // REMOVED: setIsCartOpen(true); -> The cart will now stay closed!
+    showToast('ADDED TO CART.');
   };
 
   const removeFromCart = (id, size) => setCart(prev => prev.filter(item => !(item.id === id && item.size === size)));
