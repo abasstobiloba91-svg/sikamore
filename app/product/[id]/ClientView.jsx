@@ -68,8 +68,8 @@ export default function ClientView({ product }) {
 
   const handleAddToCart = () => {
     addToCart({ id: String(product.id), name: product.name, price: product.price, image: getPrimaryImage(product.image), is_sold_out: product.is_sold_out }, qty, selectedSize);
-    showToast('Added to your bag.');
-    setIsCartOpen(true);
+    showToast('Added to your cart.');
+    // REMOVED: setIsCartOpen(true); -> Now it adds silently!
   };
 
   const copyToClipboard = () => {
@@ -97,7 +97,7 @@ export default function ClientView({ product }) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto flex flex-col md:flex-row">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto flex flex-col md:flex-row pb-32 md:pb-0">
         <div className="w-full md:w-1/2 bg-zinc-50 relative aspect-[3/4] md:aspect-auto md:min-h-screen overflow-hidden">
           {extractCleanUrls(product.image)[imgIndex] && (
             <img src={extractCleanUrls(product.image)[imgIndex]} alt={product.name} className="absolute inset-0 w-full h-full object-cover animate-fade-in" />
@@ -131,7 +131,7 @@ export default function ClientView({ product }) {
           </div>
 
           <button onClick={handleAddToCart} disabled={product.is_sold_out} className={`w-full py-4 text-[10px] tracking-[0.2em] uppercase font-bold transition-colors ${product.is_sold_out ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' : 'bg-black text-white hover:bg-zinc-800'}`}>
-            {product.is_sold_out ? 'Sold Out' : `Add to Bag • ${formatPrice(product.price * qty)}`}
+            {product.is_sold_out ? 'Sold Out' : `Add to Cart • ${formatPrice(product.price * qty)}`}
           </button>
 
           <div className="mt-12 border-t border-zinc-200">
