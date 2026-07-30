@@ -187,10 +187,10 @@ export default function GlobalCart() {
 
   return (
     <>
-      {/* FLOATING CART PILL - ENTIRELY RED BACKGROUND, VISIBLE ON /shop AND /product/* */}
+      {/* FLOATING CART PILL - ENTIRELY RED BACKGROUND WITH PROPER ROUNDED SHADOW */}
       {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in shadow-[0_10px_30px_rgba(220,38,38,0.4)]" style={{ zIndex: 9999990 }}>
-          <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in" style={{ zIndex: 9999990 }}>
+          <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500 shadow-[0_10px_30px_rgba(220,38,38,0.4)]">
             <div className="flex items-center gap-2 sm:gap-4 pl-4 text-white text-[10px] sm:text-[11px] font-medium tracking-widest uppercase flex-1 whitespace-nowrap">
               <span>{cartItemCount} ITEM{cartItemCount !== 1 && 'S'}</span>
               <span className="text-red-300">|</span>
