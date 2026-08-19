@@ -37,10 +37,14 @@ const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function AdminDashboard() {
   const { showToast } = useApp();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [activeTab, setActiveTab] = useState('inventory');
   
+  // NEW AUTHENTICATION STATE
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('inventory');
   const [inventoryMode, setInventoryMode] = useState('manage'); 
   const [liveProducts, setLiveProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -49,9 +53,6 @@ export default function AdminDashboard() {
   const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // ==========================================
-  // NEW: ADDED published_at TO STATE
-  // ==========================================
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }
   ]);
@@ -88,12 +89,12 @@ export default function AdminDashboard() {
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
 
   const chatEndRef = useRef(null);
-  const ADMIN_PASSCODE = 'SIKAMORE-ADMIN';
 
+  // CHECK EXISTING SUPABASE SESSION
   useEffect(() => {
-    if (localStorage.getItem('sikamore_admin_authenticated') === 'true') {
-      setIsAuthenticated(true);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsAuthenticated(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -215,22 +216,33 @@ export default function AdminDashboard() {
     if (activeChat && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat]);
 
-  const handleLogin = (e) => {
+  // NEW: SECURE SUPABASE LOGIN
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (passcode === ADMIN_PASSCODE) {
-      setIsAuthenticated(true);
-      localStorage.setItem('sikamore_admin_authenticated', 'true');
-      showToast('ACCESS GRANTED. SYSTEM ALIGNED.');
-    } else {
-      showToast('ACCESS DENIED.');
-      setPasscode('');
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: adminEmail.trim().toLowerCase(),
+        password: adminPassword
+      });
+
+      if (error) {
+        showToast(`ACCESS DENIED: ${error.message.toUpperCase()}`);
+      } else {
+        setIsAuthenticated(true);
+        showToast('ACCESS GRANTED. SYSTEM ALIGNED.');
+      }
+    } catch (err) {
+      showToast('CONNECTION ERROR.');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsAuthenticated(false);
-    localStorage.removeItem('sikamore_admin_authenticated');
-    showToast('PORTAL LOCKED.');
+    showToast('PORTAL SECURELY LOCKED.');
   };
 
   const addProductRow = () => {
@@ -297,9 +309,6 @@ export default function AdminDashboard() {
           await networkDelay(500); 
         }
 
-        // ==========================================
-        // NEW: SAVING THE PUBLISHED_AT DATE
-        // ==========================================
         const { error: dbError } = await supabase.from('products').insert([{ 
           name: product.name.toUpperCase(), 
           price: parseFloat(product.price), 
@@ -338,9 +347,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ==========================================
-  // NEW: FORMAT DATE FOR THE EDIT FORM
-  // ==========================================
   const startEditingProduct = (product) => {
     let formattedDate = '';
     if (product.published_at) {
@@ -391,9 +397,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // ==========================================
-      // NEW: UPDATING THE PUBLISHED_AT DATE
-      // ==========================================
       const { error: dbError } = await supabase.from('products').update({
         name: editingProduct.name.toUpperCase(),
         price: parseFloat(editingProduct.price),
@@ -679,10 +682,15 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-zinc-50 text-black flex flex-col items-center justify-center px-6 font-sans antialiased">
         <div className="max-w-md w-full bg-white text-black p-10 shadow-lg border border-zinc-200 text-center">
           <h1 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h1>
-          <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Admin Portal Access</p>
+          <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Secure Admin Portal</p>
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
-            <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="ENTER PASSCODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
-            <button type="submit" className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 font-medium transition-colors">Unlock Dashboard</button>
+            {/* UPDATED: SECURE LOGIN FIELDS */}
+            <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="ADMIN EMAIL" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
+            <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="SECURE PASSWORD" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
+            
+            <button type="submit" disabled={isAuthenticating} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 font-medium transition-colors disabled:opacity-50">
+              {isAuthenticating ? 'VERIFYING...' : 'Unlock Dashboard'}
+            </button>
           </form>
         </div>
       </div>
@@ -754,7 +762,6 @@ export default function AdminDashboard() {
                               <option value="clothing">Clothing</option>
                             </select>
                           </div>
-                          {/* NEW GO LIVE FIELD */}
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
                             <input type="datetime-local" value={editingProduct.published_at || ''} onChange={(e)=>setEditingProduct({...editingProduct, published_at: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
@@ -870,7 +877,6 @@ export default function AdminDashboard() {
                             <option value="clothing">Clothing</option>
                           </select>
                         </div>
-                        {/* NEW GO LIVE FIELD */}
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
                           <input type="datetime-local" value={product.published_at || ''} onChange={(e)=>updateProductData(product.id, 'published_at', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
@@ -990,7 +996,6 @@ export default function AdminDashboard() {
                         {order.items?.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-zinc-700">
                             <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
-                            {/* NEW: DYNAMIC CURRENCY SYMBOL */}
                             <span className="font-mono text-zinc-500">
                               {order.currency === 'USD' ? '$' : '₦'}
                               {(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: order.currency === 'USD' ? 2 : 0 })}
@@ -1000,7 +1005,6 @@ export default function AdminDashboard() {
                       </div>
                       <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between text-black font-medium text-xs">
                         <span>Aggregate Total</span>
-                        {/* NEW: DYNAMIC CURRENCY SYMBOL */}
                         <span>
                           {order.currency === 'USD' ? '$' : '₦'}
                           {order.total_amount?.toLocaleString(undefined, { minimumFractionDigits: order.currency === 'USD' ? 2 : 0 })}
@@ -1037,15 +1041,18 @@ export default function AdminDashboard() {
                       <tr className="text-black text-[8px] tracking-widest border-b border-zinc-200 pb-2">
                         <th className="py-3 font-medium">Join Date</th>
                         <th className="py-3 font-medium">Client Name</th>
-                        <th className="py-3 font-medium">Email Address</th>
+                        <th className="py-3 font-medium">Contact Matrix</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                       {clients.map(client => (
                         <tr key={client.id} className="hover:bg-zinc-50 transition-colors">
                           <td className="py-4 font-mono text-[8.5px] text-zinc-400">{new Date(client.created_at).toLocaleDateString()}</td>
-                          <td className="py-4 text-black font-medium">{client.first_name} {client.last_name}</td>
-                          <td className="py-4 lowercase text-zinc-500 tracking-wide">{client.email}</td>
+                          <td className="py-4 text-black font-medium">{client.first_name || 'GUEST'} {client.last_name || 'PROFILE'}</td>
+                          <td className="py-4">
+                            <span className="lowercase text-zinc-500 tracking-wide block">{client.email}</span>
+                            {client.phone && <span className="font-mono text-[8.5px] text-zinc-400 mt-1 block">{client.phone}</span>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1320,7 +1327,6 @@ export default function AdminDashboard() {
                               {vo.items?.map((item, i) => (
                                 <div key={i} className="flex justify-between">
                                   <span>{item.name} (SIZE: {item.size}) <strong className="text-black">x{item.quantity}</strong></span>
-                                  {/* NEW: DYNAMIC CURRENCY SYMBOL */}
                                   <span className="font-mono text-zinc-500">
                                     {vo.currency === 'USD' ? '$' : '₦'}
                                     {(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: vo.currency === 'USD' ? 2 : 0 })}
@@ -1330,7 +1336,6 @@ export default function AdminDashboard() {
                             </div>
                             <div className="border-t border-zinc-200 mt-3 pt-2 flex justify-between text-[11px] text-black font-medium uppercase tracking-wider">
                               <span>Total Value</span>
-                              {/* NEW: DYNAMIC CURRENCY SYMBOL */}
                               <span>
                                 {vo.currency === 'USD' ? '$' : '₦'}
                                 {vo.total_amount?.toLocaleString(undefined, { minimumFractionDigits: vo.currency === 'USD' ? 2 : 0 })}
