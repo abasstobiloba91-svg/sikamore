@@ -482,7 +482,8 @@ export default function ShopCatalog() {
                 </div>
 
                 {searchResults.length > 4 && (
-                  <div className="w-screen h-[70vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
+                  {/* OPTIMIZATION: h-[50vh] for Mobile (Half Screen), sm:h-[85vh] for Desktop */}
+                  <div className="w-screen h-[50vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
                     <style dangerouslySetInnerHTML={{__html: `
                       @keyframes subtleZoom {
                         0% { transform: scale(1); }
