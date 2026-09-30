@@ -89,7 +89,8 @@ export default function HomePage() {
   }, [bgImages]);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#0A0A0A] font-sans antialiased text-white flex flex-col">
+    // FIX: Changed h-screen to min-h-[100dvh] to fix mobile address bar gaps
+    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#0A0A0A] font-sans antialiased text-white flex flex-col">
       
       {/* 1. BACKGROUND LAYER (Now using the Smooth Loader) */}
       {bgImages.length > 0 ? (
