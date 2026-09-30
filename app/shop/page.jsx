@@ -580,11 +580,24 @@ export default function ShopCatalog() {
         </div>
       </footer>
 
+      {/* FIXED NEWSLETTER MODAL WITH BACKGROUND CLICK-TO-CLOSE */}
       {showNewsletter && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" style={{ zIndex: 9999999 }}>
-          <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden">
-            <button onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} className="absolute top-4 right-4 z-10 text-zinc-400 hover:text-black bg-white/80 p-1.5 rounded-full shadow-sm transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fade-in" 
+          style={{ zIndex: 9999999 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowNewsletter(false);
+              sessionStorage.setItem('sikamore_newsletter', 'true');
+            }
+          }}
+        >
+          <div className="bg-white text-black max-w-4xl w-full flex flex-col md:flex-row relative shadow-2xl overflow-hidden rounded-sm">
+            <button 
+              onClick={() => { setShowNewsletter(false); sessionStorage.setItem('sikamore_newsletter', 'true'); }} 
+              className="absolute top-4 right-4 z-[100] text-zinc-500 hover:text-black bg-zinc-100 md:bg-zinc-100 p-2 rounded-full shadow-md transition-colors border border-zinc-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="w-full md:w-1/2 h-56 md:h-auto bg-zinc-950 relative shrink-0 flex items-center justify-center">
               {products && products.length > 0 && (() => {
@@ -619,11 +632,21 @@ export default function ShopCatalog() {
         </div>
       )}
 
+      {/* FIXED QUICK VIEW MODAL WITH BACKGROUND CLICK-TO-CLOSE */}
       {quickViewProduct && (
-        <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" style={{ zIndex: 9999999 }}>
+        <div 
+          className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 sm:p-6 animate-fade-in" 
+          style={{ zIndex: 9999999 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setQuickViewProduct(null);
+          }}
+        >
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-sm shadow-2xl relative flex flex-col overflow-hidden">
-            <button onClick={() => setQuickViewProduct(null)} className="absolute top-4 right-4 z-50 bg-white/90 shadow-md p-2 rounded-full text-zinc-400 hover:text-black">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button 
+              onClick={() => setQuickViewProduct(null)} 
+              className="absolute top-4 right-4 z-[100] bg-white shadow-md p-2 rounded-full text-zinc-500 hover:text-black border border-zinc-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="flex-1 overflow-y-auto flex flex-col md:flex-row h-full w-full">
               <div 
