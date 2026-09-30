@@ -82,7 +82,11 @@ export default function ShopCatalog() {
   
   const [tickerIndex, setTickerIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
-  const [accessoryImages, setAccessoryImages] = useState([]);
+
+  // OPTIMIZATION: Start with a default image so it preloads instantly
+  const [accessoryImages, setAccessoryImages] = useState([
+    "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"
+  ]);
 
   useEffect(() => {
     async function loadMasterLogistics() {
@@ -157,19 +161,6 @@ export default function ShopCatalog() {
   }, []);
 
   useEffect(() => {
-    if (products.length > 0) {
-      const accProducts = products.filter(p => p.category && p.category.toLowerCase() === 'accessories');
-      let extractedImgs = [];
-      accProducts.forEach(p => {
-        const urls = extractCleanUrls(p.image);
-        urls.forEach(u => { if (u && !extractedImgs.includes(u)) extractedImgs.push(u); });
-      });
-      if (extractedImgs.length > 0) setAccessoryImages(extractedImgs.slice(0, 5));
-      else setAccessoryImages(["https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"]);
-    }
-  }, [products]);
-
-  useEffect(() => {
     let result = [...products];
     let cat = null;
     let viewParam = null;
@@ -222,6 +213,17 @@ export default function ShopCatalog() {
       if (data) {
         setProducts(data);
         setSearchResults(data);
+
+        // OPTIMIZATION: Extract images instantly during the data load, avoiding re-renders
+        const accProducts = data.filter(p => p.category && p.category.toLowerCase() === 'accessories');
+        let extractedImgs = [];
+        accProducts.forEach(p => {
+          const urls = extractCleanUrls(p.image);
+          urls.forEach(u => { if (u && !extractedImgs.includes(u)) extractedImgs.push(u); });
+        });
+        if (extractedImgs.length > 0) {
+          setAccessoryImages(extractedImgs.slice(0, 5));
+        }
       }
       setLoading(false);
     }
@@ -496,6 +498,8 @@ export default function ShopCatalog() {
                         key={idx}
                         src={img} 
                         alt="Fine Jewelry Accessories" 
+                        loading={idx === 0 ? "eager" : "lazy"}
+                        fetchPriority={idx === 0 ? "high" : "auto"}
                         className={`absolute inset-0 w-full h-full object-cover animate-subtle-zoom transition-opacity duration-[2000ms] ease-in-out ${idx === bannerIndex ? 'opacity-60' : 'opacity-0'}`}
                       />
                     ))}
