@@ -47,6 +47,9 @@ export default function CheckoutPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState('');
 
+  // NEW DYNAMIC LOGIC: Check if the user is in Nigeria based on the Country input
+  const isNigeria = countryInput.trim().toLowerCase() === 'nigeria';
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!window.PaystackPop) {
@@ -247,9 +250,11 @@ export default function CheckoutPage() {
   const handleCheckoutProcess = async (e) => {
     e.preventDefault();
 
-    const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()} ${postalCode.trim()}, ${countryInput.trim()}`.toUpperCase();
+    // DYNAMIC ADDRESS FORMATTING: Only includes postal code if not in Nigeria
+    const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()}${!isNigeria && postalCode.trim() ? ' ' + postalCode.trim() : ''}, ${countryInput.trim()}`.toUpperCase();
 
-    if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone) {
+    // DYNAMIC VALIDATION: Ensures postal code is checked only for international orders
+    if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone || (!isNigeria && !postalCode)) {
       return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
     }
 
@@ -430,10 +435,16 @@ export default function CheckoutPage() {
                     <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="UNIT / APT (OPTIONAL)" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
                     <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="STREET NAME" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
                   </div>
+                  
+                  {/* DYNAMIC POSTAL CODE ROW */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="CITY / TOWN" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
-                    <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="POSTAL CODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
+                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="CITY / TOWN" required className={`w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors ${isNigeria ? 'sm:col-span-2' : ''}`} />
+                    
+                    {!isNigeria && (
+                      <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="POSTAL CODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors animate-fade-in" />
+                    )}
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input type="text" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} placeholder="STATE / REGION" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
                     <input type="text" value={countryInput} onChange={(e) => setCountryInput(e.target.value)} placeholder="COUNTRY" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
