@@ -27,11 +27,12 @@ export default function GlobalCart() {
   const [currency, setCurrency] = useState('NGN');
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
   
-  // Logistics Data from Admin
+  // Logistics Data Controlled by Admin
   const [logistics, setLogistics] = useState({
-    mainland: 4500,
-    island: 6000,
-    interstate: 10000,
+    mainland: 5000,
+    island: 6500,
+    interstateSouth: 12500,
+    northernStates: 16000,
     africaUsd: 45,
     globalUsd: 55
   });
@@ -55,9 +56,10 @@ export default function GlobalCart() {
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
           setLogistics({
-            mainland: data.mainland_fee || 4500,
-            island: data.island_fee || 6000,
-            interstate: data.interstate_fee || 10000,
+            mainland: data.mainland_fee || 5000,
+            island: data.island_fee || 6500,
+            interstateSouth: data.interstate_fee || 12500,
+            northernStates: (data.interstate_fee || 12500) + 3500,
             africaUsd: data.international_fee_africa || 45,
             globalUsd: data.international_fee_global || 55
           });
@@ -116,24 +118,30 @@ export default function GlobalCart() {
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const deliveryOptions = [
-    { id: 'mainland', title: 'LAGOS MAINLAND', desc: 'Delivery within Lagos Mainland', fee: logistics.mainland, currency: 'NGN', isCalculated: false },
-    { id: 'island', title: 'LAGOS ISLAND', desc: 'Delivery within Lagos Island', fee: logistics.island, currency: 'NGN', isCalculated: false },
-    { id: 'south', title: 'OUTSIDE LAGOS (SOUTH)', desc: 'Port Harcourt, Abuja, Enugu, Benin, etc.', fee: logistics.interstate, currency: 'NGN', isCalculated: false },
-    { id: 'north', title: 'NORTHERN STATES', desc: 'Kano, Kaduna, Jos, Maiduguri, Sokoto, etc.', fee: logistics.interstate + 3500, currency: 'NGN', isCalculated: false },
-    { id: 'africa', title: 'AFRICA', desc: 'Delivery to other African countries', fee: logistics.africaUsd, currency: 'USD', isCalculated: true },
-    { id: 'international', title: 'INTERNATIONAL', desc: 'Delivery to the rest of the world', fee: logistics.globalUsd, currency: 'USD', isCalculated: true }
+  // DYNAMIC DELIVERY OPTIONS BASED ON USER LOCATION
+  const allDeliveryOptions = [
+    { id: 'mainland', title: 'LAGOS MAINLAND', desc: 'Delivery within Lagos Mainland', fee: logistics.mainland, currency: 'NGN', region: 'NG' },
+    { id: 'island', title: 'LAGOS ISLAND', desc: 'Delivery within Lagos Island', fee: logistics.island, currency: 'NGN', region: 'NG' },
+    { id: 'south', title: 'OUTSIDE LAGOS (SOUTH)', desc: 'Port Harcourt, Abuja, Enugu, Benin, etc.', fee: logistics.interstateSouth, currency: 'NGN', region: 'NG' },
+    { id: 'north', title: 'NORTHERN STATES', desc: 'Kano, Kaduna, Jos, Maiduguri, Sokoto, etc.', fee: logistics.northernStates, currency: 'NGN', region: 'NG' },
+    { id: 'africa', title: 'AFRICA EXPRESS FREIGHT', desc: 'Express delivery to African nations', fee: logistics.africaUsd * usdToNgnRate, currency: 'USD', region: 'INTL' },
+    { id: 'international', title: 'GLOBAL INTERNATIONAL FREIGHT', desc: 'Worldwide express delivery', fee: logistics.globalUsd * usdToNgnRate, currency: 'USD', region: 'INTL' }
   ];
+
+  // Filter options: Nigerian shoppers see Nigeria routes; International shoppers see Global routes
+  const filteredDeliveryOptions = detectedCountryCode === 'NG' 
+    ? allDeliveryOptions.filter(o => o.region === 'NG') 
+    : allDeliveryOptions.filter(o => o.region === 'INTL');
 
   const handleSelectDelivery = (opt) => {
     setSelectedDelivery(opt);
     setDeliveryZone(opt.title);
-    setDeliveryFee(opt.currency === 'USD' ? opt.fee * usdToNgnRate : opt.fee);
+    setDeliveryFee(opt.fee);
   };
 
   return (
     <>
-      {/* FLOATING CART PILL - ENTIRELY RED BACKGROUND WITH PROPER ROUNDED SHADOW */}
+      {/* FLOATING CART BUTTON */}
       {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in" style={{ zIndex: 9999990 }}>
           <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500 shadow-[0_10px_30px_rgba(220,38,38,0.4)]">
@@ -152,102 +160,111 @@ export default function GlobalCart() {
         </div>
       )}
 
-      {/* SLIDE-OUT DRAWER */}
+      {/* SLIDE-OUT CART DRAWER */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
         
+        {/* HEADER */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Cart ({cartItemCount})</h2>
           <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors text-[10px] tracking-widest uppercase">&larr; Continue Shopping</button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* SCROLLABLE BODY: ITEMS + DELIVERY OPTIONS */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {cart.length === 0 ? (
             <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your cart is currently empty. Let's find you something beautiful.</div>
           ) : (
-            cart.map((item, idx) => (
-              <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
-                <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
-                  {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
-                </div>
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h3 className="text-[10px] tracking-widest uppercase font-medium">{item.name}</h3>
-                    <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] tracking-wider font-medium text-zinc-300">{formatPrice(item.price)}</span>
-                    <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
-                      <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
-                      <span className="text-zinc-800">|</span>
-                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
+            <>
+              {/* CART ITEMS LIST */}
+              <div className="space-y-6">
+                {cart.map((item, idx) => (
+                  <div key={`${item.id}-${item.size}-${idx}`} className="flex gap-4">
+                    <div className="w-20 h-28 bg-[#111] shrink-0 border border-zinc-800">
+                      {item.image && ( <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> )}
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between py-1">
+                      <div>
+                        <h3 className="text-[10px] tracking-widest uppercase font-medium">{item.name}</h3>
+                        <p className="text-[10px] text-zinc-500 mt-1 uppercase">Size: {item.size}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] tracking-wider font-medium text-zinc-300">{formatPrice(item.price)}</span>
+                        <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
+                          <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
+                          <span className="text-zinc-800">|</span>
+                          <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* DELIVERY OPTIONS SECTION (INSIDE SCROLL BODY NOW) */}
+              <div className="pt-6 border-t border-zinc-900">
+                <h3 className="text-[11px] text-white uppercase tracking-[0.2em] mb-1 font-medium">Delivery Options</h3>
+                <p className="text-[9px] text-zinc-500 tracking-wider mb-4">
+                  {detectedCountryCode === 'NG' ? 'Select your delivery region in Nigeria:' : `Select shipping for ${detectedCountryName}:`}
+                </p>
+                
+                <div className="flex flex-col gap-2.5">
+                  {filteredDeliveryOptions.map(opt => (
+                    <button 
+                      key={opt.id}
+                      onClick={() => handleSelectDelivery(opt)}
+                      className={`flex items-center justify-between p-3.5 border text-left transition-all rounded-xs ${selectedDelivery?.id === opt.id ? 'border-white bg-white text-black shadow-lg' : 'border-zinc-800 text-white hover:border-zinc-600 bg-zinc-950'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${selectedDelivery?.id === opt.id ? 'border-black' : 'border-zinc-500'}`}>
+                          {selectedDelivery?.id === opt.id && <div className="w-1.5 h-1.5 bg-black rounded-full"></div>}
+                        </div>
+                        <div>
+                          <h4 className="text-[9.5px] font-bold tracking-widest uppercase">{opt.title}</h4>
+                          <p className={`text-[7.5px] tracking-wider mt-0.5 uppercase ${selectedDelivery?.id === opt.id ? 'text-zinc-700' : 'text-zinc-500'}`}>{opt.desc}</p>
+                        </div>
+                      </div>
+                      <div className={`text-[9.5px] font-mono tracking-wider ${selectedDelivery?.id === opt.id ? 'text-black font-bold' : 'text-zinc-300'}`}>
+                        {formatPrice(opt.fee)}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))
+            </>
           )}
         </div>
         
+        {/* STICKY FOOTER TOTALS & CHECKOUT */}
         {cart.length > 0 && (
-          <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
-            
-            {/* NEW: REFINED DELIVERY OPTIONS */}
-            <div className="mb-6 border-b border-zinc-800 pb-5">
-              <h3 className="text-[11px] text-white uppercase tracking-[0.2em] mb-1 font-medium">Delivery Options</h3>
-              <p className="text-[9px] text-zinc-400 tracking-wider mb-4">Where should we deliver your order?</p>
-              
-              <div className="flex flex-col gap-2">
-                {deliveryOptions.map(opt => (
-                  <button 
-                    key={opt.id}
-                    onClick={() => handleSelectDelivery(opt)}
-                    className={`flex items-center justify-between p-3 border text-left transition-all ${selectedDelivery?.id === opt.id ? 'border-white bg-white text-black shadow-md' : 'border-zinc-800 text-white hover:border-zinc-600 bg-transparent'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center shrink-0 ${selectedDelivery?.id === opt.id ? 'border-black' : 'border-zinc-500'}`}>
-                        {selectedDelivery?.id === opt.id && <div className="w-1.5 h-1.5 bg-black rounded-full"></div>}
-                      </div>
-                      <div>
-                        <h4 className="text-[9px] font-bold tracking-widest uppercase">{opt.title}</h4>
-                        <p className={`text-[7.5px] tracking-wider mt-0.5 uppercase ${selectedDelivery?.id === opt.id ? 'text-zinc-700' : 'text-zinc-500'}`}>{opt.desc}</p>
-                      </div>
-                    </div>
-                    <div className={`text-[9px] font-mono tracking-wider ${selectedDelivery?.id === opt.id ? 'text-black font-bold' : 'text-zinc-400'}`}>
-                      {opt.isCalculated ? 'Calculated' : formatPrice(opt.fee)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-6 text-[10px] uppercase tracking-widest">
-              <div className="flex justify-between text-zinc-400">
+          <div className="p-6 border-t border-zinc-900 bg-[#0F0F0F] shrink-0 space-y-4">
+            <div className="space-y-2 text-[10px] uppercase tracking-widest">
+              <div className="flex justify-between text-zinc-500">
                 <span>Subtotal</span>
-                <span className="font-mono">{formatPrice(cartSubtotal)}</span>
+                <span className="font-mono text-zinc-300">{formatPrice(cartSubtotal)}</span>
               </div>
               {selectedDelivery && ( 
                 <div className="flex justify-between text-zinc-400 animate-fade-in">
                   <span>Delivery ({selectedDelivery.title})</span>
-                  <span className="font-mono">{selectedDelivery.isCalculated ? 'Calculated at checkout' : formatPrice(deliveryFee, true)}</span>
+                  <span className="font-mono text-zinc-300">{formatPrice(deliveryFee)}</span>
                 </div> 
               )}
-              <div className="flex justify-between font-bold text-white pt-3 border-t border-zinc-800 mt-3 text-xs">
+              <div className="flex justify-between font-bold text-white pt-3 border-t border-zinc-800 mt-2 text-xs">
                 <span>Total</span>
-                <span className="font-mono">{selectedDelivery?.isCalculated ? 'Calculated at checkout' : getDisplayTotal()}</span>
+                <span className="font-mono text-white text-[13px]">{getDisplayTotal()}</span>
               </div>
             </div>
 
             <button 
               onClick={() => { 
                 if (!selectedDelivery) return showToast("PLEASE SELECT A DELIVERY REGION TO PROCEED."); 
-                localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName, isCalculated: selectedDelivery.isCalculated })); 
+                localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); 
                 setIsCartOpen(false); 
                 router.push('/checkout'); 
               }} 
-              className={`w-full text-center flex items-center justify-center py-4 text-[10px] tracking-[0.2em] uppercase transition-colors font-bold ${!selectedDelivery ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}
+              className={`w-full text-center flex items-center justify-center py-4 text-[10px] tracking-[0.2em] uppercase transition-colors font-bold rounded-xs ${!selectedDelivery ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-200'}`}
             >
-              CONTINUE TO CHECKOUT &rarr;
+              {!selectedDelivery ? 'SELECT A DELIVERY REGION' : 'CONTINUE TO CHECKOUT \u2192'}
             </button>
           </div>
         )}
