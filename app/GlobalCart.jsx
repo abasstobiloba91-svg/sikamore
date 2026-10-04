@@ -26,13 +26,20 @@ export default function GlobalCart() {
 
   const [currency, setCurrency] = useState('NGN');
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
-  const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
-  const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
+  
+  // Logistics Data from Admin
+  const [logistics, setLogistics] = useState({
+    mainland: 4500,
+    island: 6000,
+    interstate: 10000,
+    africaUsd: 45,
+    globalUsd: 55
+  });
 
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
-  const [isCalculating, setIsCalculating] = useState(false);
+  
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
   const [detectedContinentCode, setDetectedContinentCode] = useState('AF');
@@ -47,8 +54,13 @@ export default function GlobalCart() {
         const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
-          if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
-          if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
+          setLogistics({
+            mainland: data.mainland_fee || 4500,
+            island: data.island_fee || 6000,
+            interstate: data.interstate_fee || 10000,
+            africaUsd: data.international_fee_africa || 45,
+            globalUsd: data.international_fee_global || 55
+          });
         }
       } catch (e) {}
     }
@@ -80,7 +92,7 @@ export default function GlobalCart() {
     return null;
   }
 
-  const formatPrice = (ngnPrice, isFee = false) => {
+  const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
     const dynamicExchangeRates = { 
       NGN: 1, 
@@ -104,85 +116,19 @@ export default function GlobalCart() {
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const calculateLiveDelivery = async () => {
-    if (!deliveryAddress.trim()) return showToast("PLEASE ENTER YOUR COMPLETE DELIVERY ADDRESS.");
-    setIsCalculating(true);
-    try {
-      showToast("VALIDATING SHIPPING DESTINATION...");
-      
-      const res = await fetch('/api/shipping-calc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: deliveryAddress, countryCode: detectedCountryCode, countryName: detectedCountryName }),
-      });
+  const deliveryOptions = [
+    { id: 'mainland', title: 'LAGOS MAINLAND', desc: 'Delivery within Lagos Mainland', fee: logistics.mainland, currency: 'NGN', isCalculated: false },
+    { id: 'island', title: 'LAGOS ISLAND', desc: 'Delivery within Lagos Island', fee: logistics.island, currency: 'NGN', isCalculated: false },
+    { id: 'south', title: 'OUTSIDE LAGOS (SOUTH)', desc: 'Port Harcourt, Abuja, Enugu, Benin, etc.', fee: logistics.interstate, currency: 'NGN', isCalculated: false },
+    { id: 'north', title: 'NORTHERN STATES', desc: 'Kano, Kaduna, Jos, Maiduguri, Sokoto, etc.', fee: logistics.interstate + 3500, currency: 'NGN', isCalculated: false },
+    { id: 'africa', title: 'AFRICA', desc: 'Delivery to other African countries', fee: logistics.africaUsd, currency: 'USD', isCalculated: true },
+    { id: 'international', title: 'INTERNATIONAL', desc: 'Delivery to the rest of the world', fee: logistics.globalUsd, currency: 'USD', isCalculated: true }
+  ];
 
-      let data;
-      try { data = await res.json(); } catch (parseError) { throw new Error("SYSTEM ROUTE MISSING."); }
-
-      let autoCurrency = detectedCountryCode === 'NG' ? 'NGN' : 'USD';
-      if (detectedCountryCode === 'GB') autoCurrency = 'GBP';
-      else if (isEuropeanUser) autoCurrency = 'EUR';
-
-      if (!data.success) {
-        if (detectedCountryCode !== 'NG') {
-          const actualIntlFee = detectedContinentCode === 'AF' ? intlFeeAfrica : intlFeeGlobal;
-          const explicitFee = (actualIntlFee * usdToNgnRate);
-          setDeliveryAddress(deliveryAddress.toUpperCase() + " (UNVERIFIED INTERNATIONAL)");
-          setDeliveryFee(explicitFee);
-          setDeliveryZone(`International Delivery (${detectedCountryName})`);
-          if (autoCurrency !== currency) setCurrency(autoCurrency);
-          showToast("SATELLITE SYNC SKIPPED. LOGGED TEXT ADDRESS FOR DISPATCH.");
-          return;
-        } else {
-          const { data: rules } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
-          const mainlandRate = rules ? parseFloat(rules.mainland_fee) : 5000;
-          const islandRate = rules ? parseFloat(rules.island_fee) : 8000;
-          const interstateRate = rules ? parseFloat(rules.interstate_fee) : 20000;
-          
-          let fallbackFee = mainlandRate;
-          let fallbackZone = "Lagos Mainland Flat Rate";
-          const lowerAddress = deliveryAddress.toLowerCase();
-
-          if (lowerAddress.includes('island') || lowerAddress.includes('lekki') || lowerAddress.includes('ajah') || lowerAddress.includes('ikoyi') || lowerAddress.includes('victoria')) {
-            fallbackFee = islandRate;
-            fallbackZone = "Lagos Island Flat Rate";
-          } else if (lowerAddress.includes('abuja') || lowerAddress.includes('port harcourt') || lowerAddress.includes('state') || lowerAddress.includes('delta')) {
-            fallbackFee = interstateRate;
-            fallbackZone = "Interstate Flat Rate";
-          }
-
-          setDeliveryAddress(deliveryAddress.toUpperCase() + " (ESTIMATED)");
-          setDeliveryFee(fallbackFee);
-          setDeliveryZone(fallbackZone);
-          if (autoCurrency !== currency) setCurrency(autoCurrency);
-          showToast(`EXACT ROUTE UNKNOWN. APPLIED ₦${fallbackFee.toLocaleString()} RATE.`);
-          return;
-        }
-      }
-
-      setDeliveryAddress(data.matchedAddress); 
-      setDeliveryFee(data.shippingFee);
-      
-      if (data.isInternational) {
-        setDeliveryZone(`International Delivery (${detectedCountryName})`);
-        showToast(`Global Address Validated: Localized within ${detectedCountryName}.`);
-      } else {
-        const dist = data.distanceKm || 15;
-        if (dist <= 30) setDeliveryZone(`Lagos Mainland Dispatch (${dist}km)`);
-        else if (dist <= 65) setDeliveryZone(`Lagos Island Dispatch (${dist}km)`);
-        else setDeliveryZone(`Interstate Freight Delivery (${dist}km)`);
-        showToast(`Route Calculated: ${dist}km layout validated.`);
-      }
-
-      if (autoCurrency !== currency) setCurrency(autoCurrency);
-
-    } catch (err) {
-      setDeliveryFee(detectedCountryCode === 'NG' ? 5000 : 0);
-      setDeliveryZone(detectedCountryCode === 'NG' ? "Lagos Delivery (Estimated)" : "International Delivery");
-      showToast("CONNECTION TIMEOUT. STANDARD PROTOCOL ENGAGED.");
-    } finally {
-      setIsCalculating(false);
-    }
+  const handleSelectDelivery = (opt) => {
+    setSelectedDelivery(opt);
+    setDeliveryZone(opt.title);
+    setDeliveryFee(opt.currency === 'USD' ? opt.fee * usdToNgnRate : opt.fee);
   };
 
   return (
@@ -208,10 +154,11 @@ export default function GlobalCart() {
 
       {/* SLIDE-OUT DRAWER */}
       {isCartOpen && <div className="fixed inset-0 bg-black/80 transition-opacity" style={{ zIndex: 9999900 }} onClick={() => setIsCartOpen(false)}></div>}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-[#0A0A0A] text-white shadow-2xl border-l border-zinc-900 transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`} style={{ zIndex: 9999999 }}>
+        
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Cart ({cartItemCount})</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors text-[10px] tracking-widest uppercase">&larr; Continue Shopping</button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -244,32 +191,64 @@ export default function GlobalCart() {
         
         {cart.length > 0 && (
           <div className="p-6 border-t border-zinc-900 bg-[#111] shrink-0">
+            
+            {/* NEW: REFINED DELIVERY OPTIONS */}
             <div className="mb-6 border-b border-zinc-800 pb-5">
-              <label className="block text-[9px] text-zinc-500 uppercase tracking-widest mb-3">Calculate Dynamic Routing Logistics</label>
-              <div className="flex gap-2">
-                <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="ENTER NEAREST BUS STOP, LANDMARK, OR ZIP CODE..." className="flex-1 bg-transparent border border-zinc-700 text-white text-base md:text-[10px] uppercase tracking-widest p-3 outline-none focus:border-white placeholder-zinc-600 transition-colors" />
-                <button onClick={calculateLiveDelivery} disabled={isCalculating} className="bg-white text-black px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-300 transition-colors disabled:opacity-50">{isCalculating ? 'WAIT...' : 'CALCULATE'}</button>
+              <h3 className="text-[11px] text-white uppercase tracking-[0.2em] mb-1 font-medium">Delivery Options</h3>
+              <p className="text-[9px] text-zinc-400 tracking-wider mb-4">Where should we deliver your order?</p>
+              
+              <div className="flex flex-col gap-2">
+                {deliveryOptions.map(opt => (
+                  <button 
+                    key={opt.id}
+                    onClick={() => handleSelectDelivery(opt)}
+                    className={`flex items-center justify-between p-3 border text-left transition-all ${selectedDelivery?.id === opt.id ? 'border-white bg-white text-black shadow-md' : 'border-zinc-800 text-white hover:border-zinc-600 bg-transparent'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center shrink-0 ${selectedDelivery?.id === opt.id ? 'border-black' : 'border-zinc-500'}`}>
+                        {selectedDelivery?.id === opt.id && <div className="w-1.5 h-1.5 bg-black rounded-full"></div>}
+                      </div>
+                      <div>
+                        <h4 className="text-[9px] font-bold tracking-widest uppercase">{opt.title}</h4>
+                        <p className={`text-[7.5px] tracking-wider mt-0.5 uppercase ${selectedDelivery?.id === opt.id ? 'text-zinc-700' : 'text-zinc-500'}`}>{opt.desc}</p>
+                      </div>
+                    </div>
+                    <div className={`text-[9px] font-mono tracking-wider ${selectedDelivery?.id === opt.id ? 'text-black font-bold' : 'text-zinc-400'}`}>
+                      {opt.isCalculated ? 'Calculated' : formatPrice(opt.fee)}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="space-y-2 mb-6 text-xs uppercase tracking-widest">
-              <div className="flex justify-between text-zinc-500"><span>Subtotal:</span><span>{formatPrice(cartSubtotal)}</span></div>
-              {deliveryZone !== '' && ( <div className="flex justify-between text-zinc-400 animate-fade-in text-[10px]"><span>Dispatch ({deliveryZone}):</span><span>{formatPrice(deliveryFee, true)}</span></div> )}
-              <div className="flex justify-between font-medium text-white pt-3 border-t border-zinc-800 mt-3 text-[13px]"><span>Total:</span><span>{getDisplayTotal()}</span></div>
+
+            <div className="space-y-2 mb-6 text-[10px] uppercase tracking-widest">
+              <div className="flex justify-between text-zinc-400">
+                <span>Subtotal</span>
+                <span className="font-mono">{formatPrice(cartSubtotal)}</span>
+              </div>
+              {selectedDelivery && ( 
+                <div className="flex justify-between text-zinc-400 animate-fade-in">
+                  <span>Delivery ({selectedDelivery.title})</span>
+                  <span className="font-mono">{selectedDelivery.isCalculated ? 'Calculated at checkout' : formatPrice(deliveryFee, true)}</span>
+                </div> 
+              )}
+              <div className="flex justify-between font-bold text-white pt-3 border-t border-zinc-800 mt-3 text-xs">
+                <span>Total</span>
+                <span className="font-mono">{selectedDelivery?.isCalculated ? 'Calculated at checkout' : getDisplayTotal()}</span>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => setIsCartOpen(false)} className="flex-1 border border-white text-white text-center py-4 text-[9px] tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-colors">Continue Shopping</button>
-              <button 
-                onClick={() => { 
-                  if (deliveryZone === '' || !deliveryAddress.trim()) return showToast("PLEASE CALCULATE ROUTING EXPENDITURES TO PROCEED."); 
-                  localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, address: deliveryAddress, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); 
-                  setIsCartOpen(false); 
-                  router.push('/checkout'); 
-                }} 
-                className={`flex-1 text-center flex items-center justify-center py-4 text-[9px] tracking-[0.2em] uppercase transition-colors font-bold ${deliveryZone === '' ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}
-              >
-                {deliveryZone === '' ? 'CALCULATE SHIPPING' : 'Proceed to Payment'}
-              </button>
-            </div>
+
+            <button 
+              onClick={() => { 
+                if (!selectedDelivery) return showToast("PLEASE SELECT A DELIVERY REGION TO PROCEED."); 
+                localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName, isCalculated: selectedDelivery.isCalculated })); 
+                setIsCartOpen(false); 
+                router.push('/checkout'); 
+              }} 
+              className={`w-full text-center flex items-center justify-center py-4 text-[10px] tracking-[0.2em] uppercase transition-colors font-bold ${!selectedDelivery ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-300'}`}
+            >
+              CONTINUE TO CHECKOUT &rarr;
+            </button>
           </div>
         )}
       </div>
