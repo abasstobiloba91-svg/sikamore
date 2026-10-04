@@ -877,6 +877,7 @@ export default function AdminDashboard() {
                             <option value="clothing">Clothing</option>
                           </select>
                         </div>
+                        {/* NEW GO LIVE FIELD */}
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
                           <input type="datetime-local" value={product.published_at || ''} onChange={(e)=>updateProductData(product.id, 'published_at', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
@@ -1076,6 +1077,8 @@ export default function AdminDashboard() {
                   const mainFee = parseFloat(e.target.mainland.value);
                   const islFee = parseFloat(e.target.island.value);
                   const interFee = parseFloat(e.target.interstate.value);
+                  // --> NEW LOGIC ADDED HERE:
+                  const northFee = parseFloat(e.target.northern.value);
                   const dynamicUsdRate = parseFloat(e.target.usdRate.value);
                   const feeAfrica = parseFloat(e.target.intlShippingAfricaUSD.value);
                   const feeGlobal = parseFloat(e.target.intlShippingGlobalUSD.value);
@@ -1086,6 +1089,8 @@ export default function AdminDashboard() {
                       mainland_fee: mainFee, 
                       island_fee: islFee, 
                       interstate_fee: interFee, 
+                      // --> AND HERE:
+                      northern_fee: northFee,
                       usd_to_ngn_rate: dynamicUsdRate,
                       international_fee_africa: feeAfrica,
                       international_fee_global: feeGlobal,
@@ -1099,6 +1104,7 @@ export default function AdminDashboard() {
                     mainland_fee: mainFee, 
                     island_fee: islFee, 
                     interstate_fee: interFee, 
+                    northern_fee: northFee,
                     usd_to_ngn_rate: dynamicUsdRate,
                     international_fee_africa: feeAfrica,
                     international_fee_global: feeGlobal,
@@ -1142,11 +1148,16 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Island / Deep Outskirts Rate (₦)</label>
-                  <input type="number" name="island" defaultValue={logisticsSettings?.island_fee || 8000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <input type="number" name="island" defaultValue={logisticsSettings?.island_fee || 6500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
                 <div>
-                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Interstate Freight Waybill Rate (₦)</label>
-                  <input type="number" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 20000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Outside Lagos (South) Rate (₦)</label>
+                  <input type="number" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 12500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                </div>
+                {/* NEW INPUT FIELD ADDED HERE */}
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Northern States Freight Rate (₦)</label>
+                  <input type="number" name="northern" defaultValue={logisticsSettings?.northern_fee || 16000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
               </div>
 
