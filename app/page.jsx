@@ -21,7 +21,7 @@ const getPrimaryImage = (payload) => {
 };
 
 // ==========================================
-// NEW: SMOOTH IMAGE LOADER COMPONENT
+// SMOOTH IMAGE LOADER COMPONENT
 // ==========================================
 function SmoothBackgroundImage({ img, isActive }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -38,14 +38,18 @@ function SmoothBackgroundImage({ img, isActive }) {
         className="w-full h-full object-cover"
         onLoad={() => setIsLoaded(true)}
         loading="eager"
-        fetchpriority="high" 
+        fetchPriority="high" 
       />
     </div>
   );
 }
 
 export default function HomePage() {
-  const [bgImages, setBgImages] = useState([]);
+  // FIX 1: Provide an immediate fallback image so the screen is never black while waiting for Supabase
+  // NOTE: Replace this URL with the direct link to your favorite bag image from your Supabase Storage!
+  const [bgImages, setBgImages] = useState([
+    "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"
+  ]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userSession, setUserSession] = useState(null);
 
@@ -73,7 +77,11 @@ export default function HomePage() {
         const extractedUrls = data
           .map(product => getPrimaryImage(product.image))
           .filter(url => url !== '');
-        if (extractedUrls.length > 0) setBgImages(extractedUrls);
+        
+        // Combine our instant fallback image with the fresh database images
+        if (extractedUrls.length > 0) {
+          setBgImages(extractedUrls);
+        }
       }
     }
     fetchLatestProducts();
@@ -89,10 +97,11 @@ export default function HomePage() {
   }, [bgImages]);
 
   return (
-    // FIX: Changed h-screen to min-h-[100dvh] to fix mobile address bar gaps
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#0A0A0A] font-sans antialiased text-white flex flex-col">
+    // FIX 2: Changed from 'relative min-h-[100dvh]' to 'fixed inset-0'. 
+    // This pins the page to the exact dimensions of the screen and disables the iOS scroll bounce!
+    <div className="fixed inset-0 w-full h-full bg-[#0A0A0A] overflow-hidden font-sans antialiased text-white flex flex-col">
       
-      {/* 1. BACKGROUND LAYER (Now using the Smooth Loader) */}
+      {/* 1. BACKGROUND LAYER */}
       {bgImages.length > 0 ? (
         bgImages.map((img, index) => (
           <SmoothBackgroundImage 
