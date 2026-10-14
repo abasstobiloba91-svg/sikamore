@@ -45,10 +45,7 @@ function SmoothBackgroundImage({ img, isActive }) {
 }
 
 export default function HomePage() {
-  // FIX 1: Provide an immediate fallback image so the screen is never black while waiting for Supabase
-  // NOTE: Replace this URL with the direct link to your favorite bag image from your Supabase Storage!
   const [bgImages, setBgImages] = useState([
-    "  const [bgImages, setBgImages] = useState([
     "https://fsasdacaoslgjfbdaaqr.supabase.co/storage/v1/object/public/product-images/1790424860629-uugjhf15rk9.png"
   ]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -98,8 +95,6 @@ export default function HomePage() {
   }, [bgImages]);
 
   return (
-    // FIX 2: Changed from 'relative min-h-[100dvh]' to 'fixed inset-0'. 
-    // This pins the page to the exact dimensions of the screen and disables the iOS scroll bounce!
     <div className="fixed inset-0 w-full h-full bg-[#0A0A0A] overflow-hidden font-sans antialiased text-white flex flex-col">
       
       {/* 1. BACKGROUND LAYER */}
