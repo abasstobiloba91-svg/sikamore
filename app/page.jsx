@@ -48,7 +48,8 @@ export default function HomePage() {
   // FIX 1: Provide an immediate fallback image so the screen is never black while waiting for Supabase
   // NOTE: Replace this URL with the direct link to your favorite bag image from your Supabase Storage!
   const [bgImages, setBgImages] = useState([
-    "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2000&auto=format&fit=crop"
+    "  const [bgImages, setBgImages] = useState([
+    "https://fsasdacaoslgjfbdaaqr.supabase.co/storage/v1/object/public/product-images/1790424860629-uugjhf15rk9.png"
   ]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userSession, setUserSession] = useState(null);
