@@ -20,6 +20,9 @@ const getPrimaryImage = (payload) => {
   }
 };
 
+// We save your image as a constant so we can reuse it smoothly
+const INITIAL_HERO_IMAGE = "https://fsasdacaoslgjfbdaaqr.supabase.co/storage/v1/object/public/product-images/1790424860629-uugjhf15rk9.png";
+
 // ==========================================
 // SMOOTH IMAGE LOADER COMPONENT
 // ==========================================
@@ -29,7 +32,6 @@ function SmoothBackgroundImage({ img, isActive, isFirst }) {
   return (
     <div
       className={`absolute inset-0 transition-all duration-[2000ms] ease-in-out ${
-        // If it's the first image, force it to be visible immediately without waiting for the load state
         isActive && (isLoaded || isFirst) ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
       }`}
     >
@@ -46,9 +48,7 @@ function SmoothBackgroundImage({ img, isActive, isFirst }) {
 }
 
 export default function HomePage() {
-  const [bgImages, setBgImages] = useState([
-    "https://fsasdacaoslgjfbdaaqr.supabase.co/storage/v1/object/public/product-images/1790424860629-uugjhf15rk9.png"
-  ]);
+  const [bgImages, setBgImages] = useState([INITIAL_HERO_IMAGE]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userSession, setUserSession] = useState(null);
 
@@ -77,9 +77,11 @@ export default function HomePage() {
           .map(product => getPrimaryImage(product.image))
           .filter(url => url !== '');
         
-        // Combine our instant fallback image with the fresh database images
         if (extractedUrls.length > 0) {
-          setBgImages(extractedUrls);
+          // FIX: Merge the images instead of replacing them. 
+          // This allows the first image to stay in the DOM and fade out beautifully.
+          const mergedUrls = [INITIAL_HERO_IMAGE, ...extractedUrls.filter(url => url !== INITIAL_HERO_IMAGE)];
+          setBgImages(mergedUrls);
         }
       }
     }
@@ -118,7 +120,7 @@ export default function HomePage() {
               key={img} 
               img={img} 
               isActive={index === currentIndex} 
-              isFirst={index === 0} // Tell the component this is the first image so it skips the fade delay
+              isFirst={index === 0} 
             />
           ))
         ) : (
