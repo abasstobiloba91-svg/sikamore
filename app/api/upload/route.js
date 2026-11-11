@@ -1,17 +1,22 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 
-const s3Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
-    secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
-  },
-});
-
 export async function POST(request) {
   try {
+    if (!process.env.CLOUDFLARE_ACCOUNT_ID) throw new Error("Missing CLOUDFLARE_ACCOUNT_ID");
+    if (!process.env.CLOUDFLARE_ACCESS_KEY_ID) throw new Error("Missing CLOUDFLARE_ACCESS_KEY_ID");
+    if (!process.env.CLOUDFLARE_SECRET_ACCESS_KEY) throw new Error("Missing CLOUDFLARE_SECRET_ACCESS_KEY");
+    if (!process.env.CLOUDFLARE_PUBLIC_URL) throw new Error("Missing CLOUDFLARE_PUBLIC_URL");
+
+    const s3Client = new S3Client({
+      region: "auto",
+      endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID.trim()}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID.trim(),
+        secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY.trim(),
+      },
+    });
+
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -22,26 +27,24 @@ export async function POST(request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // Create a unique file name so images don't overwrite each other
     const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
 
-    // Fire it to Cloudflare
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: "ssikamore-assets", // Make sure this matches your bucket name!
+        Bucket: "ssikamore-assets", 
         Key: fileName,
         Body: buffer,
-        ContentType: file.type,
+        ContentType: file.type || "image/jpeg",
       })
     );
 
-    // Build the public URL using the domain from Step 1
-    const publicUrl = `${process.env.CLOUDFLARE_PUBLIC_URL}/${fileName}`;
+    const cleanPublicUrl = process.env.CLOUDFLARE_PUBLIC_URL.trim().replace(/\/$/, "");
+    const publicUrl = `${cleanPublicUrl}/${fileName}`;
 
     return NextResponse.json({ url: publicUrl });
 
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Failed to upload to R2" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to upload to R2" }, { status: 500 });
   }
 }
