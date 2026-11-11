@@ -158,7 +158,7 @@ export default function AkuOyiboWaitlist() {
       <section id="waitlist-form" className="py-20 md:py-24 px-6 sm:px-12 max-w-[1400px] mx-auto border-t border-[#D1C7BD] grid md:grid-cols-12 gap-12 lg:gap-24">
         <div className="md:col-span-7 lg:col-span-8">
           <h2 className="text-xl md:text-2xl tracking-[0.2em] font-serif uppercase mb-3 text-[#4A3025]">Join the Waitlist</h2>
-          <p className="text-[10px] md:text-[11px] tracking-wider text-[#735A4D] mb-8 leading-relaxed font-medium">Be the first to know when pre-orders open on 16th November.</p>
+          <p className="text-[10px] md:text-[11px] tracking-wider text-[#735A4D] mb-8 leading-relaxed font-medium">Be the first to know when the private reserve unlocks.</p>
 
           {submitStatus === 'success' ? (
             <div className="bg-[#EAE2D6] p-10 border border-[#D1C7BD] text-center animate-fade-in"><h3 className="text-sm tracking-[0.2em] uppercase font-bold text-[#4A3025] mb-4">You're on the list</h3><p className="text-[11px] tracking-wider text-[#735A4D] leading-relaxed">Thank you for your interest. You will be notified directly when the private reserve unlocks.</p></div>
@@ -190,7 +190,7 @@ export default function AkuOyiboWaitlist() {
                 {cart.length === 0 && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] text-[#A3523B] tracking-widest uppercase">Required</span>}
               </div>
 
-              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm"><option value="" disabled>Pre-ordering in November? *</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option></select>
+              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm"><option value="" disabled>Intent to pre-order? *</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option></select>
               <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-[#A3523B] text-white px-10 py-4 mt-2 text-[10px] tracking-[0.2em] uppercase font-bold rounded-sm hover:bg-[#8A422D] shadow-md hover:shadow-lg transition-all">{isSubmitting ? 'TRANSMITTING...' : 'JOIN WAITLIST →'}</button>
             </form>
           )}
