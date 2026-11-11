@@ -3,33 +3,33 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    // 1. AGGRESSIVE CREDENTIAL EXTRACTION
-    // If the full URL was accidentally pasted into Vercel, this forces it to extract ONLY the 32-character ID.
-    let rawAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
-    let accountId = rawAccountId.trim();
+    // 1. EXTRACT EXACTLY 32 CHARACTERS FOR ACCOUNT ID (Ignores accidental URLs or spaces)
+    const rawAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
+    let accountId = rawAccountId.replace(/[^a-zA-Z0-9]/g, ""); // Strip all non-alphanumerics
     const idMatch = rawAccountId.match(/([a-fA-F0-9]{32})/);
     if (idMatch) {
-      accountId = idMatch[1];
+      accountId = idMatch[1]; 
     }
 
-    const accessKey = (process.env.CLOUDFLARE_ACCESS_KEY_ID || "").trim();
-    const secretKey = (process.env.CLOUDFLARE_SECRET_ACCESS_KEY || "").trim();
+    // 2. RUTHLESSLY STRIP HIDDEN SPACES/NEWLINES FROM KEYS
+    const accessKey = (process.env.CLOUDFLARE_ACCESS_KEY_ID || "").replace(/\s+/g, "");
+    const secretKey = (process.env.CLOUDFLARE_SECRET_ACCESS_KEY || "").replace(/\s+/g, "");
 
     if (!accountId || !accessKey || !secretKey) {
-      throw new Error("Credentials missing from Vercel completely.");
+      throw new Error("Credentials missing from Vercel entirely.");
     }
 
-    // 2. INITIALIZE CLIENT
+    // 3. INITIALIZE S3 CLIENT WITH BULLETPROOF SETTINGS
     const s3Client = new S3Client({
-      region: "auto", // Cloudflare strictly uses 'auto'
+      region: "us-east-1", // MUST be this to pass AWS strict pattern validation
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: {
         accessKeyId: accessKey,
         secretAccessKey: secretKey,
       },
+      forcePathStyle: true, // Prevents AWS from breaking Cloudflare URLs
     });
 
-    // 3. PROCESS FILE
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -40,21 +40,21 @@ export async function POST(request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // Force a safe filename
+    // 4. FORCE A 100% SAFE ALPHANUMERIC FILENAME
     const randomString = Math.random().toString(36).substring(2, 10);
-    const fileName = `${Date.now()}-${randomString}.png`;
+    const fileName = `${Date.now()}-${randomString}.jpg`;
 
-    // 4. SEND TO CLOUDFLARE
+    // 5. SEND TO CLOUDFLARE
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: "ssikamore-assets", // Hardcoded safely
+        Bucket: "ssikamore-assets", // Hardcoded to prevent environment variable typos
         Key: fileName,
         Body: buffer,
-        ContentType: file.type || "image/png",
+        ContentType: "image/jpeg", // Hardcoded to prevent weird file types from crashing AWS
       })
     );
 
-    // 5. GENERATE PUBLIC URL
+    // 6. CLEAN UP THE PUBLIC URL
     const publicUrlBase = (process.env.CLOUDFLARE_PUBLIC_URL || "").trim().replace(/\/$/, "");
     const finalUrl = `${publicUrlBase}/${fileName}`;
 
