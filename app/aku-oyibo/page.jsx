@@ -81,16 +81,21 @@ export default function AkuOyiboWaitlist() {
   return (
     <div className="min-h-screen bg-[#F5F0E6] text-[#4A3025] font-sans selection:bg-[#A3523B] selection:text-white relative">
       
-      <section className="relative min-h-[90vh] md:min-h-screen flex flex-col bg-[#4A3025]">
-        <div className="absolute inset-0 z-0">
+      {/* 1. HERO SECTION: CRISP BACKGROUND IMAGE WITH DIRECTIONAL GRADIENT */}
+      <section className="relative min-h-[90vh] md:min-h-screen flex flex-col bg-[#2A1810]">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           {products.length > 0 ? (
-            <img src={products[0].image_url} alt="Hero" className="w-full h-full object-cover object-center md:object-right" />
+            <img 
+              src={products[0].image_url} 
+              alt="Hero Backdrop" 
+              className="w-full h-full object-cover object-center md:object-right filter brightness-90 contrast-105" 
+            />
           ) : (
-            <div className="w-full h-full bg-[#4A3025]"></div>
+            <div className="w-full h-full bg-[#2A1810]"></div>
           )}
           
-          <div className="absolute inset-0 bg-[#4A3025]/40 backdrop-blur-md"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-[#4A3025]/90 via-[#4A3025]/60 to-[#4A3025]/90 md:bg-gradient-to-r md:from-[#4A3025]/95 md:via-[#4A3025]/70 md:to-transparent"></div>
+          {/* Natural Gradient: Deep rich tones on text area, fading out cleanly to reveal product */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#2A1810] via-[#2A1810]/75 to-[#2A1810]/30 md:bg-gradient-to-r md:from-[#2A1810] md:via-[#2A1810]/80 md:to-transparent"></div>
         </div>
 
         <header className="w-full pt-8 px-6 sm:px-12 flex justify-between items-center z-10 relative">
@@ -105,7 +110,7 @@ export default function AkuOyiboWaitlist() {
         <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 z-10 relative max-w-[1400px] mx-auto w-full pt-16 md:pt-0">
           <div className="max-w-xl">
             <span className="text-[11px] tracking-[0.5em] uppercase text-[#D1C7BD] mb-4 block">T H E</span>
-            <h1 className="text-5xl sm:text-7xl font-serif font-light uppercase leading-none mb-4 text-[#F4EFE6] drop-shadow-sm">AKU OYIBO</h1>
+            <h1 className="text-5xl sm:text-7xl font-serif font-light uppercase leading-none mb-4 text-[#F4EFE6] drop-shadow-md">AKU OYIBO</h1>
             <span className="text-[11px] tracking-[0.5em] uppercase text-[#D1C7BD] mb-8 block">W A I T L I S T</span>
             
             <div className="w-16 h-px bg-[#D1C7BD] mb-8"></div>
@@ -114,7 +119,7 @@ export default function AkuOyiboWaitlist() {
               Some pieces are made to be worn.<br/>Others are made to be kept.
             </p>
             
-            <div className="text-[11px] tracking-[0.05em] text-[#D1C7BD] mb-8 space-y-4 leading-loose">
+            <div className="text-[11px] tracking-[0.05em] text-[#E0D7CD] mb-8 space-y-4 leading-loose drop-shadow-sm">
               <p>Aku Oyibo is a collectible expression of thoughtful craftsmanship, the beauty of transformed materials and intricate hand-beadwork.</p>
               <p>Crafted from natural coconut shells, no two pieces are exactly alike. Each shell carries its own markings, shape and colour, making every Aku Oyibo a one-of-one piece.</p>
               <p>Created for the woman who appreciates pieces with character, craftsmanship and a story.</p>
@@ -129,6 +134,7 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
+      {/* 2. COLLECTION GALLERY */}
       <section className="py-20 md:py-24 bg-[#F5F0E6]">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-12 text-center">
           <h2 className="text-lg md:text-xl tracking-[0.25em] font-serif uppercase mb-3 text-[#4A3025]">Explore the Aku Oyibo Collection</h2>
@@ -149,6 +155,7 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
+      {/* 3. WAITLIST FORM SECTION */}
       <section id="waitlist-form" className="py-20 md:py-24 px-6 sm:px-12 max-w-[1400px] mx-auto border-t border-[#D1C7BD] grid md:grid-cols-12 gap-12 lg:gap-24">
         <div className="md:col-span-7 lg:col-span-8">
           <h2 className="text-xl md:text-2xl tracking-[0.2em] font-serif uppercase mb-3 text-[#4A3025]">Join the Waitlist</h2>
@@ -183,8 +190,14 @@ export default function AkuOyiboWaitlist() {
                 {cart.length === 0 && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] text-[#A3523B] tracking-widest uppercase">Required</span>}
               </div>
 
-              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm"><option value="" disabled>Intent to pre-order? *</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option></select>
-              <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-[#A3523B] text-white px-10 py-4 mt-2 text-[10px] tracking-[0.2em] uppercase font-bold rounded-sm hover:bg-[#8A422D] shadow-md hover:shadow-lg transition-all">{isSubmitting ? 'TRANSMITTING...' : 'JOIN WAITLIST →'}</button>
+              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm">
+                <option value="" disabled>Intent to pre-order? *</option>
+                <option value="Yes">Yes</option>
+                <option value="Maybe">Maybe</option>
+              </select>
+              <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-[#A3523B] text-white px-10 py-4 mt-2 text-[10px] tracking-[0.2em] uppercase font-bold rounded-sm hover:bg-[#8A422D] shadow-md hover:shadow-lg transition-all">
+                {isSubmitting ? 'TRANSMITTING...' : 'JOIN WAITLIST →'}
+              </button>
             </form>
           )}
         </div>
@@ -214,40 +227,60 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
+      {/* 4. PRODUCT DETAIL MODAL: FIXED IMAGE CUTOFF */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
-          <div className="absolute inset-0 bg-[#4A3025]/80 backdrop-blur-md cursor-pointer" onClick={closeModal}></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-[#2A1810]/85 backdrop-blur-sm cursor-pointer" onClick={closeModal}></div>
           
-          <div className="bg-[#F5F0E6] w-full max-w-5xl max-h-[90vh] overflow-y-auto relative z-10 flex flex-col md:flex-row shadow-2xl rounded-sm">
-            <button onClick={closeModal} className="absolute top-4 right-4 z-20 bg-white/70 hover:bg-white p-2 text-[#4A3025] shadow-sm transition-colors rounded-full">✕</button>
+          <div className="bg-[#F5F0E6] w-full max-w-4xl max-h-[92vh] overflow-y-auto relative z-10 flex flex-col md:flex-row shadow-2xl rounded-sm">
+            <button onClick={closeModal} className="absolute top-4 right-4 z-30 bg-[#F5F0E6]/90 hover:bg-white p-2 text-[#4A3025] shadow-md transition-colors rounded-full">✕</button>
             
-            <div className="w-full md:w-1/2 bg-[#EAE2D6] relative min-h-[40vh] md:min-h-[60vh] flex flex-col border-b md:border-b-0 md:border-r border-[#D1C7BD]">
-              <div className="flex-1 relative">
-                <img src={(selectedProduct.images && selectedProduct.images.length > 0) ? selectedProduct.images[activeImageIndex] : selectedProduct.image_url} alt={selectedProduct.name} className="absolute inset-0 w-full h-full object-cover" />
+            {/* Modal Image Display: Uses aspect container and object-contain so vertical fringes and handles are fully preserved */}
+            <div className="w-full md:w-1/2 bg-[#ECE3D5] flex flex-col border-b md:border-b-0 md:border-r border-[#D1C7BD]">
+              <div className="relative w-full aspect-[4/5] min-h-[340px] md:min-h-[500px] flex items-center justify-center p-4">
+                <img 
+                  src={(selectedProduct.images && selectedProduct.images.length > 0) ? selectedProduct.images[activeImageIndex] : selectedProduct.image_url} 
+                  alt={selectedProduct.name} 
+                  className="w-full h-full object-contain drop-shadow-md" 
+                />
               </div>
               {selectedProduct.images && selectedProduct.images.length > 1 && (
-                <div className="flex gap-2 p-4 bg-[#F5F0E6] overflow-x-auto border-t border-[#D1C7BD]">
+                <div className="flex gap-2 p-3 bg-[#F5F0E6] overflow-x-auto border-t border-[#D1C7BD]">
                   {selectedProduct.images.map((img, i) => (
-                    <button key={i} onClick={() => setActiveImageIndex(i)} className={`w-16 h-20 shrink-0 border-2 transition-colors ${activeImageIndex === i ? 'border-[#A3523B]' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                      <img src={img} className="w-full h-full object-cover" />
+                    <button key={i} onClick={() => setActiveImageIndex(i)} className={`w-14 h-16 shrink-0 border-2 bg-white transition-colors ${activeImageIndex === i ? 'border-[#A3523B]' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                      <img src={img} className="w-full h-full object-contain" />
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
-              {selectedProduct.badge && <span className="inline-block bg-[#A3523B] text-white text-[8px] px-2 py-1 uppercase tracking-widest font-bold mb-4 self-start shadow-sm">{selectedProduct.badge}</span>}
-              <h2 className="text-2xl md:text-3xl font-serif uppercase text-[#4A3025] mb-2">{selectedProduct.name}</h2>
-              <p className="text-[14px] font-bold tracking-widest text-[#A3523B] mb-8">{selectedProduct.price}</p>
-              
-              <div className="w-12 h-px bg-[#D1C7BD] mb-8"></div>
-              
-              <div className="text-[11px] tracking-wide text-[#735A4D] leading-loose mb-10 whitespace-pre-wrap">
-                {selectedProduct.description || "A collectible expression of craftsmanship and design. Crafted to be worn, made to be kept."}
+            {/* Modal Details */}
+            <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-between">
+              <div>
+                {selectedProduct.badge && (
+                  <span className="inline-block bg-[#A3523B] text-white text-[7.5px] px-2 py-1 uppercase tracking-widest font-bold mb-4 shadow-sm">
+                    {selectedProduct.badge}
+                  </span>
+                )}
+                <h2 className="text-xl md:text-2xl font-serif uppercase text-[#4A3025] mb-2 leading-snug">
+                  {selectedProduct.name}
+                </h2>
+                <p className="text-[13px] font-bold tracking-widest text-[#A3523B] mb-6">
+                  {selectedProduct.price}
+                </p>
+                
+                <div className="w-12 h-px bg-[#D1C7BD] mb-6"></div>
+                
+                <div className="text-[11px] tracking-wide text-[#735A4D] leading-relaxed whitespace-pre-wrap">
+                  {selectedProduct.description || "A collectible expression of craftsmanship and design. Crafted to be worn, made to be kept."}
+                </div>
               </div>
               
-              <button onClick={() => handleAddToCart(selectedProduct)} className="bg-[#4A3025] text-white px-8 py-4 text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-[#34211A] shadow-md hover:shadow-lg transition-all w-full sm:w-auto text-center rounded-sm">
+              <button 
+                onClick={() => handleAddToCart(selectedProduct)} 
+                className="mt-8 bg-[#4A3025] text-white px-8 py-4 text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-[#34211A] shadow-md hover:shadow-lg transition-all w-full text-center rounded-sm"
+              >
                 ADD TO RESERVATION →
               </button>
             </div>
@@ -255,10 +288,11 @@ export default function AkuOyiboWaitlist() {
         </div>
       )}
 
+      {/* 5. INTERCEPT MODAL */}
       {showInterceptModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
-          <div className="absolute inset-0 bg-[#4A3025]/60 backdrop-blur-md cursor-pointer" onClick={() => setShowInterceptModal(false)}></div>
-          <div className="bg-[#F5F0E6]/95 backdrop-blur-xl border border-[#D1C7BD] w-full max-w-md p-8 sm:p-12 relative z-10 text-center shadow-2xl rounded-sm">
+          <div className="absolute inset-0 bg-[#2A1810]/70 backdrop-blur-sm cursor-pointer" onClick={() => setShowInterceptModal(false)}></div>
+          <div className="bg-[#F5F0E6] border border-[#D1C7BD] w-full max-w-md p-8 sm:p-12 relative z-10 text-center shadow-2xl rounded-sm">
             <h3 className="text-xl font-serif uppercase text-[#4A3025] mb-2">Item Reserved</h3>
             <p className="text-[11px] tracking-wider text-[#735A4D] mb-8 font-medium">"{lastAdded?.name}" has been added to your waitlist folio.</p>
             
@@ -274,9 +308,10 @@ export default function AkuOyiboWaitlist() {
         </div>
       )}
 
+      {/* 6. FLOATING CART INDICATOR */}
       {cart.length > 0 && !showInterceptModal && (
         <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-40 animate-fade-in">
-          <button onClick={handleRequestNow} className="bg-[#4A3025]/90 backdrop-blur-md text-white px-6 py-4 text-[9px] tracking-[0.2em] uppercase font-bold shadow-2xl hover:bg-[#34211A] transition-all rounded-full flex items-center gap-3 border border-[#735A4D]">
+          <button onClick={handleRequestNow} className="bg-[#4A3025] text-white px-6 py-4 text-[9px] tracking-[0.2em] uppercase font-bold shadow-2xl hover:bg-[#34211A] transition-all rounded-full flex items-center gap-3 border border-[#735A4D]">
             <span className="bg-[#A3523B] w-5 h-5 flex items-center justify-center rounded-full text-white text-[10px]">
               {cart.length}
             </span>
