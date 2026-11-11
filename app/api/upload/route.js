@@ -7,11 +7,7 @@ export async function POST(request) {
     const accessKey = (process.env.CLOUDFLARE_ACCESS_KEY_ID || "").replace(/\s+/g, "");
     const secretKey = (process.env.CLOUDFLARE_SECRET_ACCESS_KEY || "").replace(/\s+/g, "");
     
-    // Using your exact bucket name
-    const rawBucketName = process.env.CLOUDFLARE_BUCKET_NAME || "ssikamore-assets";
-    const bucketName = rawBucketName.toLowerCase().replace(/[^a-z0-9-]/g, "");
-
-    if (!accountId || !accessKey || !secretKey || !bucketName) {
+    if (!accountId || !accessKey || !secretKey) {
       throw new Error("Missing credentials in Vercel.");
     }
 
@@ -22,7 +18,6 @@ export async function POST(request) {
         accessKeyId: accessKey,
         secretAccessKey: secretKey,
       },
-      // THIS IS THE FIX! Forces AWS to talk to Cloudflare correctly:
       forcePathStyle: true, 
     });
 
@@ -42,7 +37,7 @@ export async function POST(request) {
 
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: bucketName,
+        Bucket: "ssikamore-assets", // <-- HARDCODED: Vercel can no longer mess this up
         Key: fileName,
         Body: buffer,
         ContentType: file.type || "image/jpeg",
