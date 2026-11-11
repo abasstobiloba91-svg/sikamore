@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    const ACCOUNT_ID = "2d263036d773648a9cded2ab78408d4a;
+    const ACCOUNT_ID = "2d263036d773648a9cded2ab78408d4a";
     const ACCESS_KEY = "42b8b60ec9df919fa090984eb5c0ef64";
     const SECRET_KEY = "05af4da3eb7131fbc05fe0a51806a472646a36eae2b22129b4babaa1d58e584b";
     const PUBLIC_URL = "https://pub-3de2bdb34f894d6b9ddcb8b4ddb42ad5.r2.dev";
