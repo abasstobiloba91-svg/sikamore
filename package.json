@@ -13,7 +13,8 @@
     "react": "latest",
     "react-dom": "latest",
     "@supabase/supabase-js": "latest",
-    "@paystack/inline-js": "latest"
+    "@paystack/inline-js": "latest",
+    "@aws-sdk/client-s3": "latest"
   },
   "devDependencies": {
     "autoprefixer": "latest",
