@@ -13,7 +13,6 @@ export default function AkuOyiboWaitlist() {
   const [selectedProduct, setSelectedProduct] = useState(null); 
   const [activeImageIndex, setActiveImageIndex] = useState(0); 
 
-  // CART & INTERCEPT STATE
   const [cart, setCart] = useState([]);
   const [showInterceptModal, setShowInterceptModal] = useState(false);
   const [lastAdded, setLastAdded] = useState(null);
@@ -30,7 +29,6 @@ export default function AkuOyiboWaitlist() {
     fetchProducts();
   }, []);
 
-  // Auto-update the form's "designInterest" field whenever the cart changes
   useEffect(() => {
     setFormData(prev => ({ ...prev, designInterest: cart.join(', ') }));
   }, [cart]);
@@ -66,7 +64,6 @@ export default function AkuOyiboWaitlist() {
     document.body.style.overflow = 'auto';
   };
 
-  // LOGIC TO ADD TO CART AND SHOW INTERCEPT
   const handleAddToCart = (product) => {
     if (!cart.includes(product.name)) {
       setCart(prev => [...prev, product.name]);
@@ -84,7 +81,6 @@ export default function AkuOyiboWaitlist() {
   return (
     <div className="min-h-screen bg-[#F5F0E6] text-[#4A3025] font-sans selection:bg-[#A3523B] selection:text-white relative">
       
-      {/* 1. HERO SECTION WITH FROSTED GLASS EFFECT */}
       <section className="relative min-h-[90vh] md:min-h-screen flex flex-col bg-[#4A3025]">
         <div className="absolute inset-0 z-0">
           {products.length > 0 ? (
@@ -133,7 +129,6 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
-      {/* 2. COLLECTION GALLERY */}
       <section className="py-20 md:py-24 bg-[#F5F0E6]">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-12 text-center">
           <h2 className="text-lg md:text-xl tracking-[0.25em] font-serif uppercase mb-3 text-[#4A3025]">Explore the Aku Oyibo Collection</h2>
@@ -154,7 +149,6 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
-      {/* 3. WAITLIST FORM SECTION */}
       <section id="waitlist-form" className="py-20 md:py-24 px-6 sm:px-12 max-w-[1400px] mx-auto border-t border-[#D1C7BD] grid md:grid-cols-12 gap-12 lg:gap-24">
         <div className="md:col-span-7 lg:col-span-8">
           <h2 className="text-xl md:text-2xl tracking-[0.2em] font-serif uppercase mb-3 text-[#4A3025]">Join the Waitlist</h2>
@@ -165,18 +159,17 @@ export default function AkuOyiboWaitlist() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5 relative">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                <input type="text" name="firstName" placeholder="First Name *" required value={formData.firstName} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
-                <input type="email" name="email" placeholder="Email Address *" required value={formData.email} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
+                <input type="text" name="firstName" placeholder="First Name *" required value={formData.firstName} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
+                <input type="email" name="email" placeholder="Email Address *" required value={formData.email} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
               </div>
-              <input type="tel" name="whatsapp" placeholder="WhatsApp Number (Optional)" value={formData.whatsapp} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
-              <select name="country" required value={formData.country} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm">
+              <input type="tel" name="whatsapp" placeholder="WhatsApp Number (Optional)" value={formData.whatsapp} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] uppercase tracking-wider focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all rounded-sm shadow-sm" />
+              <select name="country" required value={formData.country} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm">
                 <option value="" disabled>Country of Residence *</option>
                 <option value="NG">Nigeria</option>
                 <option value="US">United States</option>
                 <option value="UK">United Kingdom</option>
               </select>
               
-              {/* SMART AUTO-FILL INPUT */}
               <div className="relative">
                 <input 
                   type="text" 
@@ -185,18 +178,17 @@ export default function AkuOyiboWaitlist() {
                   required 
                   value={formData.designInterest} 
                   placeholder="SELECTED DESIGNS (ADD FROM GALLERY) *" 
-                  className="w-full bg-[#EAE2D6] border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] uppercase tracking-wider transition-all rounded-sm shadow-sm cursor-not-allowed text-[#A3523B] font-bold" 
+                  className="w-full bg-[#EAE2D6] border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] uppercase tracking-wider transition-all rounded-sm shadow-sm cursor-not-allowed text-[#A3523B] font-bold" 
                 />
                 {cart.length === 0 && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] text-[#A3523B] tracking-widest uppercase">Required</span>}
               </div>
 
-              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-[10px] md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm"><option value="" disabled>Intent to pre-order? *</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option></select>
+              <select name="purchaseIntent" required value={formData.purchaseIntent} onChange={handleChange} className="w-full bg-white/50 border border-[#C6B6A5] px-4 py-3.5 text-base md:text-[11px] tracking-wider uppercase focus:bg-white focus:border-[#4A3025] focus:outline-none transition-all appearance-none rounded-sm shadow-sm"><option value="" disabled>Intent to pre-order? *</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option></select>
               <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-[#A3523B] text-white px-10 py-4 mt-2 text-[10px] tracking-[0.2em] uppercase font-bold rounded-sm hover:bg-[#8A422D] shadow-md hover:shadow-lg transition-all">{isSubmitting ? 'TRANSMITTING...' : 'JOIN WAITLIST →'}</button>
             </form>
           )}
         </div>
 
-        {/* Value Props Column */}
         <div className="md:col-span-5 lg:col-span-4 flex flex-col justify-center space-y-8 md:space-y-10 md:pl-10 md:border-l border-[#D1C7BD] mt-8 md:mt-0">
           <div className="flex gap-4 md:gap-5 items-start">
             <svg className="w-6 h-6 md:w-8 md:h-8 text-[#A3523B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg>
@@ -222,7 +214,6 @@ export default function AkuOyiboWaitlist() {
         </div>
       </section>
 
-      {/* 4. PRODUCT MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="absolute inset-0 bg-[#4A3025]/80 backdrop-blur-md cursor-pointer" onClick={closeModal}></div>
@@ -264,7 +255,6 @@ export default function AkuOyiboWaitlist() {
         </div>
       )}
 
-      {/* 5. INTERCEPT MODAL (The Beautiful Choice Popup) */}
       {showInterceptModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="absolute inset-0 bg-[#4A3025]/60 backdrop-blur-md cursor-pointer" onClick={() => setShowInterceptModal(false)}></div>
@@ -284,7 +274,6 @@ export default function AkuOyiboWaitlist() {
         </div>
       )}
 
-      {/* 6. FLOATING CART INDICATOR */}
       {cart.length > 0 && !showInterceptModal && (
         <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-40 animate-fade-in">
           <button onClick={handleRequestNow} className="bg-[#4A3025]/90 backdrop-blur-md text-white px-6 py-4 text-[9px] tracking-[0.2em] uppercase font-bold shadow-2xl hover:bg-[#34211A] transition-all rounded-full flex items-center gap-3 border border-[#735A4D]">
