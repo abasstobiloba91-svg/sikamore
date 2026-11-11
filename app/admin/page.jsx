@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */ 
+/* eslint-disable @next/next/no-img-element */
 'use client';
 export const dynamic = 'force-dynamic';
 
@@ -190,7 +190,6 @@ export default function AdminDashboard() {
         if (payload.eventType === 'UPDATE') setLiveProducts(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
         if (payload.eventType === 'DELETE') setLiveProducts(prev => prev.filter(p => p.id !== payload.old.id));
       })
-      // SYNC WAITLIST DATA
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waitlist_leads' }, (payload) => {
         setWaitlistLeads(prev => [payload.new, ...prev]);
       })
@@ -242,7 +241,6 @@ export default function AdminDashboard() {
     if (activeChat && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat]);
 
-  // LOGIN / LOGOUT
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
@@ -271,7 +269,6 @@ export default function AdminDashboard() {
     showToast('PORTAL SECURELY LOCKED.');
   };
 
-  // --- WAITLIST / CLOUDFLARE UPLOAD LOGIC ---
   const handleWaitlistImageChange = (e, isEdit = false) => {
     const selectedFiles = Array.from(e.target.files).slice(0, 5);
     if (selectedFiles.length > 0) {
@@ -288,7 +285,6 @@ export default function AdminDashboard() {
   const handleWaitlistProductUpload = async (e) => {
     e.preventDefault();
     
-    // RUTHLESS MOBILE AUTOCORRECT TRIM FIX
     const cleanName = newWaitlistProduct.name.trim();
     const cleanPrice = String(newWaitlistProduct.price).trim();
     const cleanBadge = newWaitlistProduct.badge ? newWaitlistProduct.badge.trim() : null;
@@ -305,7 +301,10 @@ export default function AdminDashboard() {
       let uploadedUrls = [];
       for (const file of newWaitlistProduct.files) {
         const formData = new FormData();
-        formData.append("file", file);
+        // SAFARI BUG BYPASS: Rebuilding the file with a clean name to prevent iOS WebKit Network crash
+        const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
+        formData.append("file", safeFile);
+        
         const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
         const resData = await uploadRes.json();
         if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
@@ -349,7 +348,6 @@ export default function AdminDashboard() {
   const submitEditWaitlistProduct = async (e) => {
     e.preventDefault();
     
-    // RUTHLESS MOBILE AUTOCORRECT TRIM FIX
     const cleanName = editingWaitlistProduct.name.trim();
     const cleanPrice = String(editingWaitlistProduct.rawPrice).trim();
     const cleanBadge = editingWaitlistProduct.badge ? editingWaitlistProduct.badge.trim() : null;
@@ -366,7 +364,9 @@ export default function AdminDashboard() {
 
         for (const file of editWaitlistFiles) {
           const formData = new FormData();
-          formData.append("file", file);
+          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
+          formData.append("file", safeFile);
+          
           const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
           const resData = await uploadRes.json();
           if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
@@ -408,7 +408,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- STANDARD INVENTORY LOGIC ---
   const addProductRow = () => {
     setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
   };
@@ -436,7 +435,6 @@ export default function AdminDashboard() {
     try {
       let detailedError = '';
       
-      // Clean all inputs before checking to fix mobile autocorrect
       const cleanedProducts = productsList.map(p => ({
         ...p,
         name: p.name.trim(),
@@ -465,7 +463,8 @@ export default function AdminDashboard() {
         
         for (const file of product.files) {
           const formData = new FormData();
-          formData.append("file", file);
+          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
+          formData.append("file", safeFile);
 
           const uploadRes = await fetch("/api/upload", {
             method: "POST",
@@ -540,7 +539,6 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsUpdating(true);
 
-    // MOBILE TRIM FIX
     const cleanPrice = String(editingProduct.price).trim();
     const cleanStock = String(editingProduct.stock_quantity).trim();
     const cleanName = editingProduct.name.trim();
@@ -554,7 +552,8 @@ export default function AdminDashboard() {
 
         for (const file of editFiles) {
           const formData = new FormData();
-          formData.append("file", file);
+          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
+          formData.append("file", safeFile);
 
           const uploadRes = await fetch("/api/upload", {
             method: "POST",
@@ -693,9 +692,6 @@ export default function AdminDashboard() {
             }) 
           });
           
-          showToast('CLIENT & TEAM AUTOMATICALLY NOTIFIED VIA EMAIL.');
-        } else {
-          showToast('CLIENT AUTOMATICALLY NOTIFIED VIA EMAIL.');
         }
       }
     } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
@@ -854,7 +850,7 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-zinc-50 text-black flex flex-col items-center justify-center px-6 font-sans antialiased">
         <div className="max-w-md w-full bg-white text-black p-10 shadow-lg border border-zinc-200 text-center">
           <h1 className="text-xl font-normal tracking-[0.4em] uppercase mb-2 font-serif">S. SIKAMÒRE</h1>
-          <p className="text-[9px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Secure Admin Portal</p>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-zinc-500 mb-8">Secure Admin Portal</p>
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
             <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="ADMIN EMAIL" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
             <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="SECURE PASSWORD" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
@@ -872,10 +868,9 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-zinc-50 text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
         
-        {/* TOP COMMAND NAVIGATION */}
         <div className="mb-10 text-center relative">
           <div className="absolute right-0 top-0">
-            <button onClick={handleLogout} className="text-[8px] sm:text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
+            <button onClick={handleLogout} className="text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
               Sign Out
             </button>
           </div>
@@ -889,7 +884,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- TAB 0: WAITLIST MANAGEMENT & CLOUDFLARE DROPS --- */}
+        {/* --- TAB 0: WAITLIST MANAGEMENT --- */}
         {activeTab === 'waitlist' && (
           <div className="animate-fade-in space-y-6">
             <div className="flex border-b border-zinc-200 pb-2">
@@ -897,7 +892,7 @@ export default function AdminDashboard() {
                 Captured Leads
               </button>
               <button onClick={() => { setWaitlistMode('products'); setEditingWaitlistProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${waitlistMode === 'products' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
-                Campaign Items (Cloudflare)
+                Campaign Items
               </button>
             </div>
 
@@ -948,7 +943,6 @@ export default function AdminDashboard() {
 
             {waitlistMode === 'products' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Upload / Edit Form targeting Cloudflare */}
                 <div className="bg-white p-6 sm:p-10 shadow-sm border border-zinc-200 rounded-sm" id="waitlist-deploy-section">
                   <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-4 mb-6">
                     {editingWaitlistProduct ? 'Edit Campaign Item' : 'Deploy Campaign Item'}
@@ -956,26 +950,26 @@ export default function AdminDashboard() {
                   <form onSubmit={editingWaitlistProduct ? submitEditWaitlistProduct : handleWaitlistProductUpload} className="space-y-6">
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                      <input type="text" required placeholder="E.G. AKU OYIBO (CORAL)" value={editingWaitlistProduct ? editingWaitlistProduct.name : newWaitlistProduct.name} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, name: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, name: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-[10px] text-black uppercase tracking-widest"/>
+                      <input type="text" required placeholder="E.G. AKU OYIBO (CORAL)" value={editingWaitlistProduct ? editingWaitlistProduct.name : newWaitlistProduct.name} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, name: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, name: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase tracking-widest"/>
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (Numeric String)</label>
-                      <input type="number" required placeholder="E.G. 360000" value={editingWaitlistProduct ? editingWaitlistProduct.rawPrice : newWaitlistProduct.price} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, rawPrice: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, price: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-[10px] text-black tracking-widest"/>
+                      <input type="text" inputMode="numeric" pattern="[0-9]*" required placeholder="E.G. 360000" value={editingWaitlistProduct ? editingWaitlistProduct.rawPrice : newWaitlistProduct.price} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, rawPrice: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, price: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black tracking-widest"/>
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Badge (Optional)</label>
-                      <input type="text" placeholder="E.G. LIMITED MATERIAL" value={editingWaitlistProduct ? editingWaitlistProduct.badge : newWaitlistProduct.badge} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, badge: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, badge: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-[10px] text-black uppercase tracking-widest"/>
+                      <input type="text" placeholder="E.G. LIMITED MATERIAL" value={editingWaitlistProduct ? editingWaitlistProduct.badge : newWaitlistProduct.badge} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, badge: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, badge: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase tracking-widest"/>
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Editorial Description</label>
-                      <textarea rows="3" placeholder="Enter rich product story for the modal..." value={editingWaitlistProduct ? editingWaitlistProduct.description : newWaitlistProduct.description} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, description: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, description: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-[10px] text-black resize-none"></textarea>
+                      <textarea rows="3" placeholder="Enter rich product story for the modal..." value={editingWaitlistProduct ? editingWaitlistProduct.description : newWaitlistProduct.description} onChange={e => editingWaitlistProduct ? setEditingWaitlistProduct({...editingWaitlistProduct, description: e.target.value}) : setNewWaitlistProduct({...newWaitlistProduct, description: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none"></textarea>
                     </div>
                     <div>
                       <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase flex justify-between">
                         <span>Campaign Gallery (Up to 5)</span>
                         <span className="text-blue-500 font-bold tracking-widest">R2 ZERO-EGRESS</span>
                       </label>
-                      <input id="waitlist-image-input" type="file" multiple accept="image/jpeg, image/png, image/webp" onChange={e => handleWaitlistImageChange(e, !!editingWaitlistProduct)} className="w-full text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                      <input id="waitlist-image-input" type="file" multiple accept="image/jpeg, image/png, image/webp" onChange={e => handleWaitlistImageChange(e, !!editingWaitlistProduct)} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                     </div>
                     
                     <div className="flex gap-2 flex-wrap">
@@ -1002,7 +996,6 @@ export default function AdminDashboard() {
                   </form>
                 </div>
 
-                {/* Active Waitlist Products Display */}
                 <div className="bg-white p-6 shadow-sm border border-zinc-200 rounded-sm">
                   <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-4 mb-6">Live Waitlist Grid</h3>
                   {waitlistProducts.length === 0 ? (
@@ -1057,19 +1050,19 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                            <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
+                            <input type="text" value={editingProduct.name} onChange={(e)=>setEditingProduct({...editingProduct, name: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase" />
                           </div>
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
-                            <input type="number" value={editingProduct.price} onChange={(e)=>setEditingProduct({...editingProduct, price: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" value={editingProduct.price} onChange={(e)=>setEditingProduct({...editingProduct, price: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black" />
                           </div>
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
-                            <input type="number" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" value={editingProduct.stock_quantity} onChange={(e)=>setEditingProduct({...editingProduct, stock_quantity: e.target.value})} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black" />
                           </div>
                           <div>
                             <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Category</label>
-                            <select value={editingProduct.category || 'bags'} onChange={(e)=>setEditingProduct({...editingProduct, category: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase">
+                            <select value={editingProduct.category || 'bags'} onChange={(e)=>setEditingProduct({...editingProduct, category: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase">
                               <option value="bags">Bags</option>
                               <option value="accessories">Accessories</option>
                               <option value="clothing">Clothing</option>
@@ -1077,26 +1070,26 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
-                            <input type="datetime-local" value={editingProduct.published_at || ''} onChange={(e)=>setEditingProduct({...editingProduct, published_at: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
+                            <input type="datetime-local" value={editingProduct.published_at || ''} onChange={(e)=>setEditingProduct({...editingProduct, published_at: e.target.value})} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description</label>
-                            <textarea value={editingProduct.description || ''} onChange={(e)=>setEditingProduct({...editingProduct, description: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.description || ''} onChange={(e)=>setEditingProduct({...editingProduct, description: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info</label>
-                            <textarea value={editingProduct.additional_information || ''} onChange={(e)=>setEditingProduct({...editingProduct, additional_information: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.additional_information || ''} onChange={(e)=>setEditingProduct({...editingProduct, additional_information: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies</label>
-                            <textarea value={editingProduct.store_policies || ''} onChange={(e)=>setEditingProduct({...editingProduct, store_policies: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.store_policies || ''} onChange={(e)=>setEditingProduct({...editingProduct, store_policies: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries</label>
-                            <textarea value={editingProduct.inquiries || ''} onChange={(e)=>setEditingProduct({...editingProduct, inquiries: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" />
+                            <textarea value={editingProduct.inquiries || ''} onChange={(e)=>setEditingProduct({...editingProduct, inquiries: e.target.value})} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" />
                           </div>
                         </div>
 
@@ -1109,7 +1102,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
-                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-base md:text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
                       </div>
@@ -1172,19 +1165,19 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
-                          <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
+                          <input type="text" value={product.name} onChange={(e)=>updateProductData(product.id, 'name', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase" placeholder="E.G. 18K AURA PENDANT" />
                         </div>
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Price (₦)</label>
-                          <input type="number" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" placeholder="E.G. 85000" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={product.price} onChange={(e)=>updateProductData(product.id, 'price', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black" placeholder="E.G. 85000" />
                         </div>
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty</label>
-                          <input type="number" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" placeholder="E.G. 15" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={product.stock} onChange={(e)=>updateProductData(product.id, 'stock', e.target.value)} required className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black" placeholder="E.G. 15" />
                         </div>
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Category</label>
-                          <select value={product.category} onChange={(e)=>updateProductData(product.id, 'category', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase">
+                          <select value={product.category} onChange={(e)=>updateProductData(product.id, 'category', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase">
                             <option value="bags">Bags</option>
                             <option value="accessories">Accessories</option>
                             <option value="clothing">Clothing</option>
@@ -1192,26 +1185,26 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase" title="Leave blank to publish instantly">Go Live Date (Opt)</label>
-                          <input type="datetime-local" value={product.published_at || ''} onChange={(e)=>updateProductData(product.id, 'published_at', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase" />
+                          <input type="datetime-local" value={product.published_at || ''} onChange={(e)=>updateProductData(product.id, 'published_at', e.target.value)} className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
-                          <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
+                          <textarea value={product.description} onChange={(e)=>updateProductData(product.id, 'description', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. HAND-CRAFTED LEATHER TOTE..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info (Optional)</label>
-                          <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
+                          <textarea value={product.additional_information} onChange={(e)=>updateProductData(product.id, 'additional_information', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPOSITION: 100% CALFSKIN..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies (Optional)</label>
-                          <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
+                          <textarea value={product.store_policies} onChange={(e)=>updateProductData(product.id, 'store_policies', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. COMPLIMENTARY DROPS REQUIRE 3-5 DAYS..." />
                         </div>
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries (Optional)</label>
-                          <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
+                          <textarea value={product.inquiries} onChange={(e)=>updateProductData(product.id, 'inquiries', e.target.value)} rows="3" className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase resize-none placeholder-zinc-300" placeholder="E.G. CONTACT OUR CLIENT CONCIERGE..." />
                         </div>
                       </div>
 
@@ -1225,7 +1218,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
-                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-xs file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
                     </div>
@@ -1433,18 +1426,18 @@ export default function AdminDashboard() {
                 
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
-                  <input type="number" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   <p className="text-[8px] text-zinc-400 normal-case mt-1.5 italic">Enter your desired conversion rate.</p>
                 </div>
 
                 <div className="pt-4 border-t border-zinc-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Africa Shipping Fee ($ USD)</label>
-                    <input type="number" name="intlShippingAfricaUSD" defaultValue={logisticsSettings?.international_fee_africa || 45} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" name="intlShippingAfricaUSD" defaultValue={logisticsSettings?.international_fee_africa || 45} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   </div>
                   <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Global Shipping Fee ($ USD)</label>
-                    <input type="number" name="intlShippingGlobalUSD" defaultValue={logisticsSettings?.international_fee_global || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" name="intlShippingGlobalUSD" defaultValue={logisticsSettings?.international_fee_global || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   </div>
                 </div>
                 <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location. Users will now ALWAYS see this explicit shipping charge applied to their total at checkout.</p>
@@ -1454,19 +1447,19 @@ export default function AdminDashboard() {
                 <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— Domestic Freight Delivery Directories —</span>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Mainland Dispatch Rate (₦)</label>
-                  <input type="number" name="mainland" defaultValue={logisticsSettings?.mainland_fee || 5000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" name="mainland" defaultValue={logisticsSettings?.mainland_fee || 5000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Lagos Island / Deep Outskirts Rate (₦)</label>
-                  <input type="number" name="island" defaultValue={logisticsSettings?.island_fee || 6500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" name="island" defaultValue={logisticsSettings?.island_fee || 6500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Outside Lagos (South) Rate (₦)</label>
-                  <input type="number" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 12500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" name="interstate" defaultValue={logisticsSettings?.interstate_fee || 12500} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Northern States Freight Rate (₦)</label>
-                  <input type="number" name="northern" defaultValue={logisticsSettings?.northern_fee || 16000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" name="northern" defaultValue={logisticsSettings?.northern_fee || 16000} required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black" />
                 </div>
               </div>
 
