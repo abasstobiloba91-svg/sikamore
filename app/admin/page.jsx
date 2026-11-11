@@ -36,20 +36,98 @@ const getPrimaryImage = (payload) => {
 
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// BULLETPROOF COMPRESSION: Shrinks massive PNGs/JPGs before Vercel blocks them
+const compressIfNeeded = async (file) => {
+  if (file.size <= 1.5 * 1024 * 1024) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      const maxDim = 1800;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve({ blob, name: file.name.replace(/\.[^/.]+$/, "") + ".jpg" });
+          } else {
+            resolve(file);
+          }
+        },
+        'image/jpeg',
+        0.85
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = objectUrl;
+  });
+};
+
+const uploadAsset = async (file) => {
+  const result = await compressIfNeeded(file);
+  const formData = new FormData();
+  
+  if (result.blob) {
+    formData.append('file', result.blob, result.name);
+  } else {
+    formData.append('file', result);
+  }
+
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  // Catch the Vercel 4.5MB limit specifically
+  if (res.status === 413) {
+    throw new Error("FILE STILL TOO LARGE: Vercel limits uploads to 4.5MB.");
+  }
+
+  const rawText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    const preview = rawText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+    throw new Error(`Server status ${res.status}: ${preview || 'Non-JSON response'}`);
+  }
+
+  if (!res.ok || data.error || !data.url) {
+    throw new Error(data.error || `Upload failed with status ${res.status}`);
+  }
+
+  return data.url;
+};
+
 export default function AdminDashboard() {
   const { showToast } = useApp();
-  
-  // AUTHENTICATION STATE
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // NAVIGATION & CORE STATE
   const [activeTab, setActiveTab] = useState('inventory');
-  
-  // INVENTORY STATE
-  const [inventoryMode, setInventoryMode] = useState('manage'); 
+
+  const [inventoryMode, setInventoryMode] = useState('manage');
   const [liveProducts, setLiveProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editFiles, setEditFiles] = useState([]);
@@ -60,7 +138,6 @@ export default function AdminDashboard() {
   ]);
   const [disabled, setDisabled] = useState(false);
 
-  // WAITLIST (AKU OYIBO & CLOUDFLARE) STATE
   const [waitlistMode, setWaitlistMode] = useState('leads');
   const [waitlistLeads, setWaitlistLeads] = useState([]);
   const [waitlistProducts, setWaitlistProducts] = useState([]);
@@ -70,7 +147,6 @@ export default function AdminDashboard() {
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
 
-  // OTHER DATA STATES
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
@@ -80,8 +156,7 @@ export default function AdminDashboard() {
   const [vendorOrders, setVendorOrders] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
   const [logisticsSettings, setLogisticsSettings] = useState(null);
-  
-  // SUPPORT & CHAT STATE
+
   const [activeVendor, setActiveVendor] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -91,19 +166,16 @@ export default function AdminDashboard() {
   const typingTimeoutRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // ORDER TRACKER STATE
   const [orderSearch, setOrderSearch] = useState('');
   const [trackerMode, setTrackerMode] = useState('active');
   const [visibleOrderCount, setVisibleOrderCount] = useState(10);
   const [interceptedOrder, setInterceptedOrder] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState('');
-  
-  // NEWSLETTER STATE
+
   const [newsletterSubj, setNewsletterSubj] = useState('');
   const [newsletterMsg, setNewsletterMsg] = useState('');
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
 
-  // CHECK EXISTING SUPABASE SESSION
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setIsAuthenticated(true);
@@ -150,8 +222,6 @@ export default function AdminDashboard() {
         const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
         if (pData) setLiveProducts(pData);
       } catch(e){}
-      
-      // LOAD WAITLIST DATA
       try {
         const { data: wlData } = await supabase.from('waitlist_leads').select('*').order('created_at', { ascending: false });
         if (wlData) setWaitlistLeads(wlData);
@@ -245,9 +315,9 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsAuthenticating(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: adminEmail.trim().toLowerCase(),
-        password: adminPassword
+        password: adminPassword,
       });
 
       if (error) {
@@ -284,7 +354,6 @@ export default function AdminDashboard() {
 
   const handleWaitlistProductUpload = async (e) => {
     e.preventDefault();
-    
     const cleanName = newWaitlistProduct.name.trim();
     const cleanPrice = String(newWaitlistProduct.price).trim();
     const cleanBadge = newWaitlistProduct.badge ? newWaitlistProduct.badge.trim() : null;
@@ -293,44 +362,36 @@ export default function AdminDashboard() {
     if (newWaitlistProduct.files.length === 0 || !cleanName || !cleanPrice) {
       return showToast("PLEASE COMPLETE ALL REQUIRED FIELDS AND ATTACH AT LEAST ONE IMAGE.");
     }
-    
+
     setIsDeployingWaitlist(true);
-    showToast("UPLOADING SECURE ASSETS TO CLOUDFLARE R2...");
+    showToast("UPLOADING ASSETS TO CLOUDFLARE R2...");
 
     try {
       let uploadedUrls = [];
       for (const file of newWaitlistProduct.files) {
-        const formData = new FormData();
-        // SAFARI BUG BYPASS: Rebuilding the file with a clean name to prevent iOS WebKit Network crash
-        const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
-        formData.append("file", safeFile);
-        
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-        const resData = await uploadRes.json();
-        if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
-        uploadedUrls.push(resData.url);
+        const url = await uploadAsset(file);
+        uploadedUrls.push(url);
         await networkDelay(300);
       }
 
       const { error: dbError } = await supabase
         .from('waitlist_products')
         .insert([
-          { 
-            name: cleanName.toUpperCase(), 
-            price: `₦${parseFloat(cleanPrice).toLocaleString()}`, 
+          {
+            name: cleanName.toUpperCase(),
+            price: `₦${parseFloat(cleanPrice).toLocaleString()}`,
             badge: cleanBadge ? cleanBadge.toUpperCase() : null,
             description: cleanDescription,
-            image_url: uploadedUrls[0], 
-            images: uploadedUrls
+            image_url: uploadedUrls[0],
+            images: uploadedUrls,
           }
         ]);
-        
+
       if (dbError) throw dbError;
-      
+
       showToast("WAITLIST ITEM DEPLOYED SUCCESSFULLY.");
       setNewWaitlistProduct({ name: '', price: '', badge: '', description: '', files: [], previews: [] });
       if (document.getElementById('waitlist-image-input')) document.getElementById('waitlist-image-input').value = '';
-      
     } catch (err) {
       showToast(`UPLOAD ERROR: ${err.message.toUpperCase()}`);
     } finally {
@@ -347,7 +408,6 @@ export default function AdminDashboard() {
 
   const submitEditWaitlistProduct = async (e) => {
     e.preventDefault();
-    
     const cleanName = editingWaitlistProduct.name.trim();
     const cleanPrice = String(editingWaitlistProduct.rawPrice).trim();
     const cleanBadge = editingWaitlistProduct.badge ? editingWaitlistProduct.badge.trim() : null;
@@ -359,18 +419,12 @@ export default function AdminDashboard() {
       let finalImageUrls = editingWaitlistProduct.images || [editingWaitlistProduct.image_url];
 
       if (editWaitlistFiles.length > 0) {
-        finalImageUrls = []; 
+        finalImageUrls = [];
         showToast('UPDATING IMAGES TO CLOUDFLARE...');
 
         for (const file of editWaitlistFiles) {
-          const formData = new FormData();
-          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
-          formData.append("file", safeFile);
-          
-          const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-          const resData = await uploadRes.json();
-          if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
-          finalImageUrls.push(resData.url);
+          const url = await uploadAsset(file);
+          finalImageUrls.push(url);
           await networkDelay(300);
         }
       }
@@ -381,7 +435,7 @@ export default function AdminDashboard() {
         badge: cleanBadge ? cleanBadge.toUpperCase() : null,
         description: cleanDescription,
         image_url: finalImageUrls[0],
-        images: finalImageUrls
+        images: finalImageUrls,
       }).eq('id', editingWaitlistProduct.id);
 
       if (dbError) throw dbError;
@@ -421,7 +475,7 @@ export default function AdminDashboard() {
   };
 
   const handleImageChange = (id, e) => {
-    const selectedFiles = Array.from(e.target.files).slice(0, 5); 
+    const selectedFiles = Array.from(e.target.files).slice(0, 5);
     if (selectedFiles.length > 0) {
       const previews = selectedFiles.map(file => URL.createObjectURL(file));
       setProductsList(prev => prev.map(p => p.id === id ? { ...p, files: selectedFiles, previews } : p));
@@ -434,20 +488,19 @@ export default function AdminDashboard() {
 
     try {
       let detailedError = '';
-      
       const cleanedProducts = productsList.map(p => ({
         ...p,
         name: p.name.trim(),
         price: String(p.price).trim(),
-        stock: String(p.stock).trim()
+        stock: String(p.stock).trim(),
       }));
 
       cleanedProducts.forEach((product, index) => {
         if (detailedError) return;
         const itemNum = index + 1;
-        if (!product.name || product.name === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
-        else if (!product.price || product.price === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
-        else if (!product.stock || product.stock === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
+        if (!product.name) detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
+        else if (!product.price) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
+        else if (!product.stock) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
         else if (!product.files || product.files.length === 0) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING ATTACHED IMAGES.`;
       });
 
@@ -456,52 +509,40 @@ export default function AdminDashboard() {
         return showToast(`ERROR: ${detailedError}`);
       }
 
-      showToast('UPLOADING IMAGES TO CLOUDFLARE... PLEASE KEEP BROWSER OPEN.');
+      showToast('UPLOADING IMAGES TO CLOUDFLARE...');
 
       for (const product of cleanedProducts) {
         let imageUrls = [];
-        
         for (const file of product.files) {
-          const formData = new FormData();
-          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
-          formData.append("file", safeFile);
-
-          const uploadRes = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-          
-          const resData = await uploadRes.json();
-          if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
-          
-          imageUrls.push(resData.url);
-          await networkDelay(500); 
+          const url = await uploadAsset(file);
+          imageUrls.push(url);
+          await networkDelay(500);
         }
 
-        const { error: dbError } = await supabase.from('products').insert([{ 
-          name: product.name.toUpperCase(), 
-          price: parseFloat(product.price), 
-          stock_quantity: parseInt(product.stock), 
+        const { error: dbError } = await supabase.from('products').insert([{
+          name: product.name.toUpperCase(),
+          price: parseFloat(product.price),
+          stock_quantity: parseInt(product.stock),
           category: product.category || 'bags',
-          description: product.description || null, 
-          additional_information: product.additional_information || null, 
-          store_policies: product.store_policies || null, 
-          inquiries: product.inquiries || null, 
+          description: product.description || null,
+          additional_information: product.additional_information || null,
+          store_policies: product.store_policies || null,
+          inquiries: product.inquiries || null,
           published_at: product.published_at ? new Date(product.published_at).toISOString() : new Date().toISOString(),
-          image: imageUrls, 
-          is_sold_out: parseInt(product.stock) <= 0 
+          image: imageUrls,
+          is_sold_out: parseInt(product.stock) <= 0,
         }]);
-        
+
         if (dbError) throw new Error(dbError.message);
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
       setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
-      setInventoryMode('manage'); 
-    } catch (error) { 
-      showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`); 
-    } finally { 
-      setDisabled(false); 
+      setInventoryMode('manage');
+    } catch (error) {
+      showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
+    } finally {
+      setDisabled(false);
     }
   };
 
@@ -547,23 +588,12 @@ export default function AdminDashboard() {
       let finalImageUrls = extractCleanUrls(editingProduct.image);
 
       if (editFiles.length > 0) {
-        finalImageUrls = []; 
-        showToast('UPDATING IMAGES TO CLOUDFLARE... PLEASE KEEP BROWSER OPEN.');
+        finalImageUrls = [];
+        showToast('UPDATING IMAGES TO CLOUDFLARE...');
 
         for (const file of editFiles) {
-          const formData = new FormData();
-          const safeFile = new File([file], `item-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
-          formData.append("file", safeFile);
-
-          const uploadRes = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-          
-          const resData = await uploadRes.json();
-          if (resData.error || !resData.url) throw new Error(resData.error || "Failed to retrieve Cloudflare URL");
-
-          finalImageUrls.push(resData.url);
+          const url = await uploadAsset(file);
+          finalImageUrls.push(url);
           await networkDelay(500);
         }
       }
@@ -579,7 +609,7 @@ export default function AdminDashboard() {
         inquiries: editingProduct.inquiries || null,
         published_at: editingProduct.published_at ? new Date(editingProduct.published_at).toISOString() : new Date().toISOString(),
         image: finalImageUrls,
-        is_sold_out: parseInt(cleanStock) <= 0
+        is_sold_out: parseInt(cleanStock) <= 0,
       }).eq('id', editingProduct.id);
 
       if (dbError) throw new Error(dbError.message);
@@ -600,7 +630,7 @@ export default function AdminDashboard() {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: currentStatus, estimated_delivery: estDelivery } : o));
       const { error } = await supabase.from('orders').update({ status: currentStatus, estimated_delivery: estDelivery }).eq('id', orderId);
       if (error) throw error;
-      
+
       showToast(`FULFILLMENT SWITCHED TO: ${currentStatus.toUpperCase()}`);
       setInterceptedOrder(null);
       setDeliveryDays('');
@@ -617,11 +647,11 @@ export default function AdminDashboard() {
             <td style="padding: 14px 0; border-bottom: 1px solid #1A1A1A; font-size: 10px; tracking: 0.15em; color: #FFFFFF; text-align: right; font-family: monospace;">${symbol}${(i.price * i.quantity).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}</td>
           </tr>
         `).join('');
-        
+
         if (orderData.customer_email) {
           let statusHeader = 'ORDER PROCESSING';
           let statusMessage = 'Your exclusive acquisition is being prepared by our team.';
-          
+
           if (currentStatus === 'shipped') {
             statusHeader = 'DISPATCH EN ROUTE';
             statusMessage = `Your parcel has left our central directory and is currently in transit. ${estDelivery ? `<br/><br/>ESTIMATED DELIVERY PORTAL:<br/><strong style="color: #FFFFFF; font-size: 12px; tracking: 0.2em;">${estDelivery.toUpperCase()}</strong>` : ''}`;
@@ -648,17 +678,17 @@ export default function AdminDashboard() {
               </table>
             </body></html>
           `;
-          
-          await fetch('/api/send', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-              to: orderData.customer_email, 
+
+          await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: orderData.customer_email,
               fromEmail: 'shipping@ssikamore.com',
               fromName: 'S. SIKAMÒRE LOGISTICS',
-              subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`, 
-              html: clientHtmlTemplate 
-            }) 
+              subject: `S. SIKAMÒRE ORDER UPDATE: ${currentStatus.toUpperCase()}`,
+              html: clientHtmlTemplate
+            })
           });
         }
 
@@ -679,19 +709,19 @@ export default function AdminDashboard() {
               </table>
             </body></html>
           `;
-          
-          await fetch('/api/send', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-              to: 'shipping@ssikamore.com', 
+
+          await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: 'shipping@ssikamore.com',
               fromEmail: 'shipping@ssikamore.com',
               fromName: 'S. SIKAMÒRE AUTOMATION',
-              subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`, 
-              html: vendorHtml 
-            }) 
+              subject: `DISPATCH ALERT: ORDER #${orderId.slice(0,8).toUpperCase()} HAS SHIPPED`,
+              html: vendorHtml
+            })
           });
-          
+
         }
       }
     } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
@@ -705,7 +735,7 @@ export default function AdminDashboard() {
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
-    
+
     if (subscribers.length === 0) {
       return showToast("DISPATCH DENIED: ACTIVE REGISTRY SIZE IS 0 PROFILES.");
     }
@@ -716,7 +746,7 @@ export default function AdminDashboard() {
       const formattedLines = newsletterMsg.replace(/\n/g, '<br />');
       const gridProducts = liveProducts.slice(0, 2);
       let productGridHtml = '';
-      
+
       if (gridProducts.length >= 2) {
         const img1 = getPrimaryImage(gridProducts[0].image);
         const img2 = getPrimaryImage(gridProducts[1].image);
@@ -789,7 +819,7 @@ export default function AdminDashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: sub.email,
-              fromEmail: 'hello@ssikamore.com', 
+              fromEmail: 'hello@ssikamore.com',
               fromName: 'S. SIKAMÒRE',
               subject: newsletterSubj.toUpperCase(),
               html: customHTMLTemplate
@@ -820,7 +850,7 @@ export default function AdminDashboard() {
 
       const { error } = await supabase.from('support_tickets').update({ chat_history: updatedHistory, status: 'replied', has_unread_user: true }).eq('id', activeChat.id);
       if (error) throw error;
-      
+
       if (typingChannelRef.current) typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { sender: 'admin', isTyping: false } });
       setReplyText('');
     } catch (err) { showToast(`ERROR: ${err.message.toUpperCase()}`); } finally { setSendingReply(false); }
@@ -828,7 +858,7 @@ export default function AdminDashboard() {
 
   const filteredOrders = orders.filter(o => {
     const q = orderSearch.toLowerCase();
-    const matchesSearch = o.id.toLowerCase().includes(q) || 
+    const matchesSearch = o.id.toLowerCase().includes(q) ||
            (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
            (o.customer_email && o.customer_email.toLowerCase().includes(q));
 
@@ -854,7 +884,7 @@ export default function AdminDashboard() {
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
             <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="ADMIN EMAIL" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
             <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="SECURE PASSWORD" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-center tracking-widest text-black uppercase" />
-            
+
             <button type="submit" disabled={isAuthenticating} className="w-full bg-black text-white py-4 text-[10px] tracking-[0.2em] uppercase hover:bg-zinc-800 font-medium transition-colors disabled:opacity-50">
               {isAuthenticating ? 'VERIFYING...' : 'Unlock Dashboard'}
             </button>
@@ -867,7 +897,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-zinc-50 text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
-        
+
         <div className="mb-10 text-center relative">
           <div className="absolute right-0 top-0">
             <button onClick={handleLogout} className="text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
@@ -884,7 +914,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- TAB 0: WAITLIST MANAGEMENT --- */}
+        {/* --- WAITLIST TAB --- */}
         {activeTab === 'waitlist' && (
           <div className="animate-fade-in space-y-6">
             <div className="flex border-b border-zinc-200 pb-2">
@@ -969,12 +999,12 @@ export default function AdminDashboard() {
                         <span>Campaign Gallery (Up to 5)</span>
                         <span className="text-blue-500 font-bold tracking-widest">R2 ZERO-EGRESS</span>
                       </label>
-                      <input id="waitlist-image-input" type="file" multiple accept="image/jpeg, image/png, image/webp" onChange={e => handleWaitlistImageChange(e, !!editingWaitlistProduct)} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                      <input id="waitlist-image-input" type="file" multiple accept="image/*" onChange={e => handleWaitlistImageChange(e, !!editingWaitlistProduct)} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                     </div>
-                    
+
                     <div className="flex gap-2 flex-wrap">
-                      {(editingWaitlistProduct 
-                        ? (editWaitlistPreviews.length > 0 ? editWaitlistPreviews : (editingWaitlistProduct.images || [editingWaitlistProduct.image_url])) 
+                      {(editingWaitlistProduct
+                        ? (editWaitlistPreviews.length > 0 ? editWaitlistPreviews : (editingWaitlistProduct.images || [editingWaitlistProduct.image_url]))
                         : newWaitlistProduct.previews
                       ).map((p, i) => (
                         <div key={i} className="w-16 h-20 border border-zinc-200 p-1">
@@ -982,7 +1012,7 @@ export default function AdminDashboard() {
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="flex gap-4 mt-2">
                       <button type="submit" disabled={isDeployingWaitlist} className="flex-1 bg-black text-white py-4 text-[10px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium transition-colors disabled:opacity-50">
                         {isDeployingWaitlist ? 'UPLOADING...' : editingWaitlistProduct ? 'SAVE CHANGES' : 'UPLOAD ITEM'}
@@ -1024,7 +1054,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 1: INVENTORY MANAGEMENT --- */}
+        {/* --- INVENTORY TAB --- */}
         {activeTab === 'inventory' && (
           <div className="animate-fade-in space-y-6">
             <div className="flex border-b border-zinc-200 pb-2">
@@ -1044,7 +1074,7 @@ export default function AdminDashboard() {
                       <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Edit Product: {editingProduct.name}</h2>
                       <button onClick={() => setEditingProduct(null)} className="text-[9px] text-zinc-500 hover:text-black uppercase tracking-widest transition-colors">← Cancel Edit</button>
                     </div>
-                    
+
                     <form onSubmit={submitEditProduct} className="flex flex-col gap-10">
                       <div className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -1095,14 +1125,14 @@ export default function AdminDashboard() {
 
                         <div className="flex items-center gap-6">
                           <div className="flex gap-2">
-                            {editPreviews.length > 0 
-                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />) 
+                            {editPreviews.length > 0
+                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />)
                               : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />)
                             }
                           </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
-                            <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={handleEditImageChange} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                            <input type="file" accept="image/*" multiple onChange={handleEditImageChange} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                           </div>
                         </div>
                       </div>
@@ -1153,7 +1183,7 @@ export default function AdminDashboard() {
                   <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Product Deployment</h2>
                   <button onClick={addProductRow} className="text-[9px] bg-zinc-100 hover:bg-zinc-200 text-black px-4 py-2 uppercase tracking-widest transition-colors">+ Add Row</button>
                 </div>
-                
+
                 <form onSubmit={handleBulkSubmit} className="flex flex-col gap-10">
                   {productsList.map((product, index) => (
                     <div key={product.id} className="relative border border-zinc-200 p-6 bg-zinc-50 rounded-sm">
@@ -1161,7 +1191,7 @@ export default function AdminDashboard() {
                         <button type="button" onClick={() => removeProductRow(product.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 text-xs">✕</button>
                       )}
                       <p className="text-[9px] tracking-[0.2em] text-zinc-500 mb-4 uppercase font-medium">Item 0{index + 1}</p>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                         <div>
                           <label className="block text-[9px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Product Name</label>
@@ -1218,7 +1248,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
-                          <input type="file" accept="image/jpeg, image/png, image/webp" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
+                          <input type="file" accept="image/*" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
                         </div>
                       </div>
                     </div>
@@ -1233,7 +1263,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 2: REAL-TIME ORDER FULFILLMENT TRACKER --- */}
+        {/* --- TRACKER TAB --- */}
         {activeTab === 'tracker' && (
           <div className="space-y-6 animate-fade-in">
             <div className="flex border-b border-zinc-200 pb-2 mb-6">
@@ -1247,12 +1277,12 @@ export default function AdminDashboard() {
 
             <div className="bg-white border border-zinc-200 p-4 rounded-sm shadow-sm flex items-center gap-3">
               <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input 
-                type="text" 
-                placeholder="Search by Order ID (e.g. SKM_123), Customer Name, or Email..." 
-                value={orderSearch} 
-                onChange={e => setOrderSearch(e.target.value)} 
-                className="w-full bg-transparent outline-none text-base md:text-[11px] tracking-widest uppercase text-black" 
+              <input
+                type="text"
+                placeholder="Search by Order ID (e.g. SKM_123), Customer Name, or Email..."
+                value={orderSearch}
+                onChange={e => setOrderSearch(e.target.value)}
+                className="w-full bg-transparent outline-none text-base md:text-[11px] tracking-widest uppercase text-black"
               />
             </div>
 
@@ -1266,7 +1296,7 @@ export default function AdminDashboard() {
                       <p className="text-[8px] tracking-widest text-zinc-500 uppercase font-mono">ORDER ID: #{order.id.slice(0,8).toUpperCase()}</p>
                       <h3 className="text-xs font-medium text-black uppercase tracking-wider mt-1">{order.customer_name} • <span className="text-zinc-500 font-normal normal-case">{order.customer_email}</span></h3>
                     </div>
-                    
+
                     {order.status === 'pending_payment' ? (
                       <div className="bg-zinc-100 text-zinc-500 px-4 py-2.5 text-[9px] tracking-widest uppercase font-medium border border-zinc-200 mt-4 sm:mt-0 w-full sm:w-auto text-center cursor-not-allowed">
                         Awaiting Payment
@@ -1323,8 +1353,8 @@ export default function AdminDashboard() {
             )}
 
             {visibleOrderCount < filteredOrders.length && (
-              <button 
-                onClick={() => setVisibleOrderCount(prev => prev + 10)} 
+              <button
+                onClick={() => setVisibleOrderCount(prev => prev + 10)}
                 className="w-full bg-white border border-zinc-200 text-black py-4 text-[9px] tracking-widest uppercase hover:bg-zinc-50 transition-colors rounded-sm shadow-sm"
               >
                 Load More Orders
@@ -1333,7 +1363,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 3: REGISTERED CLIENTS DIRECTORY --- */}
+        {/* --- CLIENTS TAB --- */}
         {activeTab === 'clients' && (
           <div className="space-y-6 animate-fade-in">
             <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200 rounded-sm">
@@ -1369,13 +1399,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB: REAL-TIME LOGISTICS & CURRENCY CONTROLS --- */}
+        {/* --- LOGISTICS TAB --- */}
         {activeTab === 'logistics' && (
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 border border-zinc-200 shadow-sm rounded-sm animate-fade-in">
             <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Global Logistics & Currency Matrix</h3>
-            
-            <form 
-              key={logisticsSettings?.updated_at || 'loading'} 
+
+            <form
+              key={logisticsSettings?.updated_at || 'loading'}
               onSubmit={async (e) => {
                 e.preventDefault();
                 try {
@@ -1389,41 +1419,41 @@ export default function AdminDashboard() {
 
                   const { error } = await supabase
                     .from('shipping_settings')
-                    .update({ 
-                      mainland_fee: mainFee, 
-                      island_fee: islFee, 
-                      interstate_fee: interFee, 
+                    .update({
+                      mainland_fee: mainFee,
+                      island_fee: islFee,
+                      interstate_fee: interFee,
                       northern_fee: northFee,
                       usd_to_ngn_rate: dynamicUsdRate,
                       international_fee_africa: feeAfrica,
                       international_fee_global: feeGlobal,
-                      updated_at: new Date().toISOString()
+                      updated_at: new Date().toISOString(),
                     })
                     .eq('id', 1);
 
                   if (error) throw error;
-                  
-                  setLogisticsSettings({ 
-                    mainland_fee: mainFee, 
-                    island_fee: islFee, 
-                    interstate_fee: interFee, 
+
+                  setLogisticsSettings({
+                    mainland_fee: mainFee,
+                    island_fee: islFee,
+                    interstate_fee: interFee,
                     northern_fee: northFee,
                     usd_to_ngn_rate: dynamicUsdRate,
                     international_fee_africa: feeAfrica,
                     international_fee_global: feeGlobal,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                   });
-                  
+
                   showToast("GLOBAL LOGISTICS CONFIGURATION BROADCASTED LIVE.");
                 } catch (err) {
                   showToast("MUTATION ERROR: MASTER LEDGER PUSH FAILED.");
                 }
-              }} 
+              }}
               className="space-y-6"
             >
               <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-sm space-y-6">
                 <span className="text-[7.5px] font-mono text-zinc-400 uppercase tracking-widest block font-bold">— International Currency & Price Director —</span>
-                
+
                 <div>
                   <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Custom Exchange Rate Base (1 USD = ? NGN)</label>
                   <input type="text" inputMode="numeric" pattern="[0-9]*" name="usdRate" defaultValue={logisticsSettings?.usd_to_ngn_rate || 1500} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
@@ -1440,7 +1470,7 @@ export default function AdminDashboard() {
                     <input type="text" inputMode="numeric" pattern="[0-9]*" name="intlShippingGlobalUSD" defaultValue={logisticsSettings?.international_fee_global || 55} required className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black font-mono font-bold" />
                   </div>
                 </div>
-                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location. Users will now ALWAYS see this explicit shipping charge applied to their total at checkout.</p>
+                <p className="text-[8px] text-zinc-400 normal-case mt-2 italic">Set distinct regional delivery fees based on customer location.</p>
               </div>
 
               <div className="space-y-4 pt-4 mb-4">
@@ -1470,7 +1500,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 4: THE ARCHIVE EDITORIAL CAMPAIGN DISPATCHER & REGISTRY --- */}
+        {/* --- NEWSLETTER TAB --- */}
         {activeTab === 'newsletter' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
             <div className="lg:col-span-2 bg-white text-black p-6 sm:p-8 border border-zinc-200 shadow-sm flex flex-col justify-between rounded-sm">
@@ -1516,10 +1546,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 5: LIVE CUSTOMER CONCIERGE CHAT SUPPORT --- */}
+        {/* --- SUPPORT TAB --- */}
         {activeTab === 'support' && (
           <div className="bg-white text-black p-0 flex flex-col md:flex-row h-[600px] border border-zinc-200 shadow-sm animate-fade-in relative overflow-hidden rounded-sm">
-            
             <div className={`w-full md:w-1/3 border-r border-zinc-200 bg-zinc-50 overflow-y-auto ${activeChat ? 'hidden md:block' : 'block'} h-full`}>
               <div className="p-6 border-b border-zinc-200 sticky top-0 bg-zinc-50 z-10">
                 <h2 className="text-xs tracking-[0.3em] text-black uppercase font-medium">Support Inbox</h2>
@@ -1562,7 +1591,7 @@ export default function AdminDashboard() {
                         <div className={`max-w-[85%] p-4 text-[11px] leading-relaxed tracking-wider border rounded-sm ${msg.sender === 'admin' ? 'bg-black border-black text-white' : 'bg-white border-zinc-200 text-black font-medium'}`}>{msg.text}</div>
                       </div>
                     ))}
-                    
+
                     {isUserTyping && (
                       <div className="flex flex-col items-start animate-fade-in">
                         <span className="text-[8px] tracking-[0.2em] text-zinc-400 uppercase mb-1">{activeChat.name} IS TYPING...</span>
@@ -1570,7 +1599,7 @@ export default function AdminDashboard() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
-                  
+
                   <form onSubmit={handleAdminReply} className="p-6 border-t border-zinc-200 bg-white flex gap-4 shrink-0">
                     <input type="text" value={replyText} onChange={handleAdminTyping} placeholder="Type a response to dispatch..." className="flex-1 bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wide placeholder-zinc-400 rounded-sm transition-colors" />
                     <button type="submit" disabled={sendingReply || !replyText.trim()} className="bg-black text-white px-6 text-[9px] tracking-widest uppercase font-medium hover:bg-zinc-800 transition-colors disabled:opacity-30 rounded-sm">{sendingReply ? 'SENDING...' : 'DISPATCH'}</button>
@@ -1585,7 +1614,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 6: VENDOR LEDGER --- */}
+        {/* --- VENDORS TAB --- */}
         {activeTab === 'vendors' && (
           <div className="bg-white text-black border border-zinc-200 shadow-sm flex flex-col md:flex-row h-[600px] animate-fade-in rounded-sm overflow-hidden">
             <div className="w-full md:w-1/3 border-r border-zinc-200 bg-zinc-50 overflow-y-auto h-full">
@@ -1629,7 +1658,7 @@ export default function AdminDashboard() {
                               <span>ORDER STAMP: #{vo.id.slice(0,8).toUpperCase()}</span>
                               <span>{new Date(vo.created_at).toLocaleDateString()}</span>
                             </div>
-                            
+
                             <div className="mb-4 text-[9px] text-zinc-600 uppercase tracking-wider bg-white p-3 border border-zinc-200">
                               <span className="block text-zinc-400 text-[8px] mb-1 font-medium">Shipping Destination:</span>
                               <span className="text-black">{vo.shipping_address || 'N/A'}</span> <br/>
@@ -1669,10 +1698,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- TAB 7: REAL-TIME ANALYTICS --- */}
+        {/* --- ANALYTICS TAB --- */}
         {activeTab === 'analytics' && (
           <div className="space-y-8 animate-fade-in">
-            {/* Top Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
                 <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-1 font-medium">Total Site Visits</span>
@@ -1687,8 +1715,7 @@ export default function AdminDashboard() {
                 <h2 className="text-3xl font-light tracking-wide text-black font-serif">{clickThroughRate}% <span className="text-[9px] tracking-widest text-zinc-400 uppercase font-sans">Rate</span></h2>
               </div>
             </div>
-            
-            {/* Product Performance Leaderboard */}
+
             <div className="bg-white text-black border border-zinc-200 p-6 sm:p-8 shadow-sm rounded-sm">
               <div className="border-b border-zinc-200 pb-3 mb-6">
                 <h4 className="text-[10px] tracking-widest uppercase text-black font-medium">Product Engagement Metrics Ledger</h4>
@@ -1718,7 +1745,7 @@ export default function AdminDashboard() {
                         name,
                         views: statsMap[name].views,
                         carts: statsMap[name].carts,
-                        rate: statsMap[name].views > 0 ? ((statsMap[name].carts / statsMap[name].views) * 100).toFixed(1) : 0
+                        rate: statsMap[name].views > 0 ? ((statsMap[name].carts / statsMap[name].views) * 100).toFixed(1) : 0,
                       })).sort((a, b) => b.views - a.views);
 
                       if (sortedStats.length === 0) {
@@ -1743,7 +1770,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Live Interaction Log */}
             <div className="bg-white text-black border border-zinc-200 p-6 sm:p-8 shadow-sm rounded-sm">
               <div className="border-b border-zinc-200 pb-3 mb-4 flex justify-between items-center">
                 <h4 className="text-[10px] tracking-widest uppercase text-black font-medium">Real-Time Interaction Feed Matrix</h4>
@@ -1782,7 +1808,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
