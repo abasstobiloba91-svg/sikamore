@@ -12,7 +12,7 @@ export async function POST(request) {
     }
 
     const s3Client = new S3Client({
-      region: "auto", 
+      region: "us-east-1", // <-- THIS WAS THE CULPRIT. It must be a valid AWS region format.
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: {
         accessKeyId: accessKey,
@@ -37,7 +37,7 @@ export async function POST(request) {
 
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: "ssikamore-assets", // <-- HARDCODED: Vercel can no longer mess this up
+        Bucket: "ssikamore-assets",
         Key: fileName,
         Body: buffer,
         ContentType: file.type || "image/jpeg",
