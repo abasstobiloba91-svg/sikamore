@@ -24,7 +24,7 @@ const extractCleanUrls = (payload) => {
 
 const getPrimaryImage = (payload) => {
   if (!payload) return '';
-  if (typeof payload === 'string' && !payload.includes('[')) return payload; // For Cloudflare direct links
+  if (typeof payload === 'string' && !payload.includes('[')) return payload;
   try {
     const raw = JSON.stringify(payload);
     const match = raw.match(/https?:\/\/[^,;"'\[\]\s]+\.(?:jpg|jpeg|png|webp)/i);
@@ -287,7 +287,14 @@ export default function AdminDashboard() {
 
   const handleWaitlistProductUpload = async (e) => {
     e.preventDefault();
-    if (newWaitlistProduct.files.length === 0 || !newWaitlistProduct.name || !newWaitlistProduct.price) {
+    
+    // RUTHLESS MOBILE AUTOCORRECT TRIM FIX
+    const cleanName = newWaitlistProduct.name.trim();
+    const cleanPrice = String(newWaitlistProduct.price).trim();
+    const cleanBadge = newWaitlistProduct.badge ? newWaitlistProduct.badge.trim() : null;
+    const cleanDescription = newWaitlistProduct.description ? newWaitlistProduct.description.trim() : null;
+
+    if (newWaitlistProduct.files.length === 0 || !cleanName || !cleanPrice) {
       return showToast("PLEASE COMPLETE ALL REQUIRED FIELDS AND ATTACH AT LEAST ONE IMAGE.");
     }
     
@@ -310,10 +317,10 @@ export default function AdminDashboard() {
         .from('waitlist_products')
         .insert([
           { 
-            name: newWaitlistProduct.name.toUpperCase(), 
-            price: `₦${parseFloat(newWaitlistProduct.price).toLocaleString()}`, 
-            badge: newWaitlistProduct.badge ? newWaitlistProduct.badge.toUpperCase() : null,
-            description: newWaitlistProduct.description,
+            name: cleanName.toUpperCase(), 
+            price: `₦${parseFloat(cleanPrice).toLocaleString()}`, 
+            badge: cleanBadge ? cleanBadge.toUpperCase() : null,
+            description: cleanDescription,
             image_url: uploadedUrls[0], 
             images: uploadedUrls
           }
@@ -341,6 +348,13 @@ export default function AdminDashboard() {
 
   const submitEditWaitlistProduct = async (e) => {
     e.preventDefault();
+    
+    // RUTHLESS MOBILE AUTOCORRECT TRIM FIX
+    const cleanName = editingWaitlistProduct.name.trim();
+    const cleanPrice = String(editingWaitlistProduct.rawPrice).trim();
+    const cleanBadge = editingWaitlistProduct.badge ? editingWaitlistProduct.badge.trim() : null;
+    const cleanDescription = editingWaitlistProduct.description ? editingWaitlistProduct.description.trim() : null;
+
     setIsDeployingWaitlist(true);
 
     try {
@@ -362,10 +376,10 @@ export default function AdminDashboard() {
       }
 
       const { error: dbError } = await supabase.from('waitlist_products').update({
-        name: editingWaitlistProduct.name.toUpperCase(),
-        price: `₦${parseFloat(editingWaitlistProduct.rawPrice).toLocaleString()}`,
-        badge: editingWaitlistProduct.badge ? editingWaitlistProduct.badge.toUpperCase() : null,
-        description: editingWaitlistProduct.description,
+        name: cleanName.toUpperCase(),
+        price: `₦${parseFloat(cleanPrice).toLocaleString()}`,
+        badge: cleanBadge ? cleanBadge.toUpperCase() : null,
+        description: cleanDescription,
         image_url: finalImageUrls[0],
         images: finalImageUrls
       }).eq('id', editingWaitlistProduct.id);
@@ -421,12 +435,21 @@ export default function AdminDashboard() {
 
     try {
       let detailedError = '';
-      productsList.forEach((product, index) => {
+      
+      // Clean all inputs before checking to fix mobile autocorrect
+      const cleanedProducts = productsList.map(p => ({
+        ...p,
+        name: p.name.trim(),
+        price: String(p.price).trim(),
+        stock: String(p.stock).trim()
+      }));
+
+      cleanedProducts.forEach((product, index) => {
         if (detailedError) return;
         const itemNum = index + 1;
-        if (!product.name || String(product.name).trim() === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
-        else if (!product.price || String(product.price).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
-        else if (!product.stock || String(product.stock).trim() === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
+        if (!product.name || product.name === '') detailedError = `ITEM 0${itemNum} IS MISSING A PRODUCT NAME.`;
+        else if (!product.price || product.price === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A PRICE.`;
+        else if (!product.stock || product.stock === '') detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING A STOCK QUANTITY.`;
         else if (!product.files || product.files.length === 0) detailedError = `ITEM 0${itemNum} (${product.name.toUpperCase()}) IS MISSING ATTACHED IMAGES.`;
       });
 
@@ -437,7 +460,7 @@ export default function AdminDashboard() {
 
       showToast('UPLOADING IMAGES TO CLOUDFLARE... PLEASE KEEP BROWSER OPEN.');
 
-      for (const product of productsList) {
+      for (const product of cleanedProducts) {
         let imageUrls = [];
         
         for (const file of product.files) {
@@ -517,6 +540,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsUpdating(true);
 
+    // MOBILE TRIM FIX
+    const cleanPrice = String(editingProduct.price).trim();
+    const cleanStock = String(editingProduct.stock_quantity).trim();
+    const cleanName = editingProduct.name.trim();
+
     try {
       let finalImageUrls = extractCleanUrls(editingProduct.image);
 
@@ -542,9 +570,9 @@ export default function AdminDashboard() {
       }
 
       const { error: dbError } = await supabase.from('products').update({
-        name: editingProduct.name.toUpperCase(),
-        price: parseFloat(editingProduct.price),
-        stock_quantity: parseInt(editingProduct.stock_quantity),
+        name: cleanName.toUpperCase(),
+        price: parseFloat(cleanPrice),
+        stock_quantity: parseInt(cleanStock),
         category: editingProduct.category || 'bags',
         description: editingProduct.description || null,
         additional_information: editingProduct.additional_information || null,
@@ -552,7 +580,7 @@ export default function AdminDashboard() {
         inquiries: editingProduct.inquiries || null,
         published_at: editingProduct.published_at ? new Date(editingProduct.published_at).toISOString() : new Date().toISOString(),
         image: finalImageUrls,
-        is_sold_out: parseInt(editingProduct.stock_quantity) <= 0
+        is_sold_out: parseInt(cleanStock) <= 0
       }).eq('id', editingProduct.id);
 
       if (dbError) throw new Error(dbError.message);
