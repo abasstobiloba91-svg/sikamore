@@ -146,6 +146,7 @@ export default function AdminDashboard() {
   const [editWaitlistFiles, setEditWaitlistFiles] = useState([]);
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
+  const [pushingProduct, setPushingProduct] = useState(null);
 
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -459,6 +460,98 @@ export default function AdminDashboard() {
       showToast("WAITLIST ITEM REMOVED.");
     } catch (err) {
       showToast(`DELETE ERROR: ${err.message.toUpperCase()}`);
+    }
+  };
+
+  const handlePushToStore = async (wp) => {
+    const stock = window.prompt(`Enter initial stock quantity for ${wp.name}:`, "10");
+    if (!stock || isNaN(stock)) return;
+
+    const numStock = parseInt(stock, 10);
+    const numPrice = parseFloat(String(wp.price).replace(/[^\d.]/g, ''));
+    
+    setPushingProduct(wp.id);
+    showToast(`PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
+
+    try {
+      // 1. Move to Live Store
+      const { error: insertErr } = await supabase.from('products').insert([{
+        name: wp.name,
+        price: numPrice,
+        stock_quantity: numStock,
+        category: 'bags',
+        description: wp.description,
+        image: wp.images && wp.images.length > 0 ? wp.images : [wp.image_url],
+        is_sold_out: numStock <= 0,
+        published_at: new Date().toISOString()
+      }]);
+      if (insertErr) throw insertErr;
+
+      // 2. Find waitlisters & calculate currency
+      const interestedLeads = waitlistLeads.filter(lead => 
+        lead.design_interest && lead.design_interest.toLowerCase().includes(wp.name.toLowerCase())
+      );
+      const usdRate = logisticsSettings?.usd_to_ngn_rate || 1500;
+
+      // 3. Dispatch Emails
+      if (interestedLeads.length > 0) {
+        showToast(`DISPATCHING EMAILS TO ${interestedLeads.length} WAITLISTED PROFILES...`);
+        
+        await Promise.all(interestedLeads.map(async (lead) => {
+          if (!lead.email) return;
+          
+          const isNigeria = lead.country && lead.country.toLowerCase() === 'nigeria';
+          const displayPrice = isNigeria ? `₦${numPrice.toLocaleString()}` : `$${Math.round(numPrice / usdRate).toLocaleString()}`;
+
+          const emailHtml = `
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="margin:0; padding:0; background-color:#000000; font-family:-apple-system, sans-serif;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#000000; padding:60px 10px;">
+                <tr><td align="center">
+                  <table width="522" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1A1A1A; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
+                    <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:18px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h1></td></tr>
+                    <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">PRIVATE RESERVE UNLOCKED</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
+                    <tr><td style="padding:20px 10px; font-size:10px; line-height:2.2; letter-spacing:0.12em; color:#A3A3A3; text-align:center;">
+                      The wait is over. The piece you requested from our exclusive waitlist is now officially available for purchase on the storefront.
+                    </td></tr>
+                    <tr>
+                      <td align="center" style="padding-top:20px;">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#111111; border:1px solid #1A1A1A; padding:30px 20px; text-align:center;">
+                          <tr><td style="padding-bottom:20px;"><img src="${wp.image_url}" width="180" style="border:1px solid #333; display:inline-block;" /></td></tr>
+                          <tr><td style="font-size:12px; color:#FFFFFF; tracking:0.25em; padding-bottom:5px; font-weight:bold;">${wp.name.toUpperCase()}</td></tr>
+                          <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-bottom:25px;">${displayPrice}</td></tr>
+                          <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ACQUIRE NOW</a></td></tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr><td align="center" style="padding-top:60px; border-top:1px solid #1A1A1A; margin-top:50px;"><p style="font-size:8px; color:#525252; margin:0; tracking:0.25em;">S. SIKAMÒRE COLLECTIVES © 2026</p></td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body></html>
+          `;
+
+          await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: lead.email,
+              fromEmail: 'shipping@ssikamore.com',
+              fromName: 'S. SIKAMÒRE',
+              subject: `UNLOCKED: ${wp.name.toUpperCase()} IS NOW LIVE`,
+              html: emailHtml
+            })
+          }).catch(e => console.error(e));
+        }));
+      }
+
+      // 4. Clean up waitlist
+      await supabase.from('waitlist_products').delete().eq('id', wp.id);
+      showToast(`SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
+    } catch (err) {
+      showToast(`ERROR PUSHING PRODUCT: ${err.message.toUpperCase()}`);
+    } finally {
+      setPushingProduct(null);
     }
   };
 
@@ -1041,9 +1134,16 @@ export default function AdminDashboard() {
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex gap-2 mt-auto">
-                            <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
-                            <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Delete</button>
-                          </div>
+                          <button 
+                           onClick={() => handlePushToStore(wp)} 
+                            disabled={pushingProduct === wp.id}
+                            className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors disabled:opacity-50"
+                           >
+                            {pushingProduct === wp.id ? '...' : 'SHIP'}
+                             </button>
+                          <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
+                        <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
+                         </div>
                         </div>
                       ))}
                     </div>
