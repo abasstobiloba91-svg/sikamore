@@ -145,9 +145,12 @@ export default function AdminDashboard() {
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
   
-  // Advanced Shipping State
+  // Custom Modal States
   const [shippingWaitlistProduct, setShippingWaitlistProduct] = useState(null);
   const [isShippingProduct, setIsShippingProduct] = useState(false);
+  const [revertingProduct, setRevertingProduct] = useState(null);
+  const [revertBadge, setRevertBadge] = useState('EXCLUSIVE');
+  const [isReverting, setIsReverting] = useState(false);
 
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -464,18 +467,18 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: REVERT LIVE PRODUCT BACK TO WAITLIST ---
-  const handleRevertToWaitlist = async (product) => {
-    if (!window.confirm(`REVERT ${product.name} TO WAITLIST?\nThis completely removes it from the live store.`)) return;
-    const badge = window.prompt("Enter a waitlist badge (Optional, e.g. ARCHIVED, EXCLUSIVE):", "EXCLUSIVE");
+  // --- NEW: REVERT TO WAITLIST USING CUSTOM MODAL ---
+  const confirmRevertToWaitlist = async (e) => {
+    e.preventDefault();
+    setIsReverting(true);
+    const product = revertingProduct;
+    const badge = revertBadge;
     
     showToast(`REVERTING ${product.name.toUpperCase()} TO WAITLIST...`);
     try {
-      // 1. Delete from Store
       const { error: delErr } = await supabase.from('products').delete().eq('id', product.id);
       if (delErr) throw delErr;
 
-      // 2. Format details and push back to waitlist
       const cleanUrls = extractCleanUrls(product.image);
 
       const { error: insErr } = await supabase.from('waitlist_products').insert([{
@@ -489,12 +492,15 @@ export default function AdminDashboard() {
       
       if (insErr) throw insErr;
       showToast("SUCCESSFULLY REVERTED TO WAITLIST.");
+      setRevertingProduct(null);
     } catch(err) {
       showToast(`REVERT ERROR: ${err.message.toUpperCase()}`);
+    } finally {
+      setIsReverting(false);
     }
   };
 
-  // --- NEW: ADVANCED PUSH TO STORE (COLLECTING ALL STORE DETAILS FIRST) ---
+  // --- NEW: SHIP TO STORE USING CUSTOM MODAL ---
   const submitShipToStore = async (e) => {
     e.preventDefault();
     setIsShippingProduct(true);
@@ -1166,7 +1172,6 @@ export default function AdminDashboard() {
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex gap-2 mt-auto">
-                            {/* ADVANCED SHIP BUTTON */}
                             <button 
                               onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '' })}
                               className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
@@ -1296,9 +1301,8 @@ export default function AdminDashboard() {
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
-                            {/* REVERT BUTTON ADDED HERE */}
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
-                              <button onClick={() => handleRevertToWaitlist(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
+                              <button onClick={() => { setRevertingProduct(product); setRevertBadge('EXCLUSIVE'); }} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
                               <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
                               <button onClick={() => handleDeleteProduct(product.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Delete</button>
                             </div>
@@ -1992,6 +1996,34 @@ export default function AdminDashboard() {
                 <button type="button" onClick={() => setShippingWaitlistProduct(null)} disabled={isShippingProduct} className="flex-1 bg-white text-black border border-zinc-200 py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-50 transition-all disabled:opacity-50">Cancel</button>
                 <button type="submit" disabled={isShippingProduct} className="flex-[2] bg-black text-white py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-800 transition-all disabled:opacity-50">
                   {isShippingProduct ? 'DISPATCHING & EMAILING...' : 'CONFIRM & PUSH TO STORE'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- NEW: BEAUTIFUL REVERT MODAL --- */}
+      {revertingProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-[#2A1810]/70 backdrop-blur-sm cursor-pointer" onClick={() => !isReverting && setRevertingProduct(null)}></div>
+          <div className="bg-white border border-zinc-200 w-full max-w-md p-6 sm:p-10 relative z-10 shadow-2xl rounded-sm">
+            <h3 className="text-sm tracking-[0.2em] font-serif uppercase text-black mb-2">
+              Revert to Waitlist
+            </h3>
+            <p className="text-[10px] tracking-wider text-zinc-500 mb-6">
+              This will completely remove <strong className="text-black uppercase">{revertingProduct.name}</strong> from the live storefront and push it back to the waitlist campaign.
+            </p>
+            <form onSubmit={confirmRevertToWaitlist} className="space-y-5 text-left">
+              <div>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Waitlist Badge (Optional)</label>
+                <input type="text" value={revertBadge} onChange={e => setRevertBadge(e.target.value)} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase" placeholder="E.G. EXCLUSIVE, ARCHIVED"/>
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button type="button" onClick={() => setRevertingProduct(null)} disabled={isReverting} className="flex-1 bg-white text-black border border-zinc-200 py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-50 transition-all disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isReverting} className="flex-1 bg-black text-white py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-800 transition-all disabled:opacity-50">
+                  {isReverting ? 'REVERTING...' : 'CONFIRM REVERT'}
                 </button>
               </div>
             </form>
