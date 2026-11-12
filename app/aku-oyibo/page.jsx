@@ -95,12 +95,17 @@ export default function AkuOyiboWaitlist() {
   const [userCountryCode, setUserCountryCode] = useState('NG');
   const [exchangeRate, setExchangeRate] = useState(1500);
 
-  useEffect(() => {
+ useEffect(() => {
     async function fetchProducts() {
-      const { data } = await supabase.from('waitlist_products').select('*').order('created_at', { ascending: true });
+      const { data } = await supabase
+        .from('waitlist_products')
+        .select('*')
+        .order('created_at', { ascending: true });
       if (data) setProducts(data);
     }
+    
     fetchProducts();
+  }, []);
 
     supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single()
       .then(({ data }) => { if (data?.usd_to_ngn_rate) setExchangeRate(data.usd_to_ngn_rate); });
