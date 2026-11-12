@@ -36,7 +36,6 @@ const getPrimaryImage = (payload) => {
 
 const networkDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// BULLETPROOF COMPRESSION: Shrinks massive PNGs/JPGs before Vercel blocks them
 const compressIfNeeded = async (file) => {
   if (file.size <= 1.5 * 1024 * 1024) return file;
 
@@ -96,7 +95,6 @@ const uploadAsset = async (file) => {
     body: formData,
   });
 
-  // Catch the Vercel 4.5MB limit specifically
   if (res.status === 413) {
     throw new Error("FILE STILL TOO LARGE: Vercel limits uploads to 4.5MB.");
   }
@@ -146,7 +144,7 @@ export default function AdminDashboard() {
   const [editWaitlistFiles, setEditWaitlistFiles] = useState([]);
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
-  const [pushingProduct, setPushingProduct] = useState(null);
+  const [pushingProduct, setPushingProduct] = useState(null); // Track waitlist transfer to store
 
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -474,7 +472,6 @@ export default function AdminDashboard() {
     showToast(`PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
 
     try {
-      // 1. Move to Live Store
       const { error: insertErr } = await supabase.from('products').insert([{
         name: wp.name,
         price: numPrice,
@@ -487,13 +484,11 @@ export default function AdminDashboard() {
       }]);
       if (insertErr) throw insertErr;
 
-      // 2. Find waitlisters & calculate currency
       const interestedLeads = waitlistLeads.filter(lead => 
         lead.design_interest && lead.design_interest.toLowerCase().includes(wp.name.toLowerCase())
       );
       const usdRate = logisticsSettings?.usd_to_ngn_rate || 1500;
 
-      // 3. Dispatch Emails
       if (interestedLeads.length > 0) {
         showToast(`DISPATCHING EMAILS TO ${interestedLeads.length} WAITLISTED PROFILES...`);
         
@@ -536,7 +531,7 @@ export default function AdminDashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: lead.email,
-              fromEmail: 'shipping@ssikamore.com',
+              fromEmail: 'hello@ssikamore.com',
               fromName: 'S. SIKAMÒRE',
               subject: `UNLOCKED: ${wp.name.toUpperCase()} IS NOW LIVE`,
               html: emailHtml
@@ -545,7 +540,6 @@ export default function AdminDashboard() {
         }));
       }
 
-      // 4. Clean up waitlist
       await supabase.from('waitlist_products').delete().eq('id', wp.id);
       showToast(`SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
     } catch (err) {
@@ -990,7 +984,6 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-zinc-50 text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
-
         <div className="mb-10 text-center relative">
           <div className="absolute right-0 top-0">
             <button onClick={handleLogout} className="text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
@@ -1134,16 +1127,16 @@ export default function AdminDashboard() {
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex gap-2 mt-auto">
-                          <button 
-                           onClick={() => handlePushToStore(wp)} 
-                            disabled={pushingProduct === wp.id}
-                            className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors disabled:opacity-50"
-                           >
-                            {pushingProduct === wp.id ? '...' : 'SHIP'}
-                             </button>
-                          <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
-                        <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
-                         </div>
+                            <button 
+                              onClick={() => handlePushToStore(wp)} 
+                              disabled={pushingProduct === wp.id}
+                              className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors disabled:opacity-50"
+                            >
+                              {pushingProduct === wp.id ? '...' : 'SHIP'}
+                            </button>
+                            <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
+                            <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
+                          </div>
                         </div>
                       ))}
                     </div>
