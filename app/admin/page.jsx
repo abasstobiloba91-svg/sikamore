@@ -144,7 +144,10 @@ export default function AdminDashboard() {
   const [editWaitlistFiles, setEditWaitlistFiles] = useState([]);
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
-  const [pushingProduct, setPushingProduct] = useState(null); // Track waitlist transfer to store
+  
+  // Advanced Shipping State
+  const [shippingWaitlistProduct, setShippingWaitlistProduct] = useState(null);
+  const [isShippingProduct, setIsShippingProduct] = useState(false);
 
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -461,14 +464,45 @@ export default function AdminDashboard() {
     }
   };
 
-  const handlePushToStore = async (wp) => {
-    const stock = window.prompt(`Enter initial stock quantity for ${wp.name}:`, "10");
-    if (!stock || isNaN(stock)) return;
+  // --- NEW: REVERT LIVE PRODUCT BACK TO WAITLIST ---
+  const handleRevertToWaitlist = async (product) => {
+    if (!window.confirm(`REVERT ${product.name} TO WAITLIST?\nThis completely removes it from the live store.`)) return;
+    const badge = window.prompt("Enter a waitlist badge (Optional, e.g. ARCHIVED, EXCLUSIVE):", "EXCLUSIVE");
+    
+    showToast(`REVERTING ${product.name.toUpperCase()} TO WAITLIST...`);
+    try {
+      // 1. Delete from Store
+      const { error: delErr } = await supabase.from('products').delete().eq('id', product.id);
+      if (delErr) throw delErr;
 
-    const numStock = parseInt(stock, 10);
+      // 2. Format details and push back to waitlist
+      const cleanUrls = extractCleanUrls(product.image);
+
+      const { error: insErr } = await supabase.from('waitlist_products').insert([{
+        name: product.name,
+        price: `₦${product.price.toLocaleString()}`,
+        badge: badge ? badge.trim().toUpperCase() : null,
+        description: product.description || null,
+        image_url: cleanUrls[0] || '',
+        images: cleanUrls
+      }]);
+      
+      if (insErr) throw insErr;
+      showToast("SUCCESSFULLY REVERTED TO WAITLIST.");
+    } catch(err) {
+      showToast(`REVERT ERROR: ${err.message.toUpperCase()}`);
+    }
+  };
+
+  // --- NEW: ADVANCED PUSH TO STORE (COLLECTING ALL STORE DETAILS FIRST) ---
+  const submitShipToStore = async (e) => {
+    e.preventDefault();
+    setIsShippingProduct(true);
+    const wp = shippingWaitlistProduct;
+    
+    const numStock = parseInt(wp.stock, 10);
     const numPrice = parseFloat(String(wp.price).replace(/[^\d.]/g, ''));
     
-    setPushingProduct(wp.id);
     showToast(`PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
 
     try {
@@ -476,12 +510,16 @@ export default function AdminDashboard() {
         name: wp.name,
         price: numPrice,
         stock_quantity: numStock,
-        category: 'bags',
+        category: wp.category,
         description: wp.description,
+        additional_information: wp.additional_information || null,
+        store_policies: wp.store_policies || null,
+        inquiries: wp.inquiries || null,
         image: wp.images && wp.images.length > 0 ? wp.images : [wp.image_url],
         is_sold_out: numStock <= 0,
         published_at: new Date().toISOString()
       }]);
+      
       if (insertErr) throw insertErr;
 
       const interestedLeads = waitlistLeads.filter(lead => 
@@ -531,7 +569,7 @@ export default function AdminDashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: lead.email,
-              fromEmail: 'hello@ssikamore.com',
+              fromEmail: 'shipping@ssikamore.com',
               fromName: 'S. SIKAMÒRE',
               subject: `UNLOCKED: ${wp.name.toUpperCase()} IS NOW LIVE`,
               html: emailHtml
@@ -542,10 +580,11 @@ export default function AdminDashboard() {
 
       await supabase.from('waitlist_products').delete().eq('id', wp.id);
       showToast(`SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
+      setShippingWaitlistProduct(null);
     } catch (err) {
       showToast(`ERROR PUSHING PRODUCT: ${err.message.toUpperCase()}`);
     } finally {
-      setPushingProduct(null);
+      setIsShippingProduct(false);
     }
   };
 
@@ -1127,12 +1166,12 @@ export default function AdminDashboard() {
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex gap-2 mt-auto">
+                            {/* ADVANCED SHIP BUTTON */}
                             <button 
-                              onClick={() => handlePushToStore(wp)} 
-                              disabled={pushingProduct === wp.id}
-                              className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors disabled:opacity-50"
+                              onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '' })}
+                              className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
                             >
-                              {pushingProduct === wp.id ? '...' : 'SHIP'}
+                              SHIP
                             </button>
                             <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
                             <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
@@ -1257,7 +1296,9 @@ export default function AdminDashboard() {
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
+                            {/* REVERT BUTTON ADDED HERE */}
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
+                              <button onClick={() => handleRevertToWaitlist(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
                               <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
                               <button onClick={() => handleDeleteProduct(product.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Delete</button>
                             </div>
@@ -1902,6 +1943,61 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* --- NEW: ADVANCED SHIPPING MODAL --- */}
+      {shippingWaitlistProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-[#2A1810]/70 backdrop-blur-sm cursor-pointer" onClick={() => !isShippingProduct && setShippingWaitlistProduct(null)}></div>
+          <div className="bg-white border border-zinc-200 w-full max-w-2xl p-6 sm:p-10 relative z-10 shadow-2xl rounded-sm max-h-[90vh] overflow-y-auto">
+            <h3 className="text-sm tracking-[0.2em] font-serif uppercase text-black mb-6 border-b border-zinc-200 pb-4">
+              Ship to Storefront: {shippingWaitlistProduct.name}
+            </h3>
+            <form onSubmit={submitShipToStore} className="space-y-5 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Stock Qty *</label>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" required value={shippingWaitlistProduct.stock} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, stock: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black" placeholder="E.G. 10"/>
+                </div>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Category *</label>
+                  <select value={shippingWaitlistProduct.category} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, category: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase">
+                    <option value="bags">Bags</option>
+                    <option value="accessories">Accessories</option>
+                    <option value="clothing">Clothing</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description</label>
+                <textarea rows="3" value={shippingWaitlistProduct.description} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, description: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none" placeholder="Product description..."></textarea>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Additional Info</label>
+                  <textarea rows="2" value={shippingWaitlistProduct.additional_information} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, additional_information: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none" placeholder="Materials, dimensions..."></textarea>
+                </div>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Store Policies</label>
+                  <textarea rows="2" value={shippingWaitlistProduct.store_policies} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, store_policies: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none" placeholder="Shipping/Returns..."></textarea>
+                </div>
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Inquiries</label>
+                  <textarea rows="2" value={shippingWaitlistProduct.inquiries} onChange={e => setShippingWaitlistProduct({...shippingWaitlistProduct, inquiries: e.target.value})} className="w-full bg-zinc-50 p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none" placeholder="Contact details..."></textarea>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-zinc-200 mt-2">
+                <button type="button" onClick={() => setShippingWaitlistProduct(null)} disabled={isShippingProduct} className="flex-1 bg-white text-black border border-zinc-200 py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-50 transition-all disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isShippingProduct} className="flex-[2] bg-black text-white py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-800 transition-all disabled:opacity-50">
+                  {isShippingProduct ? 'DISPATCHING & EMAILING...' : 'CONFIRM & PUSH TO STORE'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
