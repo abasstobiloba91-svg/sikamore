@@ -89,13 +89,18 @@ export default function AkuOyiboWaitlist() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [formData, setFormData] = useState({
-    firstName: '', email: '', whatsapp: '', country: '', designInterest: '', purchaseIntent: '',
+    firstName: '',
+    email: '',
+    whatsapp: '',
+    country: '',
+    designInterest: '',
+    purchaseIntent: '',
   });
 
   const [userCountryCode, setUserCountryCode] = useState('NG');
   const [exchangeRate, setExchangeRate] = useState(1500);
 
- useEffect(() => {
+  useEffect(() => {
     async function fetchProducts() {
       const { data } = await supabase
         .from('waitlist_products')
@@ -105,7 +110,6 @@ export default function AkuOyiboWaitlist() {
     }
     
     fetchProducts();
-  }, []);
 
     supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single()
       .then(({ data }) => { if (data?.usd_to_ngn_rate) setExchangeRate(data.usd_to_ngn_rate); });
@@ -116,14 +120,6 @@ export default function AkuOyiboWaitlist() {
         if (data.country_code) setUserCountryCode(data.country_code);
         if (data.country_name) setFormData(prev => ({ ...prev, country: data.country_name }));
       }).catch(() => {});
-  }, []);
-      const { data } = await supabase
-        .from('waitlist_products')
-        .select('*')
-        .order('created_at', { ascending: true });
-      if (data) setProducts(data);
-    }
-    fetchProducts();
   }, []);
 
   useEffect(() => {
@@ -168,7 +164,7 @@ export default function AkuOyiboWaitlist() {
         firstName: '',
         email: '',
         whatsapp: '',
-        country: '',
+        country: formData.country, 
         designInterest: '',
         purchaseIntent: '',
       });
@@ -511,11 +507,14 @@ export default function AkuOyiboWaitlist() {
           <div className="absolute inset-0 bg-[#2A1810]/85 backdrop-blur-sm cursor-pointer" onClick={closeModal}></div>
 
           <div className="bg-[#F5F0E6] w-full max-w-4xl max-h-[92vh] overflow-y-auto relative z-10 flex flex-col md:flex-row shadow-2xl rounded-sm">
+            
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 z-30 bg-[#F5F0E6]/90 hover:bg-white p-2 text-[#4A3025] shadow-md transition-colors rounded-full"
+              className="absolute top-3 right-4 md:top-4 md:right-5 z-[70] bg-[#F5F0E6] w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-[#4A3025] shadow-md transition-colors rounded-full border border-[#D1C7BD] hover:bg-white"
             >
-              ✕
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
 
             <div className="w-full md:w-1/2 bg-[#ECE3D5] flex flex-col border-b md:border-b-0 md:border-r border-[#D1C7BD]">
@@ -558,8 +557,8 @@ export default function AkuOyiboWaitlist() {
                   {selectedProduct.name}
                 </h2>
                 <p className="text-[13px] font-bold tracking-widest text-[#A3523B] mb-6">
-                {formatPrice(selectedProduct.price)}
-                 </p>
+                  {formatPrice(selectedProduct.price)}
+                </p>
 
                 <div className="w-12 h-px bg-[#D1C7BD] mb-6"></div>
 
