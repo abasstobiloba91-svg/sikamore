@@ -89,16 +89,29 @@ export default function AkuOyiboWaitlist() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [formData, setFormData] = useState({
-    firstName: '',
-    email: '',
-    whatsapp: '',
-    country: '',
-    designInterest: '',
-    purchaseIntent: '',
+    firstName: '', email: '', whatsapp: '', country: '', designInterest: '', purchaseIntent: '',
   });
+
+  const [userCountryCode, setUserCountryCode] = useState('NG');
+  const [exchangeRate, setExchangeRate] = useState(1500);
 
   useEffect(() => {
     async function fetchProducts() {
+      const { data } = await supabase.from('waitlist_products').select('*').order('created_at', { ascending: true });
+      if (data) setProducts(data);
+    }
+    fetchProducts();
+
+    supabase.from('shipping_settings').select('usd_to_ngn_rate').eq('id', 1).single()
+      .then(({ data }) => { if (data?.usd_to_ngn_rate) setExchangeRate(data.usd_to_ngn_rate); });
+
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data.country_code) setUserCountryCode(data.country_code);
+        if (data.country_name) setFormData(prev => ({ ...prev, country: data.country_name }));
+      }).catch(() => {});
+  }, []);
       const { data } = await supabase
         .from('waitlist_products')
         .select('*')
@@ -111,6 +124,16 @@ export default function AkuOyiboWaitlist() {
   useEffect(() => {
     setFormData((prev) => ({ ...prev, designInterest: cart.join(', ') }));
   }, [cart]);
+
+  const formatPrice = (priceStr) => {
+    if (!priceStr) return '';
+    const num = parseFloat(String(priceStr).replace(/[^\d.]/g, ''));
+    if (isNaN(num)) return priceStr;
+    if (userCountryCode !== 'NG') {
+      return `$${Math.round(num / exchangeRate).toLocaleString()}`;
+    }
+    return `₦${num.toLocaleString()}`;
+  };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -289,7 +312,7 @@ export default function AkuOyiboWaitlist() {
                 <h3 className="text-[9px] md:text-[11px] tracking-widest mb-1 text-[#4A3025] font-medium leading-tight group-hover:text-[#A3523B] transition-colors">
                   {item.name}
                 </h3>
-                <p className="text-[10px] md:text-[11px] font-bold text-[#A3523B]">{item.price}</p>
+                <p className="text-[10px] md:text-[11px] font-bold text-[#A3523B]">{formatPrice(item.price)}</p>
               </div>
             ))}
           </div>
@@ -530,8 +553,8 @@ export default function AkuOyiboWaitlist() {
                   {selectedProduct.name}
                 </h2>
                 <p className="text-[13px] font-bold tracking-widest text-[#A3523B] mb-6">
-                  {selectedProduct.price}
-                </p>
+                {formatPrice(selectedProduct.price)}
+                 </p>
 
                 <div className="w-12 h-px bg-[#D1C7BD] mb-6"></div>
 
