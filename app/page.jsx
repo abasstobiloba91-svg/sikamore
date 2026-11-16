@@ -21,7 +21,7 @@ const getPrimaryImage = (payload) => {
 };
 
 // We save your image as a constant so we can reuse it smoothly
-const INITIAL_HERO_IMAGE = "https://fsasdacaoslgjfbdaaqr.supabase.co/storage/v1/object/public/product-images/1790424860629-uugjhf15rk9.png";
+const INITIAL_HERO_IMAGE = "https://pub-3de2bdb34f894d6b9ddcb8b4ddb42ad5.r2.dev";
 
 // ==========================================
 // SMOOTH IMAGE LOADER COMPONENT
