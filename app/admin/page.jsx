@@ -727,6 +727,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const setExistingCoverPhoto = (photoIndex) => {
+    if (photoIndex === 0) return;
+    const currentUrls = extractCleanUrls(editingProduct.image);
+    const [chosen] = currentUrls.splice(photoIndex, 1);
+    currentUrls.unshift(chosen);
+    setEditingProduct({ ...editingProduct, image: currentUrls });
+  };
+
+  const setNewEditCoverPhoto = (photoIndex) => {
+    if (photoIndex === 0) return;
+    const updatedFiles = [...editFiles];
+    const updatedPreviews = [...editPreviews];
+    const [chosenFile] = updatedFiles.splice(photoIndex, 1);
+    const [chosenPreview] = updatedPreviews.splice(photoIndex, 1);
+    updatedFiles.unshift(chosenFile);
+    updatedPreviews.unshift(chosenPreview);
+    setEditFiles(updatedFiles);
+    setEditPreviews(updatedPreviews);
+  };
+  
   const submitEditProduct = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
@@ -1280,12 +1300,32 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="flex items-center gap-6">
-                          <div className="flex gap-2">
-                            {editPreviews.length > 0
-                              ? editPreviews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />)
-                              : extractCleanUrls(editingProduct.image).map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />)
-                            }
-                          </div>
+                          {/* NEW REARRANGEABLE EDIT PREVIEWS */}
+<div className="flex gap-2">
+  {editPreviews.length > 0 ? (
+    editPreviews.map((p, i) => (
+      <div key={i} className="relative group">
+        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />
+        {i === 0 ? (
+          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
+        ) : (
+          <button type="button" onClick={() => setNewEditCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
+        )}
+      </div>
+    ))
+  ) : (
+    extractCleanUrls(editingProduct.image).map((p, i) => (
+      <div key={i} className="relative group">
+        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />
+        {i === 0 ? (
+          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
+        ) : (
+          <button type="button" onClick={() => setExistingCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
+        )}
+      </div>
+    ))
+  )}
+</div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
                             <input type="file" accept="image/*" multiple onChange={handleEditImageChange} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
