@@ -614,6 +614,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const setCoverPhoto = (productId, photoIndex) => {
+    if (photoIndex === 0) return; // Already the cover
+    setProductsList(prev => prev.map(p => {
+      if (p.id !== productId) return p;
+      
+      const updatedFiles = [...p.files];
+      const updatedPreviews = [...p.previews];
+      
+      const [chosenFile] = updatedFiles.splice(photoIndex, 1);
+      const [chosenPreview] = updatedPreviews.splice(photoIndex, 1);
+      
+      updatedFiles.unshift(chosenFile);
+      updatedPreviews.unshift(chosenPreview);
+      
+      return { ...p, files: updatedFiles, previews: updatedPreviews };
+    }));
+  };
+
+
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
     setDisabled(true);
@@ -1378,12 +1397,27 @@ export default function AdminDashboard() {
 
                       <div className="flex items-center gap-6">
                         <div className="flex gap-2">
-                          {product.previews.length > 0 ? (
-                            product.previews.map((p, i) => <img key={i} src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview"/>)
-                          ) : (
-                            <span className="text-[7px] text-zinc-400 uppercase tracking-widest flex items-center justify-center w-12 h-16 border border-zinc-200 bg-white">Img</span>
-                          )}
-                        </div>
+  {product.previews.length > 0 ? (
+    product.previews.map((p, i) => (
+      <div key={i} className="relative group">
+        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt={`Preview ${i + 1}`} />
+        {i === 0 ? (
+          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5">Cover</span>
+        ) : (
+          <button 
+            type="button" 
+            onClick={() => setCoverPhoto(product.id, i)}
+            className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+          >
+            Move First
+          </button>
+        )}
+      </div>
+    ))
+  ) : (
+    <span className="text-[7px] text-zinc-400 uppercase tracking-widest flex items-center justify-center w-12 h-16 border border-zinc-200 bg-white">Img</span>
+  )}
+</div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
                           <input type="file" accept="image/*" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
