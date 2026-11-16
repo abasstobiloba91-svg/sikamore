@@ -224,7 +224,7 @@ export default function AdminDashboard() {
         if (aData) setAnalyticsData(aData);
       } catch(e){}
       try {
-        const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        const { data: pData } = await supabase.from('products').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: false });
         if (pData) setLiveProducts(pData);
       } catch(e){}
       try {
