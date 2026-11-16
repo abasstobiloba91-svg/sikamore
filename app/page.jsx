@@ -21,7 +21,7 @@ const getPrimaryImage = (payload) => {
 };
 
 // We save your image as a constant so we can reuse it smoothly
-const INITIAL_HERO_IMAGE = "https://pub-3de2bdb34f894d6b9ddcb8b4ddb42ad5.r2.dev";
+const INITIAL_HERO_IMAGE = "https://pub-3de2bdb34f894d6b9ddcb8b4ddb42ad5.r2.dev/ssikamore-campaign-hero.jpg";
 
 // ==========================================
 // SMOOTH IMAGE LOADER COMPONENT
