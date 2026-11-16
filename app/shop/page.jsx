@@ -208,9 +208,11 @@ export default function ShopCatalog() {
         .from('products')
         .select('*')
         .lte('published_at', now)
+        .order('sort_order', { ascending: true }) 
         .order('created_at', { ascending: false });
         
       if (data) {
+        
         setProducts(data);
         setSearchResults(data);
 
