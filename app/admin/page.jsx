@@ -131,8 +131,9 @@ export default function AdminDashboard() {
   const [editFiles, setEditFiles] = useState([]);
   const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
+  // NEW: Added is_hidden to default payload
   const [productsList, setProductsList] = useState([
-    { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }
+    { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }
   ]);
   const [disabled, setDisabled] = useState(false);
 
@@ -145,7 +146,6 @@ export default function AdminDashboard() {
   const [editWaitlistPreviews, setEditWaitlistPreviews] = useState([]);
   const [isDeployingWaitlist, setIsDeployingWaitlist] = useState(false);
   
-  // Custom Modal States
   const [shippingWaitlistProduct, setShippingWaitlistProduct] = useState(null);
   const [isShippingProduct, setIsShippingProduct] = useState(false);
   const [revertingProduct, setRevertingProduct] = useState(null);
@@ -177,6 +177,8 @@ export default function AdminDashboard() {
   const [interceptedOrder, setInterceptedOrder] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState('');
 
+  // NEW: Newsletter Audience State
+  const [newsletterAudience, setNewsletterAudience] = useState('waitlist');
   const [newsletterSubj, setNewsletterSubj] = useState('');
   const [newsletterMsg, setNewsletterMsg] = useState('');
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
@@ -187,16 +189,17 @@ export default function AdminDashboard() {
     });
   }, []);
 
+  // NEW: EGRESS PROTECTION - Added .limit(500) to all background data fetching
   useEffect(() => {
     if (!isAuthenticated) return;
 
     async function loadMasterData() {
       try {
-        const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+        const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(500);
         if (oData) setOrders(oData);
       } catch(e){}
       try {
-        const { data: clData } = await supabase.from('client_profiles').select('*').order('created_at', { ascending: false });
+        const { data: clData } = await supabase.from('client_profiles').select('*').order('created_at', { ascending: false }).limit(500);
         if (clData) setClients(clData);
       } catch(e){}
       try {
@@ -204,15 +207,15 @@ export default function AdminDashboard() {
         if (lData) setLogisticsSettings(lData);
       } catch(e){}
       try {
-        const { data: sData } = await supabase.from('subscribers').select('*').order('created_at', { ascending: false });
+        const { data: sData } = await supabase.from('subscribers').select('*').order('created_at', { ascending: false }).limit(1000);
         if (sData) setSubscribers(sData);
       } catch(e){}
       try {
-        const { data: cData } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+        const { data: cData } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false }).limit(100);
         if (cData) setCampaigns(cData);
       } catch(e){}
       try {
-        const { data: tData } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
+        const { data: tData } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false }).limit(200);
         if (tData) setTickets(tData);
       } catch(e){}
       try {
@@ -220,7 +223,7 @@ export default function AdminDashboard() {
         if (vData) setVendors(vData);
       } catch(e){}
       try {
-        const { data: aData } = await supabase.from('page_analytics').select('*').order('created_at', { ascending: false });
+        const { data: aData } = await supabase.from('page_analytics').select('*').order('created_at', { ascending: false }).limit(1000);
         if (aData) setAnalyticsData(aData);
       } catch(e){}
       try {
@@ -228,11 +231,11 @@ export default function AdminDashboard() {
         if (pData) setLiveProducts(pData);
       } catch(e){}
       try {
-        const { data: wlData } = await supabase.from('waitlist_leads').select('*').order('created_at', { ascending: false });
+        const { data: wlData } = await supabase.from('waitlist_leads').select('*').order('created_at', { ascending: false }).limit(1000);
         if (wlData) setWaitlistLeads(wlData);
       } catch(e){}
       try {
-        const { data: wpData } = await supabase.from('waitlist_products').select('*').order('created_at', { ascending: false });
+        const { data: wpData } = await supabase.from('waitlist_products').select('*').order('created_at', { ascending: false }).limit(100);
         if (wpData) setWaitlistProducts(wpData);
       } catch(e){}
     }
@@ -467,7 +470,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: REVERT TO WAITLIST USING CUSTOM MODAL ---
   const confirmRevertToWaitlist = async (e) => {
     e.preventDefault();
     setIsReverting(true);
@@ -500,7 +502,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: SHIP TO STORE USING CUSTOM MODAL ---
   const submitShipToStore = async (e) => {
     e.preventDefault();
     setIsShippingProduct(true);
@@ -595,7 +596,7 @@ export default function AdminDashboard() {
   };
 
   const addProductRow = () => {
-    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
+    setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }]);
   };
 
   const removeProductRow = (id) => {
@@ -614,6 +615,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- NEW: REARRANGE UPLOAD PHOTOS ---
   const setCoverPhoto = (productId, photoIndex) => {
     if (photoIndex === 0) return; // Already the cover
     setProductsList(prev => prev.map(p => {
@@ -631,7 +633,6 @@ export default function AdminDashboard() {
       return { ...p, files: updatedFiles, previews: updatedPreviews };
     }));
   };
-
 
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
@@ -682,13 +683,14 @@ export default function AdminDashboard() {
           published_at: product.published_at ? new Date(product.published_at).toISOString() : new Date().toISOString(),
           image: imageUrls,
           is_sold_out: parseInt(product.stock) <= 0,
+          is_hidden: Boolean(product.is_hidden), // NEW: SECRET LINK TOGGLE
         }]);
 
         if (dbError) throw new Error(dbError.message);
       }
 
       showToast(`SUCCESS! ${productsList.length} PRODUCT(S) PUSHED TO STOREFRONT.`);
-      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [] }]);
+      setProductsList([{ id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }]);
       setInventoryMode('manage');
     } catch (error) {
       showToast(`UPLOAD ERROR: ${error.message.toUpperCase()}`);
@@ -727,6 +729,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- NEW: REARRANGE EDIT PHOTOS ---
   const setExistingCoverPhoto = (photoIndex) => {
     if (photoIndex === 0) return;
     const currentUrls = extractCleanUrls(editingProduct.image);
@@ -781,6 +784,7 @@ export default function AdminDashboard() {
         published_at: editingProduct.published_at ? new Date(editingProduct.published_at).toISOString() : new Date().toISOString(),
         image: finalImageUrls,
         is_sold_out: parseInt(cleanStock) <= 0,
+        is_hidden: Boolean(editingProduct.is_hidden), // NEW: SECRET LINK TOGGLE
       }).eq('id', editingProduct.id);
 
       if (dbError) throw new Error(dbError.message);
@@ -903,12 +907,24 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
+  // --- NEW: SMART DEDUPLICATED NEWSLETTER AUDIENCE DISPATCH ---
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
 
-    if (subscribers.length === 0) {
-      return showToast("DISPATCH DENIED: ACTIVE REGISTRY SIZE IS 0 PROFILES.");
+    let targetEmails = [];
+    if (newsletterAudience === 'waitlist') {
+      targetEmails = waitlistLeads.map(l => l.email);
+    } else if (newsletterAudience === 'newsletter') {
+      targetEmails = subscribers.map(s => s.email);
+    } else {
+      targetEmails = [...waitlistLeads.map(l => l.email), ...subscribers.map(s => s.email)];
+    }
+    
+    const uniqueEmails = [...new Set(targetEmails.filter(Boolean))];
+
+    if (uniqueEmails.length === 0) {
+      return showToast("DISPATCH DENIED: NO PROFILES IN SELECTED AUDIENCE.");
     }
 
     setSendingNewsletter(true);
@@ -979,29 +995,32 @@ export default function AdminDashboard() {
         </body></html>
       `;
 
-      const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: subscribers.length, html_payload: customHTMLTemplate }]);
+      const { error } = await supabase.from('campaigns').insert([{ subject: newsletterSubj.toUpperCase(), message: newsletterMsg, recipient_count: uniqueEmails.length, html_payload: customHTMLTemplate }]);
       if (error) throw error;
 
       await Promise.all(
-        subscribers.map(async (sub) => {
-          if (!sub.email) return;
+        uniqueEmails.map(async (email) => {
           return fetch('/api/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              to: sub.email,
+              to: email,
               fromEmail: 'hello@ssikamore.com',
               fromName: 'S. SIKAMÒRE',
               subject: newsletterSubj.toUpperCase(),
               html: customHTMLTemplate
             })
-          }).catch(err => console.error(`Error pipeline connection for ${sub.email}:`, err));
+          }).catch(err => console.error(`Error sending to ${email}:`, err));
         })
       );
 
-      showToast(`DISPATCH SUCCESS! EDITORIAL DEPLOYED TO ${subscribers.length} INBOXES.`);
+      showToast(`DISPATCH SUCCESS! SENT TO ${uniqueEmails.length} UNIQUE PROFILES.`);
       setNewsletterSubj(''); setNewsletterMsg('');
-    } catch (err) { showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); } finally { setSendingNewsletter(false); }
+    } catch (err) { 
+      showToast(`DISPATCH ERROR: ${err.message.toUpperCase()}`); 
+    } finally { 
+      setSendingNewsletter(false); 
+    }
   };
 
   const handleAdminTyping = (e) => {
@@ -1068,7 +1087,12 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-zinc-50 text-black py-12 px-4 sm:px-6 font-sans antialiased relative">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-10 text-center relative">
+        <div className="mb-10 text-center relative mt-4">
+          <div className="absolute left-0 top-0">
+            <Link href="/" className="text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white inline-block">
+              &larr; Storefront
+            </Link>
+          </div>
           <div className="absolute right-0 top-0">
             <button onClick={handleLogout} className="text-[9px] tracking-widest text-zinc-500 hover:text-black uppercase transition-colors border border-zinc-200 hover:border-black px-3 py-1.5 font-medium bg-white">
               Sign Out
@@ -1280,6 +1304,15 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
+                        {/* NEW: EARLY ACCESS SECRET LINK TOGGLE */}
+                        <div className="md:col-span-5 flex items-center gap-3 p-4 border border-zinc-200 bg-white mb-6">
+                          <input type="checkbox" checked={editingProduct.is_hidden || false} onChange={(e)=>setEditingProduct({...editingProduct, is_hidden: e.target.checked})} className="w-4 h-4 accent-black cursor-pointer" />
+                          <div>
+                            <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={(e)=>setEditingProduct({...editingProduct, is_hidden: !(editingProduct.is_hidden || false)})}>Hide from Public Storefront (Secret Link Only)</label>
+                            <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Check this to hide the product from the shop page for waitlist early-access drops.</p>
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                           <div>
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description</label>
@@ -1300,32 +1333,31 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="flex items-center gap-6">
-                          {/* NEW REARRANGEABLE EDIT PREVIEWS */}
-<div className="flex gap-2">
-  {editPreviews.length > 0 ? (
-    editPreviews.map((p, i) => (
-      <div key={i} className="relative group">
-        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />
-        {i === 0 ? (
-          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
-        ) : (
-          <button type="button" onClick={() => setNewEditCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
-        )}
-      </div>
-    ))
-  ) : (
-    extractCleanUrls(editingProduct.image).map((p, i) => (
-      <div key={i} className="relative group">
-        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />
-        {i === 0 ? (
-          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
-        ) : (
-          <button type="button" onClick={() => setExistingCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
-        )}
-      </div>
-    ))
-  )}
-</div>
+                          <div className="flex gap-2">
+                            {editPreviews.length > 0 ? (
+                              editPreviews.map((p, i) => (
+                                <div key={i} className="relative group">
+                                  <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Preview" />
+                                  {i === 0 ? (
+                                    <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
+                                  ) : (
+                                    <button type="button" onClick={() => setNewEditCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              extractCleanUrls(editingProduct.image).map((p, i) => (
+                                <div key={i} className="relative group">
+                                  <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt="Current" />
+                                  {i === 0 ? (
+                                    <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
+                                  ) : (
+                                    <button type="button" onClick={() => setExistingCoverPhoto(i)} className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20">Move First</button>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
                           <div className="flex-1">
                             <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Replace Images (Up to 5)</label>
                             <input type="file" accept="image/*" multiple onChange={handleEditImageChange} className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
@@ -1350,7 +1382,8 @@ export default function AdminDashboard() {
                         {liveProducts.map(product => (
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
-                              <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden">
+                              <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden relative">
+                                {product.is_hidden && <span className="absolute top-0 right-0 bg-red-600 text-white text-[5px] px-1 py-0.5 uppercase z-10">HIDDEN</span>}
                                 <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
@@ -1416,6 +1449,15 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
+                      {/* NEW: EARLY ACCESS SECRET LINK TOGGLE */}
+                      <div className="md:col-span-5 flex items-center gap-3 p-4 border border-zinc-200 bg-white mb-6">
+                        <input type="checkbox" checked={product.is_hidden || false} onChange={(e)=>updateProductData(product.id, 'is_hidden', e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
+                        <div>
+                          <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={(e)=>updateProductData(product.id, 'is_hidden', !(product.is_hidden || false))}>Hide from Public Storefront (Secret Link Only)</label>
+                          <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Check this to hide the product from the shop page for waitlist early-access drops.</p>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-zinc-200">
                         <div>
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Description (Optional)</label>
@@ -1437,27 +1479,27 @@ export default function AdminDashboard() {
 
                       <div className="flex items-center gap-6">
                         <div className="flex gap-2">
-  {product.previews.length > 0 ? (
-    product.previews.map((p, i) => (
-      <div key={i} className="relative group">
-        <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt={`Preview ${i + 1}`} />
-        {i === 0 ? (
-          <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5">Cover</span>
-        ) : (
-          <button 
-            type="button" 
-            onClick={() => setCoverPhoto(product.id, i)}
-            className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-          >
-            Move First
-          </button>
-        )}
-      </div>
-    ))
-  ) : (
-    <span className="text-[7px] text-zinc-400 uppercase tracking-widest flex items-center justify-center w-12 h-16 border border-zinc-200 bg-white">Img</span>
-  )}
-</div>
+                          {product.previews.length > 0 ? (
+                            product.previews.map((p, i) => (
+                              <div key={i} className="relative group">
+                                <img src={p} className="w-12 h-16 object-cover border border-zinc-200 bg-white" alt={`Preview ${i + 1}`} />
+                                {i === 0 ? (
+                                  <span className="absolute bottom-0 inset-x-0 bg-black text-white text-[6px] tracking-widest uppercase text-center py-0.5 z-10">Cover</span>
+                                ) : (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setCoverPhoto(product.id, i)}
+                                    className="absolute inset-0 bg-black/60 text-white text-[7px] tracking-widest uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-20"
+                                  >
+                                    Move First
+                                  </button>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-[7px] text-zinc-400 uppercase tracking-widest flex items-center justify-center w-12 h-16 border border-zinc-200 bg-white">Img</span>
+                          )}
+                        </div>
                         <div className="flex-1">
                           <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Upload Images (Up to 5)</label>
                           <input type="file" accept="image/*" multiple onChange={(e)=>handleImageChange(product.id, e)} required className="w-full text-base md:text-[9px] file:mr-4 file:py-2 file:px-4 file:border file:border-zinc-200 file:text-[8px] file:tracking-widest file:bg-zinc-100 file:text-black file:uppercase file:cursor-pointer text-zinc-600 hover:file:bg-zinc-200 transition-colors" />
@@ -1720,6 +1762,14 @@ export default function AdminDashboard() {
                 <h3 className="text-xs uppercase tracking-widest font-medium border-b border-zinc-200 pb-3 mb-6">Create Registry Broadcast</h3>
                 <form onSubmit={handleSendBrandedNewsletter} className="space-y-6">
                   <div>
+                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Target Audience</label>
+                    <select value={newsletterAudience} onChange={(e) => setNewsletterAudience(e.target.value)} className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase tracking-wider transition-colors">
+                      <option value="waitlist">Waitlist Signups Only</option>
+                      <option value="newsletter">General Newsletter Only</option>
+                      <option value="all">Everyone (Automatically Removes Duplicates)</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-2 uppercase">Dispatch Subject</label>
                     <input type="text" value={newsletterSubj} onChange={(e) => setNewsletterSubj(e.target.value)} required placeholder="E.G. THE ARCHIVE: FINE JEWELRY & LEATHER" className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black uppercase tracking-wider transition-colors placeholder-zinc-400"/>
                   </div>
@@ -1728,7 +1778,7 @@ export default function AdminDashboard() {
                     <textarea value={newsletterMsg} onChange={(e) => setNewsletterMsg(e.target.value)} required rows="8" placeholder="Type your dynamic announcement here..." className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-xs text-black tracking-wider resize-none transition-colors placeholder-zinc-400" />
                   </div>
                   <button type="submit" disabled={sendingNewsletter} className="w-full bg-black text-white py-4 text-[9px] tracking-[0.3em] uppercase hover:bg-zinc-800 font-medium disabled:opacity-40 transition-colors rounded-sm">
-                    {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH TO ${subscribers.length} PROFILES`}
+                    {sendingNewsletter ? 'BROADCASTING PAYLOAD...' : `SEND PRIVATE DISPATCH`}
                   </button>
                 </form>
               </div>
@@ -1736,8 +1786,8 @@ export default function AdminDashboard() {
 
             <div className="flex flex-col gap-6">
               <div className="bg-white border border-zinc-200 p-6 shadow-sm rounded-sm text-center">
-                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Active Registry Size</span>
-                <h2 className="text-3xl font-light tracking-wide text-black font-serif">{subscribers.length.toLocaleString()} <span className="text-[10px] tracking-widest uppercase font-sans text-zinc-400 ml-1">Profiles</span></h2>
+                <span className="text-[8px] text-zinc-500 block tracking-widest uppercase mb-2">Total Combined Profiles</span>
+                <h2 className="text-3xl font-light tracking-wide text-black font-serif">{(subscribers.length + waitlistLeads.length).toLocaleString()} <span className="text-[10px] tracking-widest uppercase font-sans text-zinc-400 ml-1">Leads</span></h2>
               </div>
               <div className="bg-zinc-50 text-black border border-zinc-200 p-6 flex-1 overflow-y-auto max-h-[360px] rounded-sm shadow-sm">
                 <h4 className="text-[9px] tracking-widest uppercase text-zinc-500 border-b border-zinc-200 pb-2 mb-4 font-medium">Broadcast Dispatch Log</h4>
@@ -2022,7 +2072,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* --- NEW: ADVANCED SHIPPING MODAL --- */}
+      {/* --- ADVANCED SHIPPING MODAL --- */}
       {shippingWaitlistProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="absolute inset-0 bg-[#2A1810]/70 backdrop-blur-sm cursor-pointer" onClick={() => !isShippingProduct && setShippingWaitlistProduct(null)}></div>
@@ -2077,7 +2127,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* --- NEW: BEAUTIFUL REVERT MODAL --- */}
+      {/* --- BEAUTIFUL REVERT MODAL --- */}
       {revertingProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
           <div className="absolute inset-0 bg-[#2A1810]/70 backdrop-blur-sm cursor-pointer" onClick={() => !isReverting && setRevertingProduct(null)}></div>
