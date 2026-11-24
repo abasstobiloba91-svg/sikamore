@@ -60,17 +60,33 @@ export default function PrivateEarlyAccessPage() {
 
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
+  const [localCartOpen, setLocalCartOpen] = useState(false);
 
   const appContext = useApp() || {};
   const cart = appContext.cart || [];
   const wishlist = appContext.wishlist || [];
   const toggleWishlist = appContext.toggleWishlist || (() => {});
   const addToCart = appContext.addToCart || (() => {});
+  const removeFromCart = appContext.removeFromCart || (() => {});
   const showToast = appContext.showToast || ((msg) => console.log(msg));
 
   const cartCount = cart.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+  const cartTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
 
-  // Load exchange rate
+  const handleOpenCart = () => {
+    if (typeof appContext.setIsCartOpen === 'function') {
+      appContext.setIsCartOpen(true);
+    } else if (typeof appContext.openCart === 'function') {
+      appContext.openCart();
+    } else if (typeof appContext.setCartOpen === 'function') {
+      appContext.setCartOpen(true);
+    } else if (typeof appContext.toggleCart === 'function') {
+      appContext.toggleCart();
+    } else {
+      setLocalCartOpen(true);
+    }
+  };
+
   useEffect(() => {
     async function loadMasterLogistics() {
       try {
@@ -85,7 +101,6 @@ export default function PrivateEarlyAccessPage() {
     loadMasterLogistics();
   }, []);
 
-  // Auto-detect currency silently
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -104,7 +119,6 @@ export default function PrivateEarlyAccessPage() {
     locateClientNetwork();
   }, []);
 
-  // Fetch ONLY hidden (Waitlist Early Access) products
   useEffect(() => {
     async function fetchPrivateDrop() {
       const { data } = await supabase
@@ -331,18 +345,74 @@ export default function PrivateEarlyAccessPage() {
         )}
       </main>
 
-      {/* FLOATING RED VIEW BAG BUTTON */}
+      {/* FLOATING RED PILL VIEW CART BAR */}
       {cartCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs">
-          <Link
-            href="/cart"
-            className="w-full bg-[#D31313] hover:bg-[#b51010] text-white py-3.5 px-6 rounded-sm shadow-2xl flex items-center justify-between text-[10px] tracking-[0.25em] uppercase font-bold transition-all active:scale-95"
-          >
-            <span>View Bag</span>
-            <span className="bg-white text-[#D31313] px-2.5 py-0.5 rounded-full text-[9px] font-bold">
-              {cartCount}
-            </span>
-          </Link>
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm">
+          <div className="w-full bg-[#D31313] text-white rounded-full p-2 pl-6 shadow-2xl flex items-center justify-between">
+            <div className="flex items-center text-[11px] sm:text-xs font-bold tracking-wider uppercase whitespace-nowrap">
+              <span>{cartCount} {cartCount === 1 ? 'ITEM' : 'ITEMS'}</span>
+              <span className="mx-3 opacity-60 font-light">|</span>
+              <span>{formatPrice(cartTotal)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenCart}
+              className="bg-white text-[#D31313] font-bold text-[10px] sm:text-xs tracking-[0.15em] uppercase px-6 py-3 rounded-full hover:bg-zinc-100 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+            >
+              VIEW CART
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FALLBACK CART DRAWER (NEVER 404s) */}
+      {localCartOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 z-[9999999] flex justify-end"
+          onClick={(e) => { if (e.target === e.currentTarget) setLocalCartOpen(false); }}
+        >
+          <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl">
+            <div className="p-6 border-b border-zinc-200 flex items-center justify-between">
+              <h2 className="text-xs tracking-[0.25em] uppercase font-bold">Your Bag ({cartCount})</h2>
+              <button onClick={() => setLocalCartOpen(false)} className="text-zinc-500 hover:text-black p-1 text-lg">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {cart.length === 0 ? (
+                <p className="text-center text-zinc-400 uppercase tracking-widest text-[10px] py-20">Your bag is empty.</p>
+              ) : (
+                cart.map((item, idx) => (
+                  <div key={`${item.id}-${idx}`} className="flex gap-4 border-b border-zinc-100 pb-4">
+                    <img src={item.image} alt={item.name} className="w-16 h-20 object-cover bg-zinc-50 border border-zinc-200 shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="text-[10px] uppercase tracking-wider font-medium text-black">{item.name}</h4>
+                      {item.size && <p className="text-[9px] text-zinc-400 uppercase mt-1">Size: {item.size}</p>}
+                      <p className="text-[10px] font-mono text-black mt-1">{formatPrice(item.price)} × {item.quantity || 1}</p>
+                    </div>
+                    {typeof removeFromCart === 'function' && (
+                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] text-zinc-400 hover:text-red-600 uppercase self-start">Remove</button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-6 border-t border-zinc-200 bg-zinc-50 space-y-4">
+                <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
+                  <span>Subtotal</span>
+                  <span>{formatPrice(cartTotal)}</span>
+                </div>
+                <Link
+                  href="/checkout"
+                  onClick={() => setLocalCartOpen(false)}
+                  className="block w-full text-center bg-black text-white py-4 text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors"
+                >
+                  Proceed to Checkout
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
