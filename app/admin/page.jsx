@@ -503,15 +503,16 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsShippingProduct(true);
     const wp = shippingWaitlistProduct;
-    
+
     const numStock = parseInt(wp.stock, 10);
     const numPrice = parseFloat(String(wp.price).replace(/[^\d.]/g, ''));
-    const destinationUrl = wp.is_hidden ? 'https://ssikamore.com/private-access' : 'https://ssikamore.com/shop';
-    
-    showToast(wp.is_hidden ? `PUSHING ${wp.name.toUpperCase()} TO EARLY ACCESS...` : `PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
+    const isEarlyAccess = Boolean(wp.is_hidden);
+    const destinationUrl = isEarlyAccess ? 'https://ssikamore.com/private-access' : 'https://ssikamore.com/shop';
+
+    showToast(isEarlyAccess ? `PUSHING ${wp.name.toUpperCase()} TO EARLY ACCESS...` : `PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
 
     try {
-      const { error: insertErr } = await supabase.from('products').insert([{
+      const productPayload = {
         name: wp.name,
         price: numPrice,
         stock_quantity: numStock,
@@ -522,23 +523,39 @@ export default function AdminDashboard() {
         inquiries: wp.inquiries || null,
         image: wp.images && wp.images.length > 0 ? wp.images : [wp.image_url],
         is_sold_out: numStock <= 0,
-        is_hidden: Boolean(wp.is_hidden),
+        is_hidden: isEarlyAccess,
         published_at: new Date().toISOString()
-      }]);
-      
-      if (insertErr) throw insertErr;
+      };
 
-      const interestedLeads = waitlistLeads.filter(lead => 
+      // Check if this waitlist item was already pushed to Early Access so we update instead of duplicating
+      const existingProduct = liveProducts.find(
+        p => p.name && p.name.toLowerCase() === wp.name.toLowerCase()
+      );
+
+      if (existingProduct) {
+        const { error: updateErr } = await supabase
+          .from('products')
+          .update(productPayload)
+          .eq('id', existingProduct.id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from('products')
+          .insert([productPayload]);
+        if (insertErr) throw insertErr;
+      }
+
+      const interestedLeads = waitlistLeads.filter(lead =>
         lead.design_interest && lead.design_interest.toLowerCase().includes(wp.name.toLowerCase())
       );
       const usdRate = logisticsSettings?.usd_to_ngn_rate || 1500;
 
       if (interestedLeads.length > 0) {
         showToast(`DISPATCHING EMAILS TO ${interestedLeads.length} WAITLISTED PROFILES...`);
-        
+
         await Promise.all(interestedLeads.map(async (lead) => {
           if (!lead.email) return;
-          
+
           const isNigeria = lead.country && lead.country.toLowerCase() === 'nigeria';
           const displayPrice = isNigeria ? `₦${numPrice.toLocaleString()}` : `$${Math.round(numPrice / usdRate).toLocaleString()}`;
 
@@ -549,7 +566,7 @@ export default function AdminDashboard() {
                 <tr><td align="center">
                   <table width="522" border="0" cellspacing="0" cellpadding="0" style="background-color:#0A0A0A; color:#FFFFFF; padding:45px; border:1px solid #1A1A1A; text-transform:uppercase; letter-spacing:0.15em; line-height:1.8;">
                     <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:18px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h1></td></tr>
-                    <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">PRIVATE RESERVE UNLOCKED</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
+                    <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">${isEarlyAccess ? 'EARLY ACCESS UNLOCKED' : 'PRIVATE RESERVE UNLOCKED'}</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
                     <tr><td style="padding:20px 10px; font-size:10px; line-height:2.2; letter-spacing:0.12em; color:#A3A3A3; text-align:center;">
                       The wait is over. The piece you requested from our exclusive waitlist is now officially available for purchase.
                     </td></tr>
@@ -584,8 +601,11 @@ export default function AdminDashboard() {
         }));
       }
 
-      await supabase.from('waitlist_products').delete().eq('id', wp.id);
-      showToast(wp.is_hidden ? `SUCCESS! PUSHED TO EARLY ACCESS & EMAILS SENT.` : `SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
+      if (!isEarlyAccess) {
+        await supabase.from('waitlist_products').delete().eq('id', wp.id);
+      }
+
+      showToast(isEarlyAccess ? `SUCCESS! LIVE ON EARLY ACCESS (STILL SAVED IN WAITLIST).` : `SUCCESS! PUSHED TO PUBLIC STOREFRONT.`);
       setShippingWaitlistProduct(null);
     } catch (err) {
       showToast(`ERROR PUSHING PRODUCT: ${err.message.toUpperCase()}`);
@@ -593,7 +613,6 @@ export default function AdminDashboard() {
       setIsShippingProduct(false);
     }
   };
-
   const addProductRow = () => {
     setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }]);
   };
@@ -1239,14 +1258,21 @@ export default function AdminDashboard() {
                           </div>
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
-                          <div className="flex gap-2 mt-auto">
-                            <button 
-                              onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: true })}
-                              className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
-                            >
-                              SHIP
-                            </button>
-                            <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
+                          <div className="flex flex-col gap-2 mt-auto">
+                          <button
+                          onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: true })}
+                         className="w-full bg-zinc-900 text-white hover:bg-black py-2 text-[8px] uppercase tracking-widest font-bold transition-colors"
+                           >
+                             Early Access
+                                </button>
+                                 <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: false })}
+                                     className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
+                                    >
+                                   SHIP
+                                 </button>
+                               <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
                             <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
                           </div>
                         </div>
@@ -1397,16 +1423,14 @@ export default function AdminDashboard() {
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
-                            <button
+                            {product.is_hidden && (
+                             <button
                               onClick={() => toggleEarlyAccess(product)}
-                              className={`w-full mb-2 py-2 text-[8px] uppercase tracking-widest font-bold transition-colors border ${
-                                product.is_hidden
-                                  ? 'bg-black text-white border-black hover:bg-zinc-800'
-                                  : 'bg-white text-black border-zinc-300 hover:bg-zinc-100'
-                              }`}
-                            >
-                              {product.is_hidden ? 'Make Public (Move to Shop)' : 'Move to Early Access'}
-                            </button>
+                                 className="w-full mb-2 py-2 text-[8px] uppercase tracking-widest font-bold transition-colors border bg-black text-white border-black hover:bg-zinc-800"
+                                 >
+                               Make Public (Move to Shop)
+                              </button>
+                               )}
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
                               <button onClick={() => { setRevertingProduct(product); setRevertBadge('EXCLUSIVE'); }} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
                               <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
