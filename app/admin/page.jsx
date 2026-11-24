@@ -527,7 +527,6 @@ export default function AdminDashboard() {
         published_at: new Date().toISOString()
       };
 
-      // Check if this waitlist item was already pushed to Early Access so we update instead of duplicating
       const existingProduct = liveProducts.find(
         p => p.name && p.name.toLowerCase() === wp.name.toLowerCase()
       );
@@ -613,6 +612,7 @@ export default function AdminDashboard() {
       setIsShippingProduct(false);
     }
   };
+
   const addProductRow = () => {
     setProductsList(prev => [...prev, { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }]);
   };
@@ -1291,7 +1291,10 @@ export default function AdminDashboard() {
           <div className="animate-fade-in space-y-6">
             <div className="flex border-b border-zinc-200 pb-2">
               <button onClick={() => { setInventoryMode('manage'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'manage' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
-                Manage Live
+                Manage Live ({liveProducts.filter(p => !p.is_hidden).length})
+              </button>
+              <button onClick={() => { setInventoryMode('early_access'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'early_access' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
+                Early Access ({liveProducts.filter(p => p.is_hidden).length})
               </button>
               <button onClick={() => { setInventoryMode('deploy'); setEditingProduct(null); }} className={`px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition-colors ${inventoryMode === 'deploy' ? 'text-black font-bold border-b-2 border-black' : 'text-zinc-400 hover:text-black'}`}>
                 Deploy New
@@ -1404,17 +1407,16 @@ export default function AdminDashboard() {
                 ) : (
                   <div>
                     <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
-                      <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Live Collection ({liveProducts.length})</h2>
+                      <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">Live Collection ({liveProducts.filter(p => !p.is_hidden).length})</h2>
                     </div>
-                    {liveProducts.length === 0 ? (
+                    {liveProducts.filter(p => !p.is_hidden).length === 0 ? (
                       <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center py-10">No live products found in the database.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {liveProducts.map(product => (
+                        {liveProducts.filter(p => !p.is_hidden).map(product => (
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden relative">
-                                {product.is_hidden && <span className="absolute top-0 right-0 bg-red-600 text-white text-[5px] px-1 py-0.5 uppercase z-10">EARLY ACCESS</span>}
                                 <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
@@ -1424,14 +1426,6 @@ export default function AdminDashboard() {
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
-                            {product.is_hidden && (
-                             <button
-                              onClick={() => toggleEarlyAccess(product)}
-                                 className="w-full mb-2 py-2 text-[8px] uppercase tracking-widest font-bold transition-colors border bg-black text-white border-black hover:bg-zinc-800"
-                                 >
-                               Make Public (Move to Shop)
-                              </button>
-                               )}
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
                               <button onClick={() => { setRevertingProduct(product); setRevertBadge('EXCLUSIVE'); }} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
                               <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
@@ -1441,6 +1435,65 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {inventoryMode === 'early_access' && (
+              <div className="bg-white text-black p-6 sm:p-10 shadow-sm border border-zinc-200">
+                <div className="flex justify-between items-center border-b border-zinc-200 pb-4 mb-8">
+                  <h2 className="text-xs tracking-[0.3em] text-zinc-600 uppercase font-medium">
+                    Private Access Items ({liveProducts.filter(p => p.is_hidden).length})
+                  </h2>
+                  <Link href="/private-access" target="_blank" className="text-[9px] text-zinc-500 hover:text-black uppercase tracking-widest border border-zinc-200 px-3 py-1.5">
+                    Preview Page &rarr;
+                  </Link>
+                </div>
+
+                {liveProducts.filter(p => p.is_hidden).length === 0 ? (
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center py-10">
+                    No products are currently on Private Access.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {liveProducts.filter(p => p.is_hidden).map(product => (
+                      <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
+                        <div className="flex gap-4 mb-4">
+                          <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden relative">
+                            <span className="absolute top-0 right-0 bg-red-600 text-white text-[5px] px-1 py-0.5 uppercase z-10">PRIVATE</span>
+                            <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div>
+                            <h3 className="text-[10px] uppercase tracking-wider text-black font-medium line-clamp-2">{product.name}</h3>
+                            <p className="text-[9px] text-zinc-500 font-mono mt-1">₦{product.price.toLocaleString()}</p>
+                            <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Stock: {product.stock_quantity}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => toggleEarlyAccess(product)}
+                          className="w-full mb-2 py-2 text-[8px] uppercase tracking-widest font-bold transition-colors border bg-black text-white border-black hover:bg-zinc-800"
+                        >
+                          Make Public (Move to Shop)
+                        </button>
+
+                        <div className="flex gap-2 border-t border-zinc-200 pt-3">
+                          <button
+                            onClick={() => { setInventoryMode('manage'); startEditingProduct(product); }}
+                            className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors font-bold"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
