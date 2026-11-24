@@ -131,7 +131,6 @@ export default function AdminDashboard() {
   const [editFiles, setEditFiles] = useState([]);
   const [editPreviews, setEditPreviews] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
-  // NEW: Added is_hidden to default payload
   const [productsList, setProductsList] = useState([
     { id: Date.now(), name: '', price: '', stock: '', category: 'bags', description: '', additional_information: '', store_policies: '', inquiries: '', published_at: '', files: [], previews: [], is_hidden: false }
   ]);
@@ -177,7 +176,6 @@ export default function AdminDashboard() {
   const [interceptedOrder, setInterceptedOrder] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState('');
 
-  // NEW: Newsletter Audience State
   const [newsletterAudience, setNewsletterAudience] = useState('waitlist');
   const [newsletterSubj, setNewsletterSubj] = useState('');
   const [newsletterMsg, setNewsletterMsg] = useState('');
@@ -189,7 +187,6 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  // NEW: EGRESS PROTECTION - Added .limit(500) to all background data fetching
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -509,8 +506,9 @@ export default function AdminDashboard() {
     
     const numStock = parseInt(wp.stock, 10);
     const numPrice = parseFloat(String(wp.price).replace(/[^\d.]/g, ''));
+    const destinationUrl = wp.is_hidden ? 'https://ssikamore.com/private-access' : 'https://ssikamore.com/shop';
     
-    showToast(`PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
+    showToast(wp.is_hidden ? `PUSHING ${wp.name.toUpperCase()} TO EARLY ACCESS...` : `PUSHING ${wp.name.toUpperCase()} TO LIVE STOREFRONT...`);
 
     try {
       const { error: insertErr } = await supabase.from('products').insert([{
@@ -524,6 +522,7 @@ export default function AdminDashboard() {
         inquiries: wp.inquiries || null,
         image: wp.images && wp.images.length > 0 ? wp.images : [wp.image_url],
         is_sold_out: numStock <= 0,
+        is_hidden: Boolean(wp.is_hidden),
         published_at: new Date().toISOString()
       }]);
       
@@ -552,7 +551,7 @@ export default function AdminDashboard() {
                     <tr><td align="center" style="padding-bottom:30px; border-bottom:1px solid #1A1A1A;"><h1 style="font-family:serif; font-weight:normal; letter-spacing:0.45em; font-size:18px; margin:0; color:#FFFFFF;">S. SIKAMÒRE</h1></td></tr>
                     <tr><td align="center" style="padding:45px 0 15px 0;"><h2 style="font-size:14px; tracking:0.3em; color:#FFFFFF; margin:0; font-weight:normal;">PRIVATE RESERVE UNLOCKED</h2><div style="width:40px; height:1px; background:#FFFFFF; margin:20px auto;"></div></td></tr>
                     <tr><td style="padding:20px 10px; font-size:10px; line-height:2.2; letter-spacing:0.12em; color:#A3A3A3; text-align:center;">
-                      The wait is over. The piece you requested from our exclusive waitlist is now officially available for purchase on the storefront.
+                      The wait is over. The piece you requested from our exclusive waitlist is now officially available for purchase.
                     </td></tr>
                     <tr>
                       <td align="center" style="padding-top:20px;">
@@ -560,7 +559,7 @@ export default function AdminDashboard() {
                           <tr><td style="padding-bottom:20px;"><img src="${wp.image_url}" width="180" style="border:1px solid #333; display:inline-block;" /></td></tr>
                           <tr><td style="font-size:12px; color:#FFFFFF; tracking:0.25em; padding-bottom:5px; font-weight:bold;">${wp.name.toUpperCase()}</td></tr>
                           <tr><td style="font-size:10px; color:#A3A3A3; font-family:monospace; padding-bottom:25px;">${displayPrice}</td></tr>
-                          <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ACQUIRE NOW</a></td></tr>
+                          <tr><td><a href="${destinationUrl}" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ACQUIRE NOW</a></td></tr>
                         </table>
                       </td>
                     </tr>
@@ -586,7 +585,7 @@ export default function AdminDashboard() {
       }
 
       await supabase.from('waitlist_products').delete().eq('id', wp.id);
-      showToast(`SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
+      showToast(wp.is_hidden ? `SUCCESS! PUSHED TO EARLY ACCESS & EMAILS SENT.` : `SUCCESS! PUSHED TO STORE & EMAILS SENT.`);
       setShippingWaitlistProduct(null);
     } catch (err) {
       showToast(`ERROR PUSHING PRODUCT: ${err.message.toUpperCase()}`);
@@ -615,21 +614,16 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: REARRANGE UPLOAD PHOTOS ---
   const setCoverPhoto = (productId, photoIndex) => {
-    if (photoIndex === 0) return; // Already the cover
+    if (photoIndex === 0) return;
     setProductsList(prev => prev.map(p => {
       if (p.id !== productId) return p;
-      
       const updatedFiles = [...p.files];
       const updatedPreviews = [...p.previews];
-      
       const [chosenFile] = updatedFiles.splice(photoIndex, 1);
       const [chosenPreview] = updatedPreviews.splice(photoIndex, 1);
-      
       updatedFiles.unshift(chosenFile);
       updatedPreviews.unshift(chosenPreview);
-      
       return { ...p, files: updatedFiles, previews: updatedPreviews };
     }));
   };
@@ -683,7 +677,7 @@ export default function AdminDashboard() {
           published_at: product.published_at ? new Date(product.published_at).toISOString() : new Date().toISOString(),
           image: imageUrls,
           is_sold_out: parseInt(product.stock) <= 0,
-          is_hidden: Boolean(product.is_hidden), // NEW: SECRET LINK TOGGLE
+          is_hidden: Boolean(product.is_hidden),
         }]);
 
         if (dbError) throw new Error(dbError.message);
@@ -710,6 +704,20 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleEarlyAccess = async (product) => {
+    const nextHidden = !product.is_hidden;
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_hidden: nextHidden })
+        .eq('id', product.id);
+      if (error) throw error;
+      showToast(nextHidden ? `${product.name} MOVED TO EARLY ACCESS.` : `${product.name} IS NOW PUBLIC ON STOREFRONT.`);
+    } catch (err) {
+      showToast(`ERROR: ${err.message.toUpperCase()}`);
+    }
+  };
+
   const startEditingProduct = (product) => {
     let formattedDate = '';
     if (product.published_at) {
@@ -729,7 +737,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: REARRANGE EDIT PHOTOS ---
   const setExistingCoverPhoto = (photoIndex) => {
     if (photoIndex === 0) return;
     const currentUrls = extractCleanUrls(editingProduct.image);
@@ -784,7 +791,7 @@ export default function AdminDashboard() {
         published_at: editingProduct.published_at ? new Date(editingProduct.published_at).toISOString() : new Date().toISOString(),
         image: finalImageUrls,
         is_sold_out: parseInt(cleanStock) <= 0,
-        is_hidden: Boolean(editingProduct.is_hidden), // NEW: SECRET LINK TOGGLE
+        is_hidden: Boolean(editingProduct.is_hidden),
       }).eq('id', editingProduct.id);
 
       if (dbError) throw new Error(dbError.message);
@@ -896,7 +903,6 @@ export default function AdminDashboard() {
               html: vendorHtml
             })
           });
-
         }
       }
     } catch (err) { showToast(`FULFILLMENT ERROR: ${err.message.toUpperCase()}`); }
@@ -907,7 +913,6 @@ export default function AdminDashboard() {
     handleUpdateOrderStatus(order.id, 'shipped', deliveryDays, order);
   };
 
-  // --- NEW: SMART DEDUPLICATED NEWSLETTER AUDIENCE DISPATCH ---
   const handleSendBrandedNewsletter = async (e) => {
     e.preventDefault();
     if (!newsletterSubj.trim() || !newsletterMsg.trim()) return;
@@ -983,7 +988,7 @@ export default function AdminDashboard() {
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#111111; border:1px solid #1A1A1A; padding:30px 20px; text-align:center;">
                       <tr><td style="font-size:8px; color:#666; tracking:0.25em; padding-bottom:5px;">EXCLUSIVE BRAND DIRECTIVE</td></tr>
                       <tr><td style="font-size:13px; color:#FFFFFF; font-weight:bold; tracking:0.3em; padding-bottom:20px;">COMPLIMENTARY DROPS ACTIVE</td></tr>
-                      <tr><td><a href="https://ssikamore.com/shop" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">ENTER STOREFRONT</a></td></tr>
+                      <tr><td><a href="${newsletterAudience === 'waitlist' ? 'https://ssikamore.com/private-access' : 'https://ssikamore.com/shop'}" style="background-color:#FFFFFF; color:#000000; text-decoration:none; padding:12px 35px; font-size:9px; font-weight:bold; tracking:0.25em; display:inline-block;">${newsletterAudience === 'waitlist' ? 'ENTER PRIVATE ACCESS' : 'ENTER STOREFRONT'}</a></td></tr>
                     </table>
                   </td>
                 </tr>
@@ -1236,7 +1241,7 @@ export default function AdminDashboard() {
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex gap-2 mt-auto">
                             <button 
-                              onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '' })}
+                              onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: true })}
                               className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
                             >
                               SHIP
@@ -1304,11 +1309,10 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* NEW: EARLY ACCESS SECRET LINK TOGGLE */}
                         <div className="md:col-span-5 flex items-center gap-3 p-4 border border-zinc-200 bg-white mb-6">
                           <input type="checkbox" checked={editingProduct.is_hidden || false} onChange={(e)=>setEditingProduct({...editingProduct, is_hidden: e.target.checked})} className="w-4 h-4 accent-black cursor-pointer" />
                           <div>
-                            <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={(e)=>setEditingProduct({...editingProduct, is_hidden: !(editingProduct.is_hidden || false)})}>Hide from Public Storefront (Secret Link Only)</label>
+                            <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={()=>setEditingProduct({...editingProduct, is_hidden: !(editingProduct.is_hidden || false)})}>Hide from Public Storefront (Secret Link Only)</label>
                             <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Check this to hide the product from the shop page for waitlist early-access drops.</p>
                           </div>
                         </div>
@@ -1383,7 +1387,7 @@ export default function AdminDashboard() {
                           <div key={product.id} className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col justify-between">
                             <div className="flex gap-4 mb-4">
                               <div className="w-16 h-20 shrink-0 bg-white border border-zinc-200 overflow-hidden relative">
-                                {product.is_hidden && <span className="absolute top-0 right-0 bg-red-600 text-white text-[5px] px-1 py-0.5 uppercase z-10">HIDDEN</span>}
+                                {product.is_hidden && <span className="absolute top-0 right-0 bg-red-600 text-white text-[5px] px-1 py-0.5 uppercase z-10">EARLY ACCESS</span>}
                                 <img src={getPrimaryImage(product.image)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div>
@@ -1393,6 +1397,16 @@ export default function AdminDashboard() {
                                 <p className="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">Category: {product.category || 'bags'}</p>
                               </div>
                             </div>
+                            <button
+                              onClick={() => toggleEarlyAccess(product)}
+                              className={`w-full mb-2 py-2 text-[8px] uppercase tracking-widest font-bold transition-colors border ${
+                                product.is_hidden
+                                  ? 'bg-black text-white border-black hover:bg-zinc-800'
+                                  : 'bg-white text-black border-zinc-300 hover:bg-zinc-100'
+                              }`}
+                            >
+                              {product.is_hidden ? 'Make Public (Move to Shop)' : 'Move to Early Access'}
+                            </button>
                             <div className="flex gap-2 border-t border-zinc-200 pt-3">
                               <button onClick={() => { setRevertingProduct(product); setRevertBadge('EXCLUSIVE'); }} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Revert</button>
                               <button onClick={() => startEditingProduct(product)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
@@ -1449,11 +1463,10 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* NEW: EARLY ACCESS SECRET LINK TOGGLE */}
                       <div className="md:col-span-5 flex items-center gap-3 p-4 border border-zinc-200 bg-white mb-6">
                         <input type="checkbox" checked={product.is_hidden || false} onChange={(e)=>updateProductData(product.id, 'is_hidden', e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
                         <div>
-                          <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={(e)=>updateProductData(product.id, 'is_hidden', !(product.is_hidden || false))}>Hide from Public Storefront (Secret Link Only)</label>
+                          <label className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer" onClick={()=>updateProductData(product.id, 'is_hidden', !(product.is_hidden || false))}>Hide from Public Storefront (Secret Link Only)</label>
                           <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Check this to hide the product from the shop page for waitlist early-access drops.</p>
                         </div>
                       </div>
@@ -2116,10 +2129,30 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              <div className="flex items-center gap-3 p-4 border border-zinc-200 bg-zinc-50">
+                <input
+                  type="checkbox"
+                  checked={shippingWaitlistProduct.is_hidden || false}
+                  onChange={e => setShippingWaitlistProduct({ ...shippingWaitlistProduct, is_hidden: e.target.checked })}
+                  className="w-4 h-4 accent-black cursor-pointer"
+                />
+                <div>
+                  <label
+                    className="block text-[9px] tracking-[0.2em] text-black uppercase font-bold cursor-pointer"
+                    onClick={() => setShippingWaitlistProduct({ ...shippingWaitlistProduct, is_hidden: !shippingWaitlistProduct.is_hidden })}
+                  >
+                    Push to Early Access Only (/private-access)
+                  </label>
+                  <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">
+                    Keeps this item hidden from the public shop until you make it public on Thursday.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex gap-4 pt-4 border-t border-zinc-200 mt-2">
                 <button type="button" onClick={() => setShippingWaitlistProduct(null)} disabled={isShippingProduct} className="flex-1 bg-white text-black border border-zinc-200 py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-50 transition-all disabled:opacity-50">Cancel</button>
                 <button type="submit" disabled={isShippingProduct} className="flex-[2] bg-black text-white py-3.5 text-[9px] tracking-[0.2em] uppercase font-bold hover:bg-zinc-800 transition-all disabled:opacity-50">
-                  {isShippingProduct ? 'DISPATCHING & EMAILING...' : 'CONFIRM & PUSH TO STORE'}
+                  {isShippingProduct ? 'DISPATCHING & EMAILING...' : 'CONFIRM & PUSH'}
                 </button>
               </div>
             </form>
