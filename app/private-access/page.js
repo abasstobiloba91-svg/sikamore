@@ -85,7 +85,7 @@ export default function PrivateEarlyAccessPage() {
     loadMasterLogistics();
   }, []);
 
-  // Auto-detect currency
+  // Auto-detect currency silently
   useEffect(() => {
     async function locateClientNetwork() {
       try {
@@ -183,7 +183,7 @@ export default function PrivateEarlyAccessPage() {
     };
     try {
       addToCart(cartItemPayload, overrideQty, overrideSize);
-      showToast('Added to your cart.');
+      showToast('Added to your bag.');
 
       await supabase.from('page_analytics').insert([{
         event_type: 'click',
@@ -192,7 +192,7 @@ export default function PrivateEarlyAccessPage() {
         page_path: `/private-access?item=${product.id}`,
       }]);
     } catch (err) {
-      showToast('Error adding to cart.');
+      showToast('Error adding to bag.');
     }
   };
 
@@ -280,36 +280,10 @@ export default function PrivateEarlyAccessPage() {
         </div>
 
         <header className="bg-white text-black border-b border-zinc-200">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
-            <div className="flex-1 flex items-center justify-start">
-              <span className="text-[8px] sm:text-[9px] tracking-[0.2em] uppercase bg-black text-white px-2.5 py-1">
-                VIP Access
-              </span>
-            </div>
-
-            <div className="flex-none flex items-center justify-center">
-              <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
-                S. SIKAMÒRE
-              </Link>
-            </div>
-
-            <div className="flex-1 flex items-center justify-end gap-3 sm:gap-5">
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black">
-                <option value="NGN">NGN ₦</option>
-                <option value="USD">USD $</option>
-                <option value="GBP">GBP £</option>
-                <option value="EUR">EUR €</option>
-              </select>
-
-              <Link href="/cart" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center gap-1.5 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-medium">
-                <span>Bag</span>
-                {cartCount > 0 && (
-                  <span className="w-4 h-4 bg-black text-white flex items-center justify-center rounded-full text-[8px] font-bold">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            </div>
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-center">
+            <Link href="/" className="text-[15px] sm:text-xl font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase font-serif text-center text-black pl-[0.3em] whitespace-nowrap">
+              S. SIKAMÒRE
+            </Link>
           </div>
         </header>
       </div>
@@ -356,6 +330,21 @@ export default function PrivateEarlyAccessPage() {
           </div>
         )}
       </main>
+
+      {/* FLOATING RED VIEW BAG BUTTON */}
+      {cartCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs">
+          <Link
+            href="/cart"
+            className="w-full bg-[#D31313] hover:bg-[#b51010] text-white py-3.5 px-6 rounded-sm shadow-2xl flex items-center justify-between text-[10px] tracking-[0.25em] uppercase font-bold transition-all active:scale-95"
+          >
+            <span>View Bag</span>
+            <span className="bg-white text-[#D31313] px-2.5 py-0.5 rounded-full text-[9px] font-bold">
+              {cartCount}
+            </span>
+          </Link>
+        </div>
+      )}
 
       {/* QUICK VIEW MODAL */}
       {quickViewProduct && (
