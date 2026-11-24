@@ -1259,21 +1259,22 @@ export default function AdminDashboard() {
                           <h4 className="text-[9px] uppercase tracking-wider text-black font-medium">{wp.name}</h4>
                           <p className="text-[8px] text-zinc-500 font-mono mt-1 mb-3">{wp.price}</p>
                           <div className="flex flex-col gap-2 mt-auto">
-                          <button
-                          onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: true })}
-                         className="w-full bg-zinc-900 text-white hover:bg-black py-2 text-[8px] uppercase tracking-widest font-bold transition-colors"
-                           >
-                             Early Access
-                                </button>
-                                 <div className="flex gap-2">
-                                  <button
-                                    onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: false })}
-                                     className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
-                                    >
-                                   SHIP
-                                 </button>
-                               <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
-                            <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
+                            <button
+                              onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: true })}
+                              className="w-full bg-zinc-900 text-white hover:bg-black py-2 text-[8px] uppercase tracking-widest font-bold transition-colors"
+                            >
+                              Early Access
+                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setShippingWaitlistProduct({ ...wp, stock: '', category: 'bags', additional_information: '', store_policies: '', inquiries: '', is_hidden: false })}
+                                className="flex-1 bg-black text-white hover:bg-zinc-800 py-2 text-[8px] uppercase tracking-widest transition-colors"
+                              >
+                                SHIP
+                              </button>
+                              <button onClick={() => startEditingWaitlistProduct(wp)} className="flex-1 border border-zinc-200 bg-white hover:bg-zinc-100 text-black py-2 text-[8px] uppercase tracking-widest transition-colors">Edit</button>
+                              <button onClick={() => handleDeleteWaitlistProduct(wp.id)} className="flex-1 border border-red-200 bg-white hover:bg-red-50 text-red-600 py-2 text-[8px] uppercase tracking-widest transition-colors">Del</button>
+                            </div>
                           </div>
                         </div>
                       ))}
