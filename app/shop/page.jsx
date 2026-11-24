@@ -208,7 +208,8 @@ export default function ShopCatalog() {
         .from('products')
         .select('*')
         .lte('published_at', now)
-        .order('sort_order', { ascending: true }) 
+        .neq('is_hidden', true) // <-- ADD THIS LINE
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
         
       if (data) {
