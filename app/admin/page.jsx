@@ -1451,6 +1451,71 @@ export default function AdminDashboard() {
                   </Link>
                 </div>
 
+                {/* PRIVATE ACCESS EDITORIAL WRITE-UP EDITOR */}
+                <form
+                  key={logisticsSettings?.updated_at || 'pa-note'}
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const heading = e.target.paHeading.value.trim();
+                    const note = e.target.paNote.value.trim();
+                    try {
+                      const { error } = await supabase
+                        .from('shipping_settings')
+                        .update({
+                          private_access_heading: heading,
+                          private_access_note: note,
+                          updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', 1);
+                      if (error) throw error;
+                      setLogisticsSettings(prev => ({
+                        ...prev,
+                        private_access_heading: heading,
+                        private_access_note: note,
+                        updated_at: new Date().toISOString(),
+                      }));
+                      showToast("PRIVATE ACCESS WRITE-UP UPDATED LIVE.");
+                    } catch (err) {
+                      showToast("ERROR SAVING WRITE-UP.");
+                    }
+                  }}
+                  className="bg-zinc-50 border border-zinc-200 p-5 mb-8 space-y-4 rounded-sm"
+                >
+                  <p className="text-[9px] tracking-[0.25em] uppercase font-bold text-black">
+                    Private Access Page Write-Up
+                  </p>
+                  <div>
+                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-1.5 uppercase">
+                      Headline (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="paHeading"
+                      defaultValue={logisticsSettings?.private_access_heading || 'PRIVATE RESERVE'}
+                      placeholder="E.G. THE PRIVATE RESERVE"
+                      className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black uppercase tracking-widest"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] tracking-[0.2em] text-zinc-500 mb-1.5 uppercase">
+                      Editorial Message (Appears Above Products)
+                    </label>
+                    <textarea
+                      name="paNote"
+                      rows="3"
+                      defaultValue={logisticsSettings?.private_access_note || ''}
+                      placeholder="Write your welcome note or drop details for waitlist clients..."
+                      className="w-full bg-white p-3 border border-zinc-200 focus:border-black outline-none text-base md:text-[10px] text-black resize-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="bg-black text-white px-6 py-2.5 text-[9px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors"
+                  >
+                    Save Write-Up
+                  </button>
+                </form>
+
                 {liveProducts.filter(p => p.is_hidden).length === 0 ? (
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center py-10">
                     No products are currently on Private Access.
@@ -1778,7 +1843,8 @@ export default function AdminDashboard() {
 
                   if (error) throw error;
 
-                  setLogisticsSettings({
+                  setLogisticsSettings(prev => ({
+                    ...prev,
                     mainland_fee: mainFee,
                     island_fee: islFee,
                     interstate_fee: interFee,
@@ -1787,7 +1853,7 @@ export default function AdminDashboard() {
                     international_fee_africa: feeAfrica,
                     international_fee_global: feeGlobal,
                     updated_at: new Date().toISOString(),
-                  });
+                  }));
 
                   showToast("GLOBAL LOGISTICS CONFIGURATION BROADCASTED LIVE.");
                 } catch (err) {
