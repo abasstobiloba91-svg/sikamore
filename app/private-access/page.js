@@ -45,6 +45,8 @@ const generateSlug = (name) => {
 
 export default function PrivateEarlyAccessPage() {
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+  const [privateAccessHeading, setPrivateAccessHeading] = useState('');
+  const [privateAccessNote, setPrivateAccessNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [currency, setCurrency] = useState('NGN');
@@ -61,6 +63,7 @@ export default function PrivateEarlyAccessPage() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [qty, setQty] = useState(1);
   const [localCartOpen, setLocalCartOpen] = useState(false);
+  const [showDeliveryNotice, setShowDeliveryNotice] = useState(false);
 
   const appContext = useApp() || {};
   const cart = appContext.cart || [];
@@ -92,10 +95,14 @@ export default function PrivateEarlyAccessPage() {
       try {
         const { data } = await supabase
           .from('shipping_settings')
-          .select('usd_to_ngn_rate')
+          .select('usd_to_ngn_rate, private_access_heading, private_access_note')
           .eq('id', 1)
           .single();
-        if (data && data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+        if (data) {
+          if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+          if (data.private_access_heading) setPrivateAccessHeading(data.private_access_heading);
+          if (data.private_access_note) setPrivateAccessNote(data.private_access_note);
+        }
       } catch (e) {}
     }
     loadMasterLogistics();
@@ -276,6 +283,11 @@ export default function PrivateEarlyAccessPage() {
         <div className="flex flex-col gap-1 mt-4 text-left px-1">
           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
+          {!product.is_sold_out && product.stock_quantity > 0 && (
+            <p className="text-[9px] tracking-[0.15em] uppercase text-[#D31313] font-medium mt-0.5">
+              Only {product.stock_quantity} left
+            </p>
+          )}
           <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
             <Link href={`/product/${productSlug}`} className="w-full text-center bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors block">View Product</Link>
@@ -301,6 +313,25 @@ export default function PrivateEarlyAccessPage() {
           </div>
         </header>
       </div>
+
+      {/* EDITABLE BRAND EDITORIAL WRITE-UP */}
+      {(privateAccessHeading || privateAccessNote) && (
+        <section className="bg-white border-b border-zinc-100">
+          <div className="max-w-2xl mx-auto px-6 py-10 sm:py-14 text-center">
+            {privateAccessHeading && (
+              <h1 className="text-sm sm:text-lg font-serif tracking-[0.3em] uppercase text-black mb-4">
+                {privateAccessHeading}
+              </h1>
+            )}
+            <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
+            {privateAccessNote && (
+              <p className="text-[11px] sm:text-xs text-zinc-600 leading-relaxed tracking-wider font-light whitespace-pre-wrap">
+                {privateAccessNote}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* GRID VIEW CONTROLS */}
       <section className="bg-white border-b border-zinc-200">
@@ -403,15 +434,52 @@ export default function PrivateEarlyAccessPage() {
                   <span>Subtotal</span>
                   <span>{formatPrice(cartTotal)}</span>
                 </div>
-                <Link
-                  href="/checkout"
-                  onClick={() => setLocalCartOpen(false)}
-                  className="block w-full text-center bg-black text-white py-4 text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryNotice(true)}
+                  className="block w-full text-center bg-black text-white py-4 text-[10px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   Proceed to Checkout
-                </Link>
+                </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* BRANDED DELIVERY TIMELINE MODAL */}
+      {showDeliveryNotice && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999999] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeliveryNotice(false); }}
+        >
+          <div className="bg-white border border-zinc-200 w-full max-w-md p-8 sm:p-10 text-center shadow-2xl rounded-sm">
+            <p className="text-[8px] tracking-[0.35em] uppercase text-zinc-400 mb-3">
+              S. SIKAMÒRE • CLIENT ADVISORY
+            </p>
+            <h3 className="text-sm sm:text-base font-serif tracking-[0.25em] uppercase text-black mb-4">
+              Delivery Notice
+            </h3>
+            <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
+            <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8">
+              Please note that select pieces are handcrafted to order and require <strong className="text-black">1–2 weeks</strong> for preparation and dispatch before delivery.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/checkout"
+                onClick={() => { setShowDeliveryNotice(false); setLocalCartOpen(false); }}
+                className="w-full bg-black text-white py-3.5 text-[9px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors block"
+              >
+                Okay, Proceed to Payment
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowDeliveryNotice(false)}
+                className="w-full bg-white text-zinc-500 border border-zinc-200 py-3 text-[9px] tracking-[0.25em] uppercase hover:text-black hover:border-black transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -469,7 +537,12 @@ export default function PrivateEarlyAccessPage() {
                     <svg className="w-5 h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                   </button>
                 </div>
-                <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
+                <p className="text-xs tracking-widest font-medium mb-1 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
+                {!quickViewProduct.is_sold_out && quickViewProduct.stock_quantity > 0 && (
+                  <p className="text-[9px] tracking-[0.15em] uppercase text-[#D31313] font-medium mb-5">
+                    Only {quickViewProduct.stock_quantity} left
+                  </p>
+                )}
 
                 <div className="mb-5">
                   <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
