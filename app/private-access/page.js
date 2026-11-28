@@ -11,8 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
-
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
   try {
@@ -110,14 +108,10 @@ export default function PrivateEarlyAccessPage() {
 
   useEffect(() => {
     async function locateClientNetwork() {
-      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
-
       const applyCountry = (code) => {
         if (!code) return false;
         const upper = code.toUpperCase();
         if (upper === 'NG') setCurrency('NGN');
-        else if (upper === 'GB') setCurrency('GBP');
-        else if (euCountries.includes(upper)) setCurrency('EUR');
         else setCurrency('USD');
         return true;
       };
@@ -131,7 +125,7 @@ export default function PrivateEarlyAccessPage() {
         }
       } catch (err) {}
 
-      // 2. Fallback: ipwho.is (Free, no rate-limit wall like ipapi.co)
+      // 2. Fallback: ipwho.is
       try {
         const fallbackRes = await fetch('https://ipwho.is/');
         if (fallbackRes.ok) {
@@ -140,13 +134,11 @@ export default function PrivateEarlyAccessPage() {
         }
       } catch (err) {}
 
-      // 3. Last-resort browser timezone check (Botswana is Africa/Gaborone, Nigeria is Africa/Lagos)
+      // 3. Last-resort browser timezone check
       try {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
         if (tz && tz !== 'Africa/Lagos') {
-          if (tz === 'Europe/London') setCurrency('GBP');
-          else if (tz.startsWith('Europe/')) setCurrency('EUR');
-          else setCurrency('USD');
+          setCurrency('USD');
         }
       } catch (err) {}
     }
@@ -170,17 +162,11 @@ export default function PrivateEarlyAccessPage() {
 
   const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    const dynamicExchangeRates = {
-      NGN: 1,
-      USD: 1 / usdToNgnRate,
-      GBP: 1 / (usdToNgnRate * 1.32),
-      EUR: 1 / (usdToNgnRate * 1.12),
-    };
-    const rate = dynamicExchangeRates[currency] || 1;
+    const rate = currency === 'USD' ? (1 / usdToNgnRate) : 1;
     const converted = Number(ngnPrice) * rate;
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
-    return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const openQuickView = async (product) => {
@@ -488,7 +474,7 @@ export default function PrivateEarlyAccessPage() {
               Delivery Notice
             </h3>
             <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
-            <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8">
+            <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8 normal-case">
               Please note that select pieces are handcrafted to order and require <strong className="text-black">1–2 weeks</strong> for preparation and dispatch before delivery.
             </p>
             <div className="flex flex-col gap-3">
