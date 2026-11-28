@@ -10,7 +10,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+const currencySymbols = { NGN: '₦', USD: '$' };
 
 export default function GlobalCart() {
   const router = useRouter();
@@ -44,7 +44,6 @@ export default function GlobalCart() {
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
   const [detectedContinentCode, setDetectedContinentCode] = useState('AF');
-  const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
   const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
   const cartItemCount = cart ? cart.reduce((acc, curr) => acc + (Number(curr.quantity) || 1), 0) : 0;
@@ -69,8 +68,6 @@ export default function GlobalCart() {
     loadMasterSettings();
 
     async function locateClientNetwork() {
-      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
-
       const applyCountry = (code, name = '', continent = '') => {
         if (!code) return false;
         const upper = code.toUpperCase();
@@ -90,13 +87,9 @@ export default function GlobalCart() {
 
         if (continent) setDetectedContinentCode(continent.toUpperCase());
 
-        const checkEurope = euCountries.includes(upper) || upper === 'GB';
-        setIsEuropeanUser(checkEurope);
-
         if (upper === 'NG') setCurrency('NGN');
         else setCurrency('USD');
 
-        // Reset delivery selection if country changed so region options stay valid
         setSelectedDelivery(null);
         setDeliveryFee(0);
         setDeliveryZone('');
@@ -142,13 +135,7 @@ export default function GlobalCart() {
 
   const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    const dynamicExchangeRates = { 
-      NGN: 1, 
-      USD: 1 / usdToNgnRate, 
-      GBP: 1 / (usdToNgnRate * 1.32),
-      EUR: 1 / (usdToNgnRate * 1.12) 
-    };
-    const rate = dynamicExchangeRates[currency] || 1;
+    const rate = currency === 'USD' ? (1 / usdToNgnRate) : 1;
     const converted = Number(ngnPrice) * rate; 
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
@@ -156,9 +143,9 @@ export default function GlobalCart() {
   };
 
   const getDisplayTotal = () => {
-    const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
-    const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); 
-    const shippingConverted = deliveryFee * (dynamicExchangeRates[currency] || 1);
+    const rate = currency === 'USD' ? (1 / usdToNgnRate) : 1;
+    const productsConverted = cartSubtotal * rate; 
+    const shippingConverted = deliveryFee * rate;
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -203,7 +190,7 @@ export default function GlobalCart() {
 
   return (
     <>
-      {/* FLOATING CART BUTTON (Shop & Product Pages; /private-access has its own pill that opens this drawer) */}
+      {/* FLOATING CART BUTTON */}
       {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in" style={{ zIndex: 9999990 }}>
           <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500 shadow-[0_10px_30px_rgba(220,38,38,0.4)]">
