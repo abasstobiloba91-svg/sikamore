@@ -94,8 +94,6 @@ export default function GlobalCart() {
         setIsEuropeanUser(checkEurope);
 
         if (upper === 'NG') setCurrency('NGN');
-        else if (upper === 'GB') setCurrency('GBP');
-        else if (euCountries.includes(upper)) setCurrency('EUR');
         else setCurrency('USD');
 
         // Reset delivery selection if country changed so region options stay valid
@@ -130,9 +128,7 @@ export default function GlobalCart() {
           setDetectedCountryCode('INTL');
           setDetectedCountryName('International');
           setDetectedContinentCode(tz.startsWith('Africa/') ? 'AF' : 'GLOBAL');
-          if (tz === 'Europe/London') setCurrency('GBP');
-          else if (tz.startsWith('Europe/')) setCurrency('EUR');
-          else setCurrency('USD');
+          setCurrency('USD');
         }
       } catch (err) {}
     }
