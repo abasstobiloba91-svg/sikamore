@@ -12,15 +12,21 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const currencySymbols = { NGN: '₦', USD: '$' };
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart, showToast } = useApp();
 
+  // Master Admin Logistics Parameters
   const [usdToNgnRate, setUsdToNgnRate] = useState(1500);
+  const [mainlandFee, setMainlandFee] = useState(5000);
+  const [islandFee, setIslandFee] = useState(6500);
+  const [interstateFee, setInterstateFee] = useState(12500);
+  const [northernFee, setNorthernFee] = useState(16000);
   const [intlFeeAfrica, setIntlFeeAfrica] = useState(45);
   const [intlFeeGlobal, setIntlFeeGlobal] = useState(55);
+
+  const [selectedDomesticZone, setSelectedDomesticZone] = useState('mainland');
+  const [detectedContinent, setDetectedContinent] = useState('AF');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,8 +53,11 @@ export default function CheckoutPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState('');
 
-  // NEW DYNAMIC LOGIC: Check if the user is in Nigeria based on the Country input
-  const isNigeria = countryInput.trim().toLowerCase() === 'nigeria';
+  const [showDeliveryNotice, setShowDeliveryNotice] = useState(false);
+  const [hasAcceptedDeliveryNotice, setHasAcceptedDeliveryNotice] = useState(false);
+
+  // Postal code check only checks if destination country is Nigeria — NEVER changes currency!
+  const isShippingToNigeria = countryInput.trim().toLowerCase() === 'nigeria' || (countryInput.trim() === '' && currency === 'NGN');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -68,6 +77,10 @@ export default function CheckoutPage() {
         const { data } = await supabase.from('shipping_settings').select('*').eq('id', 1).single();
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
+          if (data.mainland_fee) setMainlandFee(parseFloat(data.mainland_fee));
+          if (data.island_fee) setIslandFee(parseFloat(data.island_fee));
+          if (data.interstate_fee) setInterstateFee(parseFloat(data.interstate_fee));
+          if (data.northern_fee) setNorthernFee(parseFloat(data.northern_fee));
           if (data.international_fee_africa) setIntlFeeAfrica(parseFloat(data.international_fee_africa));
           if (data.international_fee_global) setIntlFeeGlobal(parseFloat(data.international_fee_global));
         }
@@ -84,12 +97,14 @@ export default function CheckoutPage() {
       }
     }, 800);
 
+    let hasStoredDelivery = false;
     if (typeof window !== 'undefined') {
       const storedDelivery = localStorage.getItem('sikamore_delivery');
       if (storedDelivery) {
         try {
           const parsed = JSON.parse(storedDelivery);
           setDeliveryData(parsed);
+          hasStoredDelivery = true;
           
           if (parsed.currency && parsed.currency !== 'NGN') {
             setCurrency('USD');
@@ -102,6 +117,59 @@ export default function CheckoutPage() {
           }
         } catch(e) {}
       }
+    }
+
+    // Follow exact general Admin location rule if coming directly from /private-access
+    if (!hasStoredDelivery) {
+      (async () => {
+        const applyGeo = (code, name = '', continent = '') => {
+          if (!code) return false;
+          const upper = code.toUpperCase();
+          if (continent) setDetectedContinent(continent.toUpperCase());
+          if (upper === 'NG') {
+            setCurrency('NGN');
+            setCountryInput('NIGERIA');
+          } else {
+            setCurrency('USD');
+            if (name) {
+              setCountryInput(name.toUpperCase());
+            } else {
+              try {
+                const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+                const resolvedName = regionNames.of(upper);
+                if (resolvedName) setCountryInput(resolvedName.toUpperCase());
+              } catch (e) {}
+            }
+          }
+          return true;
+        };
+
+        try {
+          const res = await fetch('/api/geo', { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (applyGeo(data?.country_code, '', data?.continent_code)) return;
+          }
+        } catch (err) {}
+
+        try {
+          const fallbackRes = await fetch('https://ipwho.is/');
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData?.success !== false && applyGeo(fallbackData?.country_code, fallbackData?.country, fallbackData?.continent_code)) return;
+          }
+        } catch (err) {}
+
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+          if (tz && tz !== 'Africa/Lagos') {
+            setCurrency('USD');
+            setDetectedContinent(tz.startsWith('Africa/') ? 'AF' : 'GLOBAL');
+          } else {
+            setCountryInput('NIGERIA');
+          }
+        } catch (err) {}
+      })();
     }
     
     async function checkActiveSession() {
@@ -120,7 +188,21 @@ export default function CheckoutPage() {
   }, [cart, router, isSuccess]);
 
   const cartSubtotalNgn = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const shippingFeeNgn = deliveryData?.fee || 0; 
+
+  // Strictly uses Admin shipping_settings (or stored Cart selection if already chosen)
+  const computeShippingFeeNgn = () => {
+    if (deliveryData && deliveryData.fee !== undefined) return Number(deliveryData.fee);
+    if (currency === 'NGN') {
+      if (selectedDomesticZone === 'island') return islandFee;
+      if (selectedDomesticZone === 'interstate') return interstateFee;
+      if (selectedDomesticZone === 'northern') return northernFee;
+      return mainlandFee;
+    }
+    const usdFee = detectedContinent === 'AF' ? intlFeeAfrica : intlFeeGlobal;
+    return usdFee * usdToNgnRate;
+  };
+
+  const shippingFeeNgn = computeShippingFeeNgn();
   
   const getDynamicExchangeRate = () => {
     return currency === 'USD' ? (1 / usdToNgnRate) : 1;
@@ -247,16 +329,8 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleCheckoutProcess = async (e) => {
-    e.preventDefault();
-
-    // DYNAMIC ADDRESS FORMATTING: Only includes postal code if not in Nigeria
-    const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()}${!isNigeria && postalCode.trim() ? ' ' + postalCode.trim() : ''}, ${countryInput.trim()}`.toUpperCase();
-
-    // DYNAMIC VALIDATION: Ensures postal code is checked only for international orders
-    if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone || (!isNigeria && !postalCode)) {
-      return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
-    }
+  const executePaymentTransaction = async () => {
+    const fullAddress = `${unit ? unit.trim() + ', ' : ''}${street.trim()}, ${city.trim()}, ${stateRegion.trim()}${!isShippingToNigeria && postalCode.trim() ? ' ' + postalCode.trim() : ''}, ${countryInput.trim()}`.toUpperCase();
 
     if (!isScriptLoaded || !window.PaystackPop) {
       return showToast('SECURE CONNECTION CONFIGURING... PLEASE TRY AGAIN IN A MOMENT.');
@@ -330,6 +404,21 @@ export default function CheckoutPage() {
       showToast(`GATEWAY ERROR: ${err.message.toUpperCase()}`);
       setIsProcessing(false);
     }
+  };
+
+  const handleCheckoutProcess = async (e) => {
+    e.preventDefault();
+
+    if (!email || !street || !city || !stateRegion || !countryInput || !firstName || !lastName || !phone || (!isShippingToNigeria && !postalCode)) {
+      return showToast('PLEASE COMPLETE ALL REQUIRED FIELDS.');
+    }
+
+    if (!hasAcceptedDeliveryNotice) {
+      setShowDeliveryNotice(true);
+      return;
+    }
+
+    await executePaymentTransaction();
   };
 
   if (!isHydrated) {
@@ -428,6 +517,23 @@ export default function CheckoutPage() {
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+234..." required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] font-mono transition-colors" />
               </div>
 
+              {/* Domestic Admin Zone Selector if shopper came straight from /private-access without Cart zone */}
+              {!deliveryData && currency === 'NGN' && (
+                <div>
+                  <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Select Delivery Zone</label>
+                  <select
+                    value={selectedDomesticZone}
+                    onChange={(e) => setSelectedDomesticZone(e.target.value)}
+                    className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest text-black transition-colors"
+                  >
+                    <option value="mainland">Lagos Mainland (₦{mainlandFee.toLocaleString()})</option>
+                    <option value="island">Lagos Island / Outskirts (₦{islandFee.toLocaleString()})</option>
+                    <option value="interstate">Outside Lagos - South (₦{interstateFee.toLocaleString()})</option>
+                    <option value="northern">Northern States (₦{northernFee.toLocaleString()})</option>
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[8px] tracking-[0.2em] text-zinc-400 mb-2 uppercase font-medium">Delivery Address</label>
                 <div className="space-y-4">
@@ -436,11 +542,10 @@ export default function CheckoutPage() {
                     <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="STREET NAME" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors" />
                   </div>
                   
-                  {/* DYNAMIC POSTAL CODE ROW */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="CITY / TOWN" required className={`w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors ${isNigeria ? 'sm:col-span-2' : ''}`} />
+                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="CITY / TOWN" required className={`w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors ${isShippingToNigeria ? 'sm:col-span-2' : ''}`} />
                     
-                    {!isNigeria && (
+                    {!isShippingToNigeria && (
                       <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="POSTAL CODE" required className="w-full bg-zinc-50 p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest transition-colors animate-fade-in" />
                     )}
                   </div>
@@ -460,7 +565,7 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2">
+          <button type="submit" disabled={isProcessing || cart.length === 0} className="w-full bg-black text-white py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed rounded-sm my-2 cursor-pointer">
             {isProcessing ? 'AUTHORIZING SECURE GATEWAY...' : !isScriptLoaded ? 'CONNECTING SECURITIES...' : `COMPLETE PAYMENT • ${displayFormat(finalNumericTotal)}`}
           </button>
         </form>
@@ -514,6 +619,47 @@ export default function CheckoutPage() {
         </div>
 
       </div>
+
+      {/* BRANDED DELIVERY TIMELINE MODAL */}
+      {showDeliveryNotice && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999999] flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeliveryNotice(false); }}
+        >
+          <div className="bg-white border border-zinc-200 w-full max-w-md p-8 sm:p-10 text-center shadow-2xl rounded-sm">
+            <p className="text-[8px] tracking-[0.35em] uppercase text-zinc-400 mb-3">
+              S. SIKAMÒRE • CLIENT ADVISORY
+            </p>
+            <h3 className="text-sm sm:text-base font-serif tracking-[0.25em] uppercase text-black mb-4">
+              Delivery Notice
+            </h3>
+            <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
+            <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8 normal-case">
+              Please note that select pieces are handcrafted to order and require <strong className="text-black">1–2 weeks</strong> for preparation and dispatch before delivery.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setHasAcceptedDeliveryNotice(true);
+                  setShowDeliveryNotice(false);
+                  executePaymentTransaction();
+                }}
+                className="w-full bg-black text-white py-3.5 text-[9px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Okay, Launch Payment
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeliveryNotice(false)}
+                className="w-full bg-white text-zinc-500 border border-zinc-200 py-3 text-[9px] tracking-[0.25em] uppercase hover:text-black hover:border-black transition-colors cursor-pointer"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
