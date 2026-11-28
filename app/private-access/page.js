@@ -110,15 +110,42 @@ export default function PrivateEarlyAccessPage() {
 
   useEffect(() => {
     async function locateClientNetwork() {
+      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+
+      const applyCountry = (code) => {
+        if (!code) return false;
+        const upper = code.toUpperCase();
+        if (upper === 'NG') setCurrency('NGN');
+        else if (upper === 'GB') setCurrency('GBP');
+        else if (euCountries.includes(upper)) setCurrency('EUR');
+        else setCurrency('USD');
+        return true;
+      };
+
+      // 1. Primary: Vercel Server Edge Geo (/api/geo) — Zero rate limits & ad-blocker proof
       try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.country_code) {
-          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
-          if (data.country_code === 'NG') setCurrency('NGN');
-          else if (data.continent_code === 'AF') setCurrency('USD');
-          else if (data.country_code === 'GB') setCurrency('GBP');
-          else if (checkEurope) setCurrency('EUR');
+        const res = await fetch('/api/geo', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (applyCountry(data?.country_code)) return;
+        }
+      } catch (err) {}
+
+      // 2. Fallback: ipwho.is (Free, no rate-limit wall like ipapi.co)
+      try {
+        const fallbackRes = await fetch('https://ipwho.is/');
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success !== false && applyCountry(fallbackData?.country_code)) return;
+        }
+      } catch (err) {}
+
+      // 3. Last-resort browser timezone check (Botswana is Africa/Gaborone, Nigeria is Africa/Lagos)
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz && tz !== 'Africa/Lagos') {
+          if (tz === 'Europe/London') setCurrency('GBP');
+          else if (tz.startsWith('Europe/')) setCurrency('EUR');
           else setCurrency('USD');
         }
       } catch (err) {}
