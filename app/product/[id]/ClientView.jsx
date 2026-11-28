@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,7 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
 
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
@@ -26,7 +26,6 @@ const getPrimaryImage = (payload) => {
   return urls.length > 0 ? urls[0] : '';
 };
 
-// Generates URL friendly names
 const generateSlug = (name) => {
   if (!name) return '';
   return name.toString().toLowerCase().trim()
@@ -36,7 +35,7 @@ const generateSlug = (name) => {
 };
 
 export default function ClientView({ product }) {
-  const { addToCart, wishlist, toggleWishlist, setIsCartOpen, showToast } = useApp();
+  const { addToCart, wishlist, toggleWishlist, showToast } = useApp();
   
   const [imgIndex, setImgIndex] = useState(0);
   const [qty, setQty] = useState(1);
@@ -50,26 +49,57 @@ export default function ClientView({ product }) {
       if (data && data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
     });
     
-    fetch('https://ipapi.co/json/').then(r => r.json()).then(data => {
-      if (data && data.country_code) {
-        if (data.country_code === 'NG') setCurrency('NGN');
-        else if (data.country_code === 'GB') setCurrency('GBP');
-        else if (data.in_eu) setCurrency('EUR');
+    async function locateClientNetwork() {
+      const applyCountry = (code) => {
+        if (!code) return false;
+        const upper = code.toUpperCase();
+        if (upper === 'NG') setCurrency('NGN');
         else setCurrency('USD');
-      }
-    }).catch(() => {});
+        return true;
+      };
+
+      // 1. Primary: Vercel Server Edge Geo (/api/geo)
+      try {
+        const res = await fetch('/api/geo', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (applyCountry(data?.country_code)) return;
+        }
+      } catch (err) {}
+
+      // 2. Fallback: ipwho.is
+      try {
+        const fallbackRes = await fetch('https://ipwho.is/');
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success !== false && applyCountry(fallbackData?.country_code)) return;
+        }
+      } catch (err) {}
+
+      // 3. Last-resort browser timezone check
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz && tz !== 'Africa/Lagos') {
+          setCurrency('USD');
+        }
+      } catch (err) {}
+    }
+
+    locateClientNetwork();
   }, []);
 
   const formatPrice = (ngnPrice) => {
-    const rate = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) }[currency] || 1;
+    if (ngnPrice === undefined || ngnPrice === null) return '';
+    const rate = currency === 'USD' ? (1 / usdToNgnRate) : 1;
     const converted = Number(ngnPrice) * rate;
-    return currency === 'NGN' ? `₦${Math.round(converted).toLocaleString()}` : `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (isNaN(converted)) return '';
+    if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
+    return `$${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const handleAddToCart = () => {
     addToCart({ id: String(product.id), name: product.name, price: product.price, image: getPrimaryImage(product.image), is_sold_out: product.is_sold_out }, qty, selectedSize);
     showToast('Added to your cart.');
-    // REMOVED: setIsCartOpen(true); -> Now it adds silently!
   };
 
   const copyToClipboard = () => {
@@ -89,7 +119,7 @@ export default function ClientView({ product }) {
     <div className="min-h-screen bg-white text-black font-sans antialiased flex flex-col">
       <header className="border-b border-zinc-200 h-20 bg-white flex items-center shrink-0">
         <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 flex items-center justify-between">
-          <Link href="/shop" className="text-[9px] uppercase tracking-widest text-zinc-500 hover:text-black transition-colors">&larr; Back to Collection</Link>
+          <Link href={product.is_hidden ? "/private-access" : "/shop"} className="text-[9px] uppercase tracking-widest text-zinc-500 hover:text-black transition-colors">&larr; Back to Collection</Link>
           <Link href="/" className="text-sm sm:text-lg font-serif uppercase tracking-[0.3em] font-bold">S. SIKAMÒRE</Link>
           <div className="w-[100px] text-right">
             <button onClick={copyToClipboard} className="text-[9px] uppercase tracking-widest text-black border border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors">Share</button>
@@ -113,7 +143,13 @@ export default function ClientView({ product }) {
             <h1 className="text-xl sm:text-2xl font-normal tracking-[0.2em] uppercase font-serif pr-4">{product.name}</h1>
             <button onClick={() => toggleWishlist({ id: String(product.id), name: product.name, price: product.price, image: getPrimaryImage(product.image) })} className="text-black hover:scale-110 transition-transform"><svg className="w-5 h-5" fill={wishlist.some(w => w.id === String(product.id)) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === String(product.id)) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
           </div>
-          <p className="text-sm tracking-widest font-medium mb-8 text-zinc-500">{formatPrice(product.price)}</p>
+          <p className="text-sm tracking-widest font-medium mb-1.5 text-zinc-500">{formatPrice(product.price)}</p>
+          {!product.is_sold_out && product.stock_quantity > 0 && (
+            <p className="text-[10px] tracking-[0.15em] uppercase text-[#D31313] font-medium mb-7">
+              Only {product.stock_quantity} left
+            </p>
+          )}
+          {(product.is_sold_out || !product.stock_quantity || product.stock_quantity <= 0) && <div className="mb-7" />}
 
           <div className="mb-6">
             <span className="text-[9px] tracking-widest uppercase text-zinc-400 block mb-3">Select Size</span>
