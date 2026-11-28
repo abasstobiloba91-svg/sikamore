@@ -11,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const currencySymbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+const currencySymbols = { NGN: '₦', USD: '$' };
 
 const extractCleanUrls = (payload) => {
   if (!payload) return [];
@@ -55,7 +55,6 @@ export default function ShopCatalog() {
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
   const [detectedContinentCode, setDetectedContinentCode] = useState('AF');
-  const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
   const [viewCols, setViewCols] = useState(4); 
   const [isListView, setIsListView] = useState(false);
@@ -115,23 +114,15 @@ export default function ShopCatalog() {
 
   const formatPrice = (ngnPrice) => {
     if (ngnPrice === undefined || ngnPrice === null) return '';
-    const dynamicExchangeRates = { 
-      NGN: 1, 
-      USD: 1 / usdToNgnRate, 
-      GBP: 1 / (usdToNgnRate * 1.32),
-      EUR: 1 / (usdToNgnRate * 1.12) 
-    };
-    const rate = dynamicExchangeRates[currency] || 1;
+    const rate = currency === 'USD' ? (1 / usdToNgnRate) : 1;
     const converted = Number(ngnPrice) * rate; 
     if (isNaN(converted)) return '';
     if (currency === 'NGN') return `₦${Math.round(converted).toLocaleString()}`;
-    return `${currencySymbols[currency] || '$'}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   
   useEffect(() => {
     async function locateClientNetwork() {
-      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
-
       const applyCountry = (code, name = '', continent = '') => {
         if (!code) return false;
         const upper = code.toUpperCase();
@@ -139,12 +130,7 @@ export default function ShopCatalog() {
         if (name) setDetectedCountryName(name);
         if (continent) setDetectedContinentCode(continent.toUpperCase());
 
-        const checkEurope = euCountries.includes(upper) || upper === 'GB';
-        setIsEuropeanUser(checkEurope);
-
         if (upper === 'NG') setCurrency('NGN');
-        else if (upper === 'GB') setCurrency('GBP');
-        else if (euCountries.includes(upper)) setCurrency('EUR');
         else setCurrency('USD');
         return true;
       };
@@ -158,7 +144,7 @@ export default function ShopCatalog() {
         }
       } catch (err) {}
 
-      // 2. Fallback: ipwho.is (Free, no rate-limit wall like ipapi.co)
+      // 2. Fallback: ipwho.is
       try {
         const fallbackRes = await fetch('https://ipwho.is/');
         if (fallbackRes.ok) {
@@ -167,13 +153,11 @@ export default function ShopCatalog() {
         }
       } catch (err) {}
 
-      // 3. Last-resort browser timezone check (Botswana is Africa/Gaborone, Nigeria is Africa/Lagos)
+      // 3. Last-resort browser timezone check
       try {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
         if (tz && tz !== 'Africa/Lagos') {
-          if (tz === 'Europe/London') setCurrency('GBP');
-          else if (tz.startsWith('Europe/')) setCurrency('EUR');
-          else setCurrency('USD');
+          setCurrency('USD');
         }
       } catch (err) {}
     }
@@ -246,7 +230,6 @@ export default function ShopCatalog() {
         setProducts(data);
         setSearchResults(data);
 
-        // OPTIMIZATION: Extract images instantly during the data load, avoiding re-renders
         const accProducts = data.filter(p => p.category && p.category.toLowerCase() === 'accessories');
         let extractedImgs = [];
         accProducts.forEach(p => {
@@ -470,13 +453,6 @@ export default function ShopCatalog() {
             </div>
             
             <div className="flex-1 flex items-center justify-end gap-3 sm:gap-6">
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bg-transparent border-0 outline-none text-[9px] sm:text-[10px] font-bold tracking-[0.2em] cursor-pointer text-zinc-500 hover:text-black hidden sm:inline-block">
-                <option value="NGN">NGN ₦</option>
-                <option value="USD">USD $</option>
-                <option value="GBP">GBP £</option>
-                <option value="EUR">EUR €</option>
-              </select>
-
               <Link href="/dashboard?tab=wishlist" className="relative hover:text-zinc-500 transition-colors p-1 flex items-center">
                 <svg className="w-[14px] h-[14px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                 {wishlist.length > 0 && <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#D31313] text-white flex items-center justify-center rounded-full text-[7.5px] font-bold">{wishlist.length}</span>}
