@@ -333,7 +333,7 @@ export default function GlobalCart() {
             </h3>
             <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
             <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8 normal-case">
-              Please note that select pieces are handcrafted to order and require <strong className="text-black">1–2 weeks</strong> for preparation and dispatch before delivery.
+              Kindly allow <strong className="text-black">3–4 weeks</strong> for Aku Oyibo bags and <strong className="text-black">7–12 days</strong> for all other designs to be processed and delivered. Each piece is thoughtfully crafted, and we appreciate your patience.
             </p>
             <div className="flex flex-col gap-3">
               <button
