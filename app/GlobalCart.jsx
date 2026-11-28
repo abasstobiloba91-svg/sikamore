@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from './providers'; 
 import { createClient } from '@supabase/supabase-js';
@@ -40,6 +39,7 @@ export default function GlobalCart() {
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryZone, setDeliveryZone] = useState('');
+  const [showDeliveryNotice, setShowDeliveryNotice] = useState(false);
   
   const [detectedCountryCode, setDetectedCountryCode] = useState('NG');
   const [detectedCountryName, setDetectedCountryName] = useState('Nigeria');
@@ -47,7 +47,7 @@ export default function GlobalCart() {
   const [isEuropeanUser, setIsEuropeanUser] = useState(false);
 
   const cartSubtotal = cart ? cart.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 1)), 0) : 0;
-  const cartItemCount = cart ? cart.reduce((acc, curr) => acc + curr.quantity, 0) : 0;
+  const cartItemCount = cart ? cart.reduce((acc, curr) => acc + (Number(curr.quantity) || 1), 0) : 0;
 
   useEffect(() => {
     async function loadMasterSettings() {
@@ -56,12 +56,12 @@ export default function GlobalCart() {
         if (data) {
           if (data.usd_to_ngn_rate) setUsdToNgnRate(parseFloat(data.usd_to_ngn_rate));
           setLogistics({
-            mainland: data.mainland_fee || 5000,
-            island: data.island_fee || 6500,
-            interstateSouth: data.interstate_fee || 12500,
-            northernStates: (data.interstate_fee || 12500) + 3500,
-            africaUsd: data.international_fee_africa || 45,
-            globalUsd: data.international_fee_global || 55
+            mainland: Number(data.mainland_fee) || 5000,
+            island: Number(data.island_fee) || 6500,
+            interstateSouth: Number(data.interstate_fee) || 12500,
+            northernStates: Number(data.northern_fee) || 16000,
+            africaUsd: Number(data.international_fee_africa) || 45,
+            globalUsd: Number(data.international_fee_global) || 55
           });
         }
       } catch (e) {}
@@ -69,19 +69,69 @@ export default function GlobalCart() {
     loadMasterSettings();
 
     async function locateClientNetwork() {
+      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+
+      const applyCountry = (code, name = '', continent = '') => {
+        if (!code) return false;
+        const upper = code.toUpperCase();
+        setDetectedCountryCode(upper);
+
+        if (name) {
+          setDetectedCountryName(name);
+        } else {
+          try {
+            const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+            const resolvedName = regionNames.of(upper);
+            if (resolvedName) setDetectedCountryName(resolvedName);
+          } catch (e) {
+            setDetectedCountryName(upper === 'NG' ? 'Nigeria' : 'International');
+          }
+        }
+
+        if (continent) setDetectedContinentCode(continent.toUpperCase());
+
+        const checkEurope = euCountries.includes(upper) || upper === 'GB';
+        setIsEuropeanUser(checkEurope);
+
+        if (upper === 'NG') setCurrency('NGN');
+        else if (upper === 'GB') setCurrency('GBP');
+        else if (euCountries.includes(upper)) setCurrency('EUR');
+        else setCurrency('USD');
+
+        // Reset delivery selection if country changed so region options stay valid
+        setSelectedDelivery(null);
+        setDeliveryFee(0);
+        setDeliveryZone('');
+        return true;
+      };
+
+      // 1. Primary: Vercel Server Edge Geo (/api/geo) — Zero rate limits & ad-blocker proof
       try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.country_code) {
-          setDetectedCountryCode(data.country_code);
-          setDetectedCountryName(data.country_name);
-          setDetectedContinentCode(data.continent_code);
-          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
-          setIsEuropeanUser(checkEurope);
-          if (data.country_code === 'NG') setCurrency('NGN');
-          else if (data.continent_code === 'AF') setCurrency('USD'); 
-          else if (data.country_code === 'GB') setCurrency('GBP');
-          else if (checkEurope) setCurrency('EUR');
+        const res = await fetch('/api/geo', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (applyCountry(data?.country_code, '', data?.continent_code)) return;
+        }
+      } catch (err) {}
+
+      // 2. Fallback: ipwho.is
+      try {
+        const fallbackRes = await fetch('https://ipwho.is/');
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success !== false && applyCountry(fallbackData?.country_code, fallbackData?.country, fallbackData?.continent_code)) return;
+        }
+      } catch (err) {}
+
+      // 3. Last-resort browser timezone check
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz && tz !== 'Africa/Lagos') {
+          setDetectedCountryCode('INTL');
+          setDetectedCountryName('International');
+          setDetectedContinentCode(tz.startsWith('Africa/') ? 'AF' : 'GLOBAL');
+          if (tz === 'Europe/London') setCurrency('GBP');
+          else if (tz.startsWith('Europe/')) setCurrency('EUR');
           else setCurrency('USD');
         }
       } catch (err) {}
@@ -112,13 +162,13 @@ export default function GlobalCart() {
   const getDisplayTotal = () => {
     const dynamicExchangeRates = { NGN: 1, USD: 1 / usdToNgnRate, GBP: 1 / (usdToNgnRate * 1.32), EUR: 1 / (usdToNgnRate * 1.12) };
     const productsConverted = cartSubtotal * (dynamicExchangeRates[currency] || 1); 
-    const shippingConverted = deliveryFee * 1.0 * (dynamicExchangeRates[currency] || 1);
+    const shippingConverted = deliveryFee * (dynamicExchangeRates[currency] || 1);
     const combinedTotal = productsConverted + shippingConverted;
     if (currency === 'NGN') return `₦${Math.round(combinedTotal).toLocaleString()}`;
     return `${currencySymbols[currency] || '$'}${combinedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // DYNAMIC DELIVERY OPTIONS BASED ON USER LOCATION
+  // DYNAMIC DELIVERY OPTIONS BASED ON ADMIN SETTINGS & USER LOCATION
   const allDeliveryOptions = [
     { id: 'mainland', title: 'LAGOS MAINLAND', desc: 'Delivery within Lagos Mainland', fee: logistics.mainland, currency: 'NGN', region: 'NG' },
     { id: 'island', title: 'LAGOS ISLAND', desc: 'Delivery within Lagos Island', fee: logistics.island, currency: 'NGN', region: 'NG' },
@@ -139,9 +189,25 @@ export default function GlobalCart() {
     setDeliveryFee(opt.fee);
   };
 
+  const confirmAndProceedToCheckout = () => {
+    localStorage.setItem(
+      'sikamore_delivery',
+      JSON.stringify({
+        fee: deliveryFee,
+        zone: deliveryZone,
+        currency: currency,
+        countryCode: detectedCountryCode,
+        countryName: detectedCountryName
+      })
+    );
+    setShowDeliveryNotice(false);
+    setIsCartOpen(false);
+    router.push('/checkout');
+  };
+
   return (
     <>
-      {/* FLOATING CART BUTTON */}
+      {/* FLOATING CART BUTTON (Shop & Product Pages; /private-access has its own pill that opens this drawer) */}
       {cartItemCount > 0 && !isCartOpen && (pathname === '/shop' || pathname.startsWith('/product')) && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-auto pointer-events-auto animate-fade-in" style={{ zIndex: 9999990 }}>
           <div className="bg-red-600 rounded-full flex items-center justify-between p-1.5 sm:p-2 border border-red-500 shadow-[0_10px_30px_rgba(220,38,38,0.4)]">
@@ -152,7 +218,7 @@ export default function GlobalCart() {
             </div>
             <button 
               onClick={() => setIsCartOpen(true)} 
-              className="bg-white text-red-600 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors shrink-0 ml-2 shadow-sm"
+              className="bg-white text-red-600 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors shrink-0 ml-2 shadow-sm cursor-pointer"
             >
               View Cart
             </button>
@@ -167,13 +233,13 @@ export default function GlobalCart() {
         {/* HEADER */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-900 shrink-0">
           <h2 className="text-[11px] tracking-[0.2em] uppercase font-medium">Your Cart ({cartItemCount})</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors text-[10px] tracking-widest uppercase">&larr; Continue Shopping</button>
+          <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors text-[10px] tracking-widest uppercase cursor-pointer">&larr; Continue Shopping</button>
         </div>
         
         {/* SCROLLABLE BODY: ITEMS + DELIVERY OPTIONS */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {cart.length === 0 ? (
-            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your cart is currently empty. Let's find you something beautiful.</div>
+            <div className="text-center text-zinc-600 text-[10px] tracking-widest uppercase mt-10">Your cart is currently empty. Let&apos;s find you something beautiful.</div>
           ) : (
             <>
               {/* CART ITEMS LIST */}
@@ -193,7 +259,7 @@ export default function GlobalCart() {
                         <div className="flex items-center gap-3 border border-zinc-800 px-2 py-1">
                           <span className="text-[10px] text-zinc-500">Qty: {item.quantity}</span>
                           <span className="text-zinc-800">|</span>
-                          <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400">Remove</button>
+                          <button onClick={() => removeFromCart(item.id, item.size)} className="text-[9px] uppercase tracking-wider text-red-500 hover:text-red-400 cursor-pointer">Remove</button>
                         </div>
                       </div>
                     </div>
@@ -201,7 +267,7 @@ export default function GlobalCart() {
                 ))}
               </div>
 
-              {/* DELIVERY OPTIONS SECTION (INSIDE SCROLL BODY NOW) */}
+              {/* DELIVERY OPTIONS SECTION */}
               <div className="pt-6 border-t border-zinc-900">
                 <h3 className="text-[11px] text-white uppercase tracking-[0.2em] mb-1 font-medium">Delivery Options</h3>
                 <p className="text-[9px] text-zinc-500 tracking-wider mb-4">
@@ -213,7 +279,7 @@ export default function GlobalCart() {
                     <button 
                       key={opt.id}
                       onClick={() => handleSelectDelivery(opt)}
-                      className={`flex items-center justify-between p-3.5 border text-left transition-all rounded-xs ${selectedDelivery?.id === opt.id ? 'border-white bg-white text-black shadow-lg' : 'border-zinc-800 text-white hover:border-zinc-600 bg-zinc-950'}`}
+                      className={`flex items-center justify-between p-3.5 border text-left transition-all rounded-xs cursor-pointer ${selectedDelivery?.id === opt.id ? 'border-white bg-white text-black shadow-lg' : 'border-zinc-800 text-white hover:border-zinc-600 bg-zinc-950'}`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${selectedDelivery?.id === opt.id ? 'border-black' : 'border-zinc-500'}`}>
@@ -258,17 +324,53 @@ export default function GlobalCart() {
             <button 
               onClick={() => { 
                 if (!selectedDelivery) return showToast("PLEASE SELECT A DELIVERY REGION TO PROCEED."); 
-                localStorage.setItem('sikamore_delivery', JSON.stringify({ fee: deliveryFee, zone: deliveryZone, currency: currency, countryCode: detectedCountryCode, countryName: detectedCountryName })); 
-                setIsCartOpen(false); 
-                router.push('/checkout'); 
+                setShowDeliveryNotice(true);
               }} 
-              className={`w-full text-center flex items-center justify-center py-4 text-[10px] tracking-[0.2em] uppercase transition-colors font-bold rounded-xs ${!selectedDelivery ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-200'}`}
+              className={`w-full text-center flex items-center justify-center py-4 text-[10px] tracking-[0.2em] uppercase transition-colors font-bold rounded-xs cursor-pointer ${!selectedDelivery ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-200'}`}
             >
               {!selectedDelivery ? 'SELECT A DELIVERY REGION' : 'CONTINUE TO CHECKOUT \u2192'}
             </button>
           </div>
         )}
       </div>
+
+      {/* BRANDED 1-2 WEEKS DELIVERY TIMELINE MODAL */}
+      {showDeliveryNotice && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          style={{ zIndex: 99999999 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeliveryNotice(false); }}
+        >
+          <div className="bg-white border border-zinc-200 w-full max-w-md p-8 sm:p-10 text-center shadow-2xl rounded-sm text-black">
+            <p className="text-[8px] tracking-[0.35em] uppercase text-zinc-400 mb-3">
+              S. SIKAMÒRE • CLIENT ADVISORY
+            </p>
+            <h3 className="text-sm sm:text-base font-serif tracking-[0.25em] uppercase text-black mb-4">
+              Delivery Notice
+            </h3>
+            <div className="w-8 h-[1px] bg-black mx-auto mb-5"></div>
+            <p className="text-[11px] text-zinc-600 leading-relaxed tracking-wide mb-8 normal-case">
+              Please note that select pieces are handcrafted to order and require <strong className="text-black">1–2 weeks</strong> for preparation and dispatch before delivery.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={confirmAndProceedToCheckout}
+                className="w-full bg-black text-white py-3.5 text-[9px] tracking-[0.25em] uppercase font-bold hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Okay, Proceed to Checkout
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeliveryNotice(false)}
+                className="w-full bg-white text-zinc-500 border border-zinc-200 py-3 text-[9px] tracking-[0.25em] uppercase hover:text-black hover:border-black transition-colors cursor-pointer"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
