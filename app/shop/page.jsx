@@ -130,19 +130,49 @@ export default function ShopCatalog() {
   
   useEffect(() => {
     async function locateClientNetwork() {
+      const euCountries = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+
+      const applyCountry = (code, name = '', continent = '') => {
+        if (!code) return false;
+        const upper = code.toUpperCase();
+        setDetectedCountryCode(upper);
+        if (name) setDetectedCountryName(name);
+        if (continent) setDetectedContinentCode(continent.toUpperCase());
+
+        const checkEurope = euCountries.includes(upper) || upper === 'GB';
+        setIsEuropeanUser(checkEurope);
+
+        if (upper === 'NG') setCurrency('NGN');
+        else if (upper === 'GB') setCurrency('GBP');
+        else if (euCountries.includes(upper)) setCurrency('EUR');
+        else setCurrency('USD');
+        return true;
+      };
+
+      // 1. Primary: Vercel Server Edge Geo (/api/geo) — Zero rate limits & ad-blocker proof
       try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.country_code) {
-          setDetectedCountryCode(data.country_code);
-          setDetectedCountryName(data.country_name);
-          setDetectedContinentCode(data.continent_code);
-          const checkEurope = data.in_eu || ['FR', 'DE', 'IT', 'ES', 'NL', 'GB'].includes(data.country_code);
-          setIsEuropeanUser(checkEurope);
-          if (data.country_code === 'NG') setCurrency('NGN');
-          else if (data.continent_code === 'AF') setCurrency('USD'); 
-          else if (data.country_code === 'GB') setCurrency('GBP');
-          else if (checkEurope) setCurrency('EUR');
+        const res = await fetch('/api/geo', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (applyCountry(data?.country_code, '', data?.continent_code)) return;
+        }
+      } catch (err) {}
+
+      // 2. Fallback: ipwho.is (Free, no rate-limit wall like ipapi.co)
+      try {
+        const fallbackRes = await fetch('https://ipwho.is/');
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success !== false && applyCountry(fallbackData?.country_code, fallbackData?.country, fallbackData?.continent_code)) return;
+        }
+      } catch (err) {}
+
+      // 3. Last-resort browser timezone check (Botswana is Africa/Gaborone, Nigeria is Africa/Lagos)
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz && tz !== 'Africa/Lagos') {
+          if (tz === 'Europe/London') setCurrency('GBP');
+          else if (tz.startsWith('Europe/')) setCurrency('EUR');
           else setCurrency('USD');
         }
       } catch (err) {}
@@ -208,12 +238,11 @@ export default function ShopCatalog() {
         .from('products')
         .select('*')
         .lte('published_at', now)
-        .neq('is_hidden', true) // <-- ADD THIS LINE
+        .neq('is_hidden', true)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
         
       if (data) {
-        
         setProducts(data);
         setSearchResults(data);
 
@@ -275,9 +304,9 @@ export default function ShopCatalog() {
   const minSwipeDistance = 30;
   const onTouchStart = (e) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches.clientX);
+    setTouchStart(e.targetTouches[0]?.clientX);
   };
-  const onTouchMove = (e) => setTouchEnd(e.targetTouches.clientX);
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0]?.clientX);
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
@@ -382,6 +411,11 @@ export default function ShopCatalog() {
         <div className="flex flex-col gap-1 mt-4 text-left px-1">
           <h3 className="text-[10px] sm:text-[11px] tracking-[0.15em] uppercase text-zinc-800 truncate">{product.name}</h3>
           <p className="text-[11px] sm:text-[13px] tracking-widest text-black font-medium">{formatPrice(product.price)}</p>
+          {!product.is_sold_out && product.stock_quantity > 0 && (
+            <p className="text-[9px] tracking-[0.15em] uppercase text-[#D31313] font-medium mt-0.5">
+              Only {product.stock_quantity} left
+            </p>
+          )}
           <div className="flex lg:hidden flex-col gap-2 mt-3 w-full">
             <button type="button" onClick={(e) => handleAddToCart(e, product)} disabled={product.is_sold_out} className={`w-full bg-black text-white py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium transition-colors ${product.is_sold_out ? 'opacity-50 cursor-not-allowed' : ''}`}>Add to Cart</button>
             <Link href={`/product/${productSlug}`} className="w-full text-center bg-white text-black border border-zinc-200 py-2.5 text-[8px] uppercase tracking-[0.2em] font-medium active:bg-zinc-50 transition-colors block">View Product</Link>
@@ -452,7 +486,7 @@ export default function ShopCatalog() {
         </header>
       </div>
 
-      <section className="bg-white border-b border-zinc-200 relative z-">
+      <section className="bg-white border-b border-zinc-200 relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <button onClick={() => setIsFilterOpen(true)} className="flex items-center gap-2 border border-zinc-200 px-3.5 py-1.5 text-[9px] uppercase tracking-wider hover:border-black hover:bg-black hover:text-white transition-colors">Refine</button>
           
@@ -464,13 +498,13 @@ export default function ShopCatalog() {
             <div className="hidden md:flex items-center gap-2">
               <button onClick={() => { setViewCols(2); setIsListView(false); }} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 2 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[14px] h-[14px]" fill="currentColor" viewBox="0 0 16 16"><rect width="6" height="14" x="1" y="1"/><rect width="6" height="14" x="9" y="1"/></svg></button>
               <button onClick={() => { setViewCols(3); setIsListView(false); }} className={`flex gap-[3px] p-2 border transition-all ${viewCols === 3 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[18px] h-[14px]" fill="currentColor" viewBox="0 0 20 16"><rect width="5" height="14" x="1" y="1"/><rect width="5" height="14" x="7" y="1"/><rect width="5" height="14" x="13" y="1"/></svg></button>
-              <button onClick={() => { setViewCols(4); setIsListView(false); }} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[22px] h-14" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg></button>
+              <button onClick={() => { setViewCols(4); setIsListView(false); }} className={`flex gap-[2px] p-2 border transition-all ${viewCols === 4 && !isListView ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-400'}`}><svg className="w-[22px] h-[14px]" fill="currentColor" viewBox="0 0 24 16"><rect width="4" height="14" x="1" y="1"/><rect width="4" height="14" x="6" y="1"/><rect width="4" height="14" x="11" y="1"/><rect width="4" height="14" x="16" y="1"/></svg></button>
             </div>
           </div>
         </div>
       </section>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative z- pb-32">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 py-6 sm:py-16 bg-white relative pb-32">
         {loading ? (
           <div className="text-center py-32 tracking-[0.3em] text-zinc-500 uppercase text-[9px]">Preparing the Collection for You...</div>
         ) : searchResults.length === 0 ? (
@@ -486,7 +520,6 @@ export default function ShopCatalog() {
 
                 {searchResults.length > 4 && (
                   <div className="w-screen h-[50vh] sm:h-[85vh] relative flex flex-col items-center justify-center overflow-hidden my-16 sm:my-28 left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-[#050505]">
-                    {/* OPTIMIZATION: h-[50vh] for Mobile (Half Screen), sm:h-[85vh] for Desktop */}
                     <style dangerouslySetInnerHTML={{__html: `
                       @keyframes subtleZoom {
                         0% { transform: scale(1); }
@@ -550,7 +583,7 @@ export default function ShopCatalog() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative z-">
+      <footer className="border-t border-zinc-200 bg-white pt-16 pb-12 mt-16 sm:mt-20 text-black relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 mb-12 text-center border-b border-zinc-100 pb-12">
           <h2 className="text-xl sm:text-3xl tracking-[0.5em] uppercase font-normal text-black pl-[0.5em] select-none font-serif font-bold">
             S. SIKAMÒRE
@@ -673,7 +706,7 @@ export default function ShopCatalog() {
                   )}
                 </div>
                 
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-">
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-20">
                   <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const arr = extractCleanUrls(quickViewProduct.image); if (arr.length > 0) { setQuickViewImgIndex(prev => (prev - 1 + arr.length) % arr.length); } }} className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
                   <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const arr = extractCleanUrls(quickViewProduct.image); if (arr.length > 0) { setQuickViewImgIndex(prev => (prev + 1) % arr.length); } }} className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform cursor-pointer pointer-events-auto"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
                 </div>
@@ -697,7 +730,12 @@ export default function ShopCatalog() {
                     <button onClick={(e) => handleWishlistClick(e, quickViewProduct)} className="text-black hover:scale-110 transition-transform"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "none"} stroke={wishlist.some(w => w.id === quickViewProduct.id) ? "#D31313" : "currentColor"} strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg></button>
                   </div>
                 </div>
-                <p className="text-xs tracking-widest font-medium mb-6 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
+                <p className="text-xs tracking-widest font-medium mb-1 text-zinc-500">{formatPrice(quickViewProduct.price)}</p>
+                {!quickViewProduct.is_sold_out && quickViewProduct.stock_quantity > 0 && (
+                  <p className="text-[9px] tracking-[0.15em] uppercase text-[#D31313] font-medium mb-5">
+                    Only {quickViewProduct.stock_quantity} left
+                  </p>
+                )}
                 <div className="mb-5">
                   <span className="text-[8px] tracking-widest uppercase text-zinc-400 block mb-2">Choose your perfect size</span>
                   <div className="flex gap-2">
