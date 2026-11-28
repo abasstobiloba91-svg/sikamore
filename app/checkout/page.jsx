@@ -111,10 +111,6 @@ export default function CheckoutPage() {
           } else {
             setCurrency('NGN');
           }
-          
-          if (parsed.countryName) {
-            setCountryInput(parsed.countryName.toUpperCase());
-          }
         } catch(e) {}
       }
     }
@@ -122,24 +118,14 @@ export default function CheckoutPage() {
     // Follow exact general Admin location rule if coming directly from /private-access
     if (!hasStoredDelivery) {
       (async () => {
-        const applyGeo = (code, name = '', continent = '') => {
+        const applyGeo = (code, continent = '') => {
           if (!code) return false;
           const upper = code.toUpperCase();
           if (continent) setDetectedContinent(continent.toUpperCase());
           if (upper === 'NG') {
             setCurrency('NGN');
-            setCountryInput('NIGERIA');
           } else {
             setCurrency('USD');
-            if (name) {
-              setCountryInput(name.toUpperCase());
-            } else {
-              try {
-                const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-                const resolvedName = regionNames.of(upper);
-                if (resolvedName) setCountryInput(resolvedName.toUpperCase());
-              } catch (e) {}
-            }
           }
           return true;
         };
@@ -148,7 +134,7 @@ export default function CheckoutPage() {
           const res = await fetch('/api/geo', { cache: 'no-store' });
           if (res.ok) {
             const data = await res.json();
-            if (applyGeo(data?.country_code, '', data?.continent_code)) return;
+            if (applyGeo(data?.country_code, data?.continent_code)) return;
           }
         } catch (err) {}
 
@@ -156,7 +142,7 @@ export default function CheckoutPage() {
           const fallbackRes = await fetch('https://ipwho.is/');
           if (fallbackRes.ok) {
             const fallbackData = await fallbackRes.json();
-            if (fallbackData?.success !== false && applyGeo(fallbackData?.country_code, fallbackData?.country, fallbackData?.continent_code)) return;
+            if (fallbackData?.success !== false && applyGeo(fallbackData?.country_code, fallbackData?.continent_code)) return;
           }
         } catch (err) {}
 
@@ -165,8 +151,6 @@ export default function CheckoutPage() {
           if (tz && tz !== 'Africa/Lagos') {
             setCurrency('USD');
             setDetectedContinent(tz.startsWith('Africa/') ? 'AF' : 'GLOBAL');
-          } else {
-            setCountryInput('NIGERIA');
           }
         } catch (err) {}
       })();
@@ -477,7 +461,7 @@ export default function CheckoutPage() {
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="ENTER PASSWORD (OPTIONAL)" className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest pr-12 transition-colors" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
                     </button>
                   </div>
                   <button type="button" onClick={handlePasswordReset} className="text-[8px] text-zinc-400 hover:text-black underline uppercase tracking-widest mt-1 block">Forgot Password?</button>
@@ -490,7 +474,7 @@ export default function CheckoutPage() {
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="CREATE PASSWORD (OPTIONAL)" className="w-full bg-white p-4 border border-zinc-200 focus:border-black outline-none text-base md:text-[11px] uppercase tracking-widest pr-12 transition-colors" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
                     </button>
                   </div>
                 </div>
